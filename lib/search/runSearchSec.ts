@@ -33,6 +33,12 @@ import {
   isRssScopedQuery,
   type RssFetchResult,
 } from "@/lib/providers/rssNews";
+import {
+  FDA_UNAVAILABLE_EVIDENCE,
+  fetchFdaProspects,
+  isFdaScopedQuery,
+  type FdaFetchResult,
+} from "@/lib/providers/fda";
 
 /**
  * Provider-aware search pipeline.
@@ -42,6 +48,7 @@ import {
  *   - SEC EDGAR for public-company references (non public-sector packs)
  *   - CMS for health-plan org references (health-plans pack only)
  *   - RSS for press releases when a curated feed matches (four packs)
+ *   - FDA / openFDA for recall enforcement (manufacturers; conditional others)
  *
  * Guarantees:
  *   - Every real provider is best-effort. Failures are caught and mock results
@@ -64,6 +71,10 @@ export async function runSearchWithProviders(
 
   if (plan.providers.includes("news-rss")) {
     result = await tryRssProvider(result);
+  }
+
+  if (plan.providers.includes("fda")) {
+    result = await tryFdaProvider(result);
   }
 
   return result;
@@ -328,6 +339,92 @@ function withRssUnavailableNote(base: SearchResponse): SearchResponse {
     sourceTrail: [
       ...first.sourceTrail,
       { source: "RSS", evidenceText: RSS_UNAVAILABLE_EVIDENCE },
+    ],
+  };
+  return { query: base.query, prospects: [noted, ...rest] };
+}
+
+// ---------------------------------------------------------------------------
+// FDA / openFDA
+// ---------------------------------------------------------------------------
+
+async function tryFdaProvider(base: SearchResponse): Promise<SearchResponse> {
+  const { query } = base;
+  const hint = orgHint(query);
+  const sells = query.raw.sells?.trim() ?? "";
+  if (!hint || !isFdaScopedQuery(hint, query.profile.targetBuyer, sells)) {
+    return base;
+  }
+
+  try {
+    const { results, allSourcesFailed } = await fetchFdaProspects(
+      `${hint} ${sells}`.trim(),
+      query.profile.targetBuyer,
+    );
+    if (results.length === 0) {
+      return allSourcesFailed ? withFdaUnavailableNote(base) : base;
+    }
+
+    const fdaProspects = results.map((data) => buildFdaProspect(data, query));
+    const existingIds = new Set(fdaProspects.map((p) => p.id));
+    const rest = base.prospects.filter((p) => !existingIds.has(p.id));
+    const prospects = [...fdaProspects, ...rest].sort((a, b) => b.score - a.score);
+    return { query, prospects };
+  } catch (err) {
+    console.warn("[fda] provider unavailable, falling back to mock:", err);
+    return withFdaUnavailableNote(base);
+  }
+}
+
+function buildFdaProspect(
+  fdaData: FdaFetchResult,
+  query: SearchQuery,
+): Prospect {
+  const pack = getBuyerPack(query.profile.targetBuyer);
+  const { firm, signals, matchedOn, confidence, domains } = fdaData;
+
+  const raw: RawProspect = {
+    id: firm.id,
+    name: firm.firmName,
+    location: firm.location,
+    region: firm.region,
+    buyerPack: query.profile.targetBuyer,
+    size: firm.size,
+    signals: [],
+    fitKeywords: [],
+  };
+
+  const breakdown = scoreProspect(raw, signals, query);
+  let prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+
+  if (confidence === "named") {
+    prospect = {
+      ...prospect,
+      score: Math.min(100, prospect.score + 5),
+      scoreBreakdown: {
+        ...prospect.scoreBreakdown,
+        total: Math.min(100, prospect.scoreBreakdown.total + 5),
+      },
+    };
+  }
+
+  const trail = [...prospect.sourceTrail];
+  trail.push({
+    source: "FDA",
+    evidenceText: `openFDA ${domains.join("/")} enforcement · ${matchedOn}`,
+  });
+
+  return { ...prospect, sourceTrail: trail };
+}
+
+function withFdaUnavailableNote(base: SearchResponse): SearchResponse {
+  if (base.prospects.length === 0) return base;
+  const [first, ...rest] = base.prospects;
+  const noted: Prospect = {
+    ...first,
+    sourceTrail: [
+      ...first.sourceTrail,
+      { source: "FDA", evidenceText: FDA_UNAVAILABLE_EVIDENCE },
     ],
   };
   return { query: base.query, prospects: [noted, ...rest] };

@@ -72,6 +72,14 @@ const SIGNAL_WHY: Record<string, string> = {
   "rss-regulatory-issue": "Regulatory press coverage forces near-term compliance action",
   "rss-hiring-workforce": "Workforce growth signals budget flowing toward people and programs",
   "rss-cost-pressure": "Public cost pressure sharpens appetite for savings",
+  "fda-food-recall": "Food recalls force rapid corrective action and supplier review",
+  "fda-drug-recall": "Drug recalls trigger compliance remediation and supply disruption",
+  "fda-device-recall": "Device recalls create urgent clinical supply and liability pressure",
+  "fda-manufacturing-quality": "Quality deviations expose process gaps and remediation spend",
+  "fda-labeling-issue": "Labeling errors force relabeling and compliance corrections",
+  "fda-packaging-contamination": "Packaging or contamination events demand immediate containment",
+  "fda-regulatory-pressure": "FDA enforcement sharpens appetite for compliance investment",
+  "fda-product-safety": "Product safety events elevate risk management urgency",
 };
 
 function capitalize(text: string): string {

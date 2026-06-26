@@ -47,6 +47,16 @@ export function planSources(query: SearchQuery): SourcePlan {
     providers.push("news-rss");
   }
 
+  // FDA / openFDA enforcement recalls — manufacturers always; health-systems
+  // and employers gated at fetch time. Not health-plans.
+  if (
+    pack === "manufacturers" ||
+    pack === "health-systems" ||
+    pack === "employers"
+  ) {
+    providers.push("fda");
+  }
+
   return {
     query,
     buyerPacks: [pack],
