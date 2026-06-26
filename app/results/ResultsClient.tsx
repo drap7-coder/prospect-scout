@@ -20,6 +20,7 @@ import {
   sortResults,
   type ResultsSortKey,
 } from "@/lib/search/resultsFilters";
+import { formatSourceSummary } from "@/lib/search/sourceSummary";
 import { saveWorkspace } from "@/lib/intelligence/session";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
@@ -277,6 +278,7 @@ export function ResultsClient() {
   }
 
   const summary = describeSearch(searchState);
+  const sourceSummary = formatSourceSummary(filtered.length, filtered);
   const hasQuery = Boolean(searchState.query.trim());
   const showResults =
     allProspects.length > 0 &&
@@ -320,11 +322,16 @@ export function ResultsClient() {
                 <p className="text-sm leading-snug text-muted">{summary}</p>
                 {showResults || phase === "ready" ? (
                   <p className="mt-1 font-mono text-xs text-muted-2">
-                    <span className="text-accent-cyan">{filtered.length}</span>
-                    {filtered.length !== allProspects.length
-                      ? ` of ${allProspects.length}`
-                      : ""}{" "}
-                    organizations
+                    {sourceSummary}
+                    {filtered.length !== allProspects.length ? (
+                      <>
+                        {" "}
+                        ·{" "}
+                        <span className="text-muted">
+                          {filtered.length} after filters
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                 ) : null}
                 {hasQuery && phase !== "idle" ? (
@@ -357,6 +364,7 @@ export function ResultsClient() {
               <ResultsFilterRail
                 state={searchState}
                 onChange={handleFiltersChange}
+                prospects={allProspects}
               />
 
               <div className="min-w-0 flex-1">

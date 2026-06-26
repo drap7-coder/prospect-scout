@@ -3,8 +3,12 @@ import { inferRegionFromText, normalizeRegion, ANY_REGION } from "./regions";
 import {
   EXAMPLE_SEARCHES,
   FRESHNESS_FILTERS,
+  OWNERSHIP_FILTERS,
   TAXONOMY_ORGANIZATION_TYPES,
   TAXONOMY_SECTORS,
+  TAXONOMY_SIGNAL_FILTERS,
+  TAXONOMY_SOURCE_FILTERS,
+  US_STATE_FILTERS,
   getIndustry,
   getIndustryByLabel,
   industriesForSector,
@@ -32,6 +36,10 @@ export interface SearchState {
   freshness: string | null;
   /** Optional outreach personalization — not required for search. */
   sellerContext: string | null;
+  /** Public vs private ownership filter. */
+  ownership: string | null;
+  /** US state postal code filter, e.g. OH. */
+  state: string | null;
 }
 
 export const EMPTY_SEARCH_STATE: SearchState = {
@@ -45,6 +53,8 @@ export const EMPTY_SEARCH_STATE: SearchState = {
   sources: [],
   freshness: null,
   sellerContext: null,
+  ownership: null,
+  state: null,
 };
 
 export { EXAMPLE_SEARCHES, FRESHNESS_FILTERS };
@@ -77,26 +87,11 @@ export const COMPANY_SIZES = [
   "Enterprise",
 ] as const;
 
-export const SIGNAL_FILTERS = [
-  { id: "leadership-change", label: "Leadership Change" },
-  { id: "growth-expansion", label: "Growth / Expansion" },
-  { id: "regulatory-pressure", label: "Regulatory Pressure" },
-  { id: "fda-recall", label: "FDA Recall" },
-  { id: "cms-enrollment", label: "CMS Enrollment Growth" },
-  { id: "star-ratings", label: "Star Ratings Pressure" },
-  { id: "sec-filing", label: "SEC Filing Event" },
-  { id: "hiring", label: "Hiring" },
-  { id: "partnership-acquisition", label: "Partnership / Acquisition" },
-] as const;
+export const SIGNAL_FILTERS = TAXONOMY_SIGNAL_FILTERS;
 
-export const SOURCE_FILTERS = [
-  { id: "CMS", label: "CMS" },
-  { id: "SEC", label: "SEC EDGAR" },
-  { id: "FDA", label: "FDA" },
-  { id: "RSS", label: "RSS / News" },
-  { id: "Public Web", label: "Public Web" },
-  { id: "Mock", label: "Mock" },
-] as const;
+export const SOURCE_FILTERS = TAXONOMY_SOURCE_FILTERS;
+
+export { OWNERSHIP_FILTERS, US_STATE_FILTERS };
 
 /** @deprecated Use SECTORS — kept for import compatibility. */
 export const INDUSTRIES = SECTORS.map((s) => s.label);
@@ -160,6 +155,8 @@ export function parseSearchStateFromParams(
     sources: parseList(params.get("sources")),
     freshness: params.get("freshness"),
     sellerContext: params.get("seller"),
+    ownership: params.get("ownership"),
+    state: params.get("state"),
   };
 }
 
@@ -176,6 +173,8 @@ export function searchStateToParams(state: SearchState): URLSearchParams {
   if (state.sources.length) p.set("sources", state.sources.join(","));
   if (state.freshness) p.set("freshness", state.freshness);
   if (state.sellerContext?.trim()) p.set("seller", state.sellerContext.trim());
+  if (state.ownership) p.set("ownership", state.ownership);
+  if (state.state) p.set("state", state.state);
   return p;
 }
 
@@ -210,6 +209,21 @@ export function inferSearchStateFromQuery(query: string): Partial<SearchState> {
     inferred.sources = [...new Set([...(inferred.sources ?? []), "SEC"])];
   }
 
+  const stateMatch = hay.match(/\b(ohio|pennsylvania|michigan|illinois|new york|california|texas|florida)\b/);
+  if (stateMatch) {
+    const stateMap: Record<string, string> = {
+      ohio: "OH",
+      pennsylvania: "PA",
+      michigan: "MI",
+      illinois: "IL",
+      "new york": "NY",
+      california: "CA",
+      texas: "TX",
+      florida: "FL",
+    };
+    inferred.state = stateMap[stateMatch[1]] ?? null;
+  }
+
   return inferred;
 }
 
@@ -232,6 +246,8 @@ export function resolveSearchState(state: SearchState): SearchState {
     freshness: state.freshness ?? inferred.freshness ?? null,
     signals: state.signals.length ? state.signals : (inferred.signals ?? []),
     sources: state.sources.length ? state.sources : (inferred.sources ?? []),
+    ownership: state.ownership ?? inferred.ownership ?? null,
+    state: state.state ?? inferred.state ?? null,
   };
 }
 

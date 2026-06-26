@@ -29,7 +29,7 @@ export type SignalType =
  * Where a signal's evidence would come from once real providers are wired.
  * These mirror the future free data sources (kept to the six shown on cards).
  */
-export type SignalSource = "CMS" | "SEC" | "FDA" | "RSS" | "Careers" | "Company" | "Public Web";
+export type SignalSource = "Directory" | "CMS" | "SEC" | "FDA" | "RSS" | "Careers" | "Company" | "Public Web";
 
 /** Qualitative signal strength, mapped to a numeric score by the builder. */
 export type SignalStrength = "weak" | "moderate" | "strong";
@@ -188,6 +188,13 @@ export interface RawProspect {
   directoryId?: string;
   /** True when the org exists in the curated master directory. */
   directoryMatch?: boolean;
+  /** Taxonomy metadata from directory record. */
+  sectorId?: string;
+  industryId?: string;
+  organizationTypeId?: string;
+  /** US state code when known from directory. */
+  stateCode?: string;
+  publicCompany?: boolean;
 }
 
 /** A fully enriched signal ready to score, explain, and display. */
@@ -265,6 +272,14 @@ export interface Prospect {
   contactRoles: string[];
   /** Approximate organization size tier when available. */
   size?: SizeTier;
+  /** Taxonomy metadata for client-side filtering. */
+  sectorId?: string;
+  industryId?: string;
+  organizationTypeId?: string;
+  stateCode?: string;
+  publicCompany?: boolean;
+  /** True when sourced from master directory without live enrichment. */
+  directoryMatch?: boolean;
 }
 
 /** Response shape returned by `/api/search`. */

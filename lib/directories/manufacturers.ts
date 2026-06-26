@@ -1,13 +1,17 @@
 import type { OrganizationRecord } from "./types";
+import { OHIO_MANUFACTURERS } from "./ohioManufacturers";
 
-/** Curated manufacturers — initial seed entries. */
-export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
+/** National manufacturer seeds (non-regional). */
+const NATIONAL_MANUFACTURERS: OrganizationRecord[] = [
   {
     id: "dir-mfg-pfizer",
     name: "Pfizer",
     aliases: ["pfizer inc", "pfizer pharmaceuticals"],
     organizationType: "manufacturer",
-    industry: "manufacturers",
+    sectorId: "healthcare",
+    industryId: "life-sciences",
+    organizationTypeId: "pharma-manufacturer",
+    industry: "life-sciences",
     website: "https://www.pfizer.com",
     headquarters: "New York, NY",
     statesServed: ["NY", "PA", "CA", "MA", "MI"],
@@ -16,6 +20,8 @@ export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
     publicCompany: true,
     ticker: "PFE",
     tags: ["pharma", "large-cap"],
+    knownSignals: [],
+    relevantProviders: ["sec-edgar", "fda", "news-rss"],
     buyerPack: "manufacturers",
   },
   {
@@ -23,7 +29,10 @@ export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
     name: "Johnson & Johnson",
     aliases: ["jnj", "johnson and johnson", "j&j"],
     organizationType: "manufacturer",
-    industry: "manufacturers",
+    sectorId: "healthcare",
+    industryId: "life-sciences",
+    organizationTypeId: "pharma-manufacturer",
+    industry: "life-sciences",
     website: "https://www.jnj.com",
     headquarters: "New Brunswick, NJ",
     statesServed: ["NJ", "PA", "CA", "MA"],
@@ -32,6 +41,8 @@ export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
     publicCompany: true,
     ticker: "JNJ",
     tags: ["pharma", "medtech", "large-cap"],
+    knownSignals: [],
+    relevantProviders: ["sec-edgar", "fda", "news-rss"],
     buyerPack: "manufacturers",
   },
   {
@@ -39,7 +50,10 @@ export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
     name: "AbbVie",
     aliases: ["abbvie inc"],
     organizationType: "manufacturer",
-    industry: "manufacturers",
+    sectorId: "healthcare",
+    industryId: "life-sciences",
+    organizationTypeId: "pharma-manufacturer",
+    industry: "life-sciences",
     website: "https://www.abbvie.com",
     headquarters: "North Chicago, IL",
     statesServed: ["IL", "CA", "MA"],
@@ -48,10 +62,19 @@ export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
     publicCompany: true,
     ticker: "ABBV",
     tags: ["pharma", "large-cap"],
+    knownSignals: [],
+    relevantProviders: ["sec-edgar", "fda", "news-rss"],
     buyerPack: "manufacturers",
   },
+];
+
+export const MANUFACTURERS_DIRECTORY: OrganizationRecord[] = [
+  ...NATIONAL_MANUFACTURERS,
+  ...OHIO_MANUFACTURERS,
 ];
 
 export function getManufacturerById(id: string): OrganizationRecord | undefined {
   return MANUFACTURERS_DIRECTORY.find((r) => r.id === id);
 }
+
+export { OHIO_MANUFACTURERS };

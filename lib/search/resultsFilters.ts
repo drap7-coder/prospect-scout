@@ -13,7 +13,6 @@ import {
   resolveSearchState,
   SIGNAL_FILTERS,
 } from "@/lib/search/searchState";
-import { ANY_REGION } from "@/lib/search/regions";
 
 export type ResultsSortKey =
   | "score"
@@ -90,13 +89,38 @@ const SIGNAL_FILTER_MATCH: Record<
     ),
 };
 
+function industryMatchesProspect(prospect: Prospect, industryId: string): boolean {
+  if (prospect.industryId === industryId) return true;
+  if (
+    industryId === "life-sciences" &&
+    prospect.industryId === "medical-device-manufacturing"
+  ) {
+    return true;
+  }
+  if (
+    industryId === "medical-device-manufacturing" &&
+    prospect.industryId === "life-sciences"
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function matchesSourceFilter(
   prospect: Prospect,
   sourceId: string,
 ): boolean {
+  if (sourceId === "Directory") {
+    return (
+      prospect.directoryMatch === true ||
+      prospect.sourceTrail.some(
+        (t) => t.source === "Directory" || /master directory/i.test(t.evidenceText),
+      )
+    );
+  }
   if (sourceId === "Mock") {
     const real = activeRealSources(prospect);
-    return real.length === 0;
+    return real.length === 0 && !prospect.directoryMatch;
   }
   if (sourceId === "SEC") {
     return prospectHasSource(prospect, "SEC");
@@ -141,6 +165,16 @@ function matchesFreshness(prospect: Prospect, freshnessId: string): boolean {
   return prospectFreshness(prospect) <= filter.maxDays;
 }
 
+function matchesOwnership(
+  prospect: Prospect,
+  ownership: string,
+): boolean {
+  if (prospect.publicCompany === undefined) return true;
+  if (ownership === "public") return prospect.publicCompany === true;
+  if (ownership === "private") return prospect.publicCompany === false;
+  return true;
+}
+
 export function applyResultsFilters(
   prospects: Prospect[],
   state: SearchState,
@@ -149,10 +183,28 @@ export function applyResultsFilters(
   const allowedTargets = allowedTaxonomyTargets(resolved);
 
   return prospects.filter((p) => {
+    if (resolved.sector && p.sectorId && p.sectorId !== resolved.sector) {
+      return false;
+    }
+
+    if (resolved.industry && p.industryId && !industryMatchesProspect(p, resolved.industry)) {
+      return false;
+    }
+
     if (resolved.organizationType) {
-      const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
-      if (org && p.buyerPack !== org.taxonomyTarget) return false;
+      if (p.organizationTypeId && p.organizationTypeId !== resolved.organizationType) {
+        return false;
+      } else {
+        const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
+        if (org && p.buyerPack !== org.taxonomyTarget && !p.organizationTypeId) {
+          return false;
+        }
+      }
     } else if (allowedTargets && !allowedTargets.includes(p.buyerPack)) {
+      return false;
+    }
+
+    if (resolved.state && p.stateCode && p.stateCode !== resolved.state) {
       return false;
     }
 
@@ -160,10 +212,15 @@ export function applyResultsFilters(
       if (resolved.location === "mountain-west") {
         if (!mountainWestRegions().includes(p.region)) return false;
       } else {
-        const regionId =
-          resolved.location === ANY_REGION ? p.region : resolved.location;
-        if (p.region !== regionId && p.region !== "any") return false;
+        const regionId = resolved.location;
+        if (p.region !== regionId && p.region !== "any" && p.region !== "national") {
+          return false;
+        }
       }
+    }
+
+    if (resolved.ownership && !matchesOwnership(p, resolved.ownership)) {
+      return false;
     }
 
     if (resolved.companySize) {
@@ -221,4 +278,13 @@ export function sortResults(
 
 export function signalFilterLabel(id: string): string {
   return SIGNAL_FILTERS.find((s) => s.id === id)?.label ?? id;
+}
+
+/** Count how many prospects would match if a single filter value were applied. */
+export function countProspectsForFilter(
+  prospects: Prospect[],
+  state: SearchState,
+  patch: Partial<SearchState>,
+): number {
+  return applyResultsFilters(prospects, { ...state, ...patch }).length;
 }

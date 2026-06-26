@@ -46,6 +46,14 @@ export function scoreTone(score: number): ScoreTone {
 }
 
 const SOURCE_TONES: Record<string, SourceTone> = {
+  Directory: {
+    text: "text-accent-cyan",
+    bg: "bg-accent-soft",
+    border: "border-accent/25",
+    borderLeft: "border-l-accent-cyan",
+    dot: "bg-accent-cyan",
+    ring: "ring-accent/20",
+  },
   CMS: {
     text: "text-source-cms",
     bg: "bg-source-cms/12",

@@ -1,9 +1,12 @@
 import type { RawProspect, SizeTier } from "@/lib/search/types";
 import type { OrganizationRecord } from "./types";
+import { normalizeDirectoryRecord } from "./types";
 
 function headquartersState(record: OrganizationRecord): string {
   const parts = record.headquarters.split(",").map((s) => s.trim());
-  return parts.length >= 2 ? parts[parts.length - 1] : record.statesServed[0] ?? "";
+  const last = parts.length >= 2 ? parts[parts.length - 1] : "";
+  if (/^[A-Z]{2}$/.test(last)) return last;
+  return record.statesServed[0] ?? "";
 }
 
 function estimateSize(record: OrganizationRecord): SizeTier {
@@ -11,6 +14,7 @@ function estimateSize(record: OrganizationRecord): SizeTier {
   if (members >= 10_000_000) return "enterprise";
   if (members >= 2_000_000) return "large";
   if (members >= 500_000) return "mid";
+  if (members >= 5_000) return "mid";
   return "small";
 }
 
@@ -24,6 +28,8 @@ function deriveFitKeywords(record: OrganizationRecord): string[] {
   if (record.tpa) keywords.add("tpa");
   if (record.tags?.includes("blues")) keywords.add("blue cross");
   if (record.tags?.includes("managed-medicaid")) keywords.add("managed care");
+  if (record.industryId) keywords.add(record.industryId.replace(/-/g, " "));
+  if (record.sectorId) keywords.add(record.sectorId.replace(/-/g, " "));
   keywords.add("pharmacy");
   keywords.add("pbm consulting");
   return [...keywords];
@@ -34,17 +40,23 @@ function deriveFitKeywords(record: OrganizationRecord): string[] {
  * Directory-sourced prospects appear even when providers return no signals.
  */
 export function directoryRecordToRawProspect(record: OrganizationRecord): RawProspect {
+  const normalized = normalizeDirectoryRecord(record);
   return {
-    id: record.id,
-    name: record.name,
-    location: record.headquarters,
-    region: record.regions[0] ?? "national",
-    buyerPack: record.buyerPack,
-    size: estimateSize(record),
+    id: normalized.id,
+    name: normalized.name,
+    location: normalized.headquarters,
+    region: normalized.regions[0] ?? "national",
+    buyerPack: normalized.buyerPack,
+    size: estimateSize(normalized),
     signals: [],
-    fitKeywords: deriveFitKeywords(record),
-    directoryId: record.id,
+    fitKeywords: deriveFitKeywords(normalized),
+    directoryId: normalized.id,
     directoryMatch: true,
+    sectorId: normalized.sectorId,
+    industryId: normalized.industryId,
+    organizationTypeId: normalized.organizationTypeId,
+    stateCode: headquartersState(normalized),
+    publicCompany: normalized.publicCompany,
   };
 }
 

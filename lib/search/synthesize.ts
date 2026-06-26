@@ -7,7 +7,7 @@ import type {
   SearchQuery,
   SourceTrailItem,
 } from "@/lib/search/types";
-import { displayOrganizationType } from "@/lib/taxonomy";
+import { displayOrganizationType, organizationTypeLabel } from "@/lib/taxonomy";
 import { ANY_REGION, regionLabel } from "./regions";
 
 /**
@@ -174,7 +174,7 @@ function buildSourceTrail(
   }
   if (prospect.directoryMatch && trail.length === 0) {
     trail.push({
-      source: "Company",
+      source: "Directory",
       evidenceText: "Master directory · curated organization record",
     });
   }
@@ -188,12 +188,16 @@ export function synthesizeProspect(
   pack: BuyerPack,
   breakdown: ScoreBreakdown,
 ): Prospect {
+  const buyerType = prospect.organizationTypeId
+    ? organizationTypeLabel(prospect.organizationTypeId)
+    : displayOrganizationType(prospect.buyerPack);
+
   return {
     id: prospect.id,
     name: prospect.name,
     location: prospect.location,
     region: prospect.region,
-    buyerType: displayOrganizationType(prospect.buyerPack),
+    buyerType,
     buyerPack: prospect.buyerPack,
     score: breakdown.total,
     scoreBreakdown: breakdown,
@@ -204,5 +208,11 @@ export function synthesizeProspect(
     outreachAngle: buildOutreachAngle(signals, query, pack),
     contactRoles: pack.contactRoles.slice(0, 4),
     size: prospect.size,
+    sectorId: prospect.sectorId,
+    industryId: prospect.industryId,
+    organizationTypeId: prospect.organizationTypeId,
+    stateCode: prospect.stateCode,
+    publicCompany: prospect.publicCompany,
+    directoryMatch: prospect.directoryMatch,
   };
 }

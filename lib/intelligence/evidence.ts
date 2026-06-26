@@ -19,6 +19,7 @@ export interface EvidenceItem {
 }
 
 const SOURCE_ORDER: SignalSource[] = [
+  "Directory",
   "CMS",
   "SEC",
   "FDA",

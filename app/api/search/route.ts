@@ -28,6 +28,8 @@ function buildInput(
     signals?: string[];
     sources?: string[];
     sellerContext?: string;
+    ownership?: string;
+    state?: string;
   },
 ): RawSearchInput | NextResponse {
   const query =
@@ -59,7 +61,9 @@ function buildInput(
     body.companySize ||
     body.freshness ||
     body.signals?.length ||
-    body.sources?.length
+    body.sources?.length ||
+    body.ownership ||
+    body.state
   ) {
     return searchStateToRawInput({
       query: query.trim() || sells.trim(),
@@ -72,6 +76,8 @@ function buildInput(
       signals: body.signals ?? [],
       sources: body.sources ?? [],
       sellerContext: body.sellerContext ?? (sells || null),
+      ownership: body.ownership ?? null,
+      state: body.state ?? null,
     });
   }
 

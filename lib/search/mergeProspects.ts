@@ -8,6 +8,37 @@ function normalizeOrgKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function mergeProspectPair(a: Prospect, b: Prospect): Prospect {
+  const winner = prospectRank(a) >= prospectRank(b) ? a : b;
+  const other = winner === a ? b : a;
+  const signalIds = new Set(winner.signals.map((s) => s.id));
+  const mergedSignals = [
+    ...winner.signals,
+    ...other.signals.filter((s) => !signalIds.has(s.id)),
+  ];
+  const trailKeys = new Set(
+    winner.sourceTrail.map((t) => `${t.source}|${t.evidenceText}`),
+  );
+  const mergedTrail = [
+    ...winner.sourceTrail,
+    ...other.sourceTrail.filter(
+      (t) => !trailKeys.has(`${t.source}|${t.evidenceText}`),
+    ),
+  ];
+  return {
+    ...winner,
+    score: Math.max(a.score, b.score),
+    signals: mergedSignals,
+    sourceTrail: mergedTrail,
+    directoryMatch: a.directoryMatch || b.directoryMatch,
+    sectorId: a.sectorId ?? b.sectorId,
+    industryId: a.industryId ?? b.industryId,
+    organizationTypeId: a.organizationTypeId ?? b.organizationTypeId,
+    stateCode: a.stateCode ?? b.stateCode,
+    publicCompany: a.publicCompany ?? b.publicCompany,
+  };
+}
+
 /** Merges prospect lists by normalized org name — keeps the richer / higher-scoring version. */
 export function mergeProspectLists(
   existing: Prospect[],
@@ -18,9 +49,11 @@ export function mergeProspectLists(
   function put(p: Prospect) {
     const key = normalizeOrgKey(p.name);
     const cur = byKey.get(key);
-    if (!cur || prospectRank(p) > prospectRank(cur)) {
+    if (!cur) {
       byKey.set(key, p);
+      return;
     }
+    byKey.set(key, mergeProspectPair(cur, p));
   }
 
   for (const p of existing) put(p);

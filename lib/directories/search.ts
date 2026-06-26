@@ -1,14 +1,22 @@
 import type { BuyerPackId } from "@/lib/search/types";
+import { inferTaxonomyFromQuery } from "@/lib/taxonomy";
+import { EDUCATION_DIRECTORY } from "./education";
 import { EMPLOYERS_DIRECTORY } from "./employers";
+import { FINANCIAL_SERVICES_DIRECTORY } from "./financialServices";
 import { HEALTH_PLANS_DIRECTORY } from "./healthPlans";
 import { HEALTH_SYSTEMS_DIRECTORY } from "./healthSystems";
 import { MANUFACTURERS_DIRECTORY } from "./manufacturers";
+import { NONPROFITS_DIRECTORY } from "./nonprofits";
+import { PUBLIC_SECTOR_DIRECTORY } from "./publicSector";
+import { RETAIL_CONSUMER_DIRECTORY } from "./retailConsumer";
+import { TECHNOLOGY_DIRECTORY } from "./technology";
 import type {
   DirectoryOrganizationType,
   DirectorySearchCriteria,
   DirectorySearchMatch,
   OrganizationRecord,
 } from "./types";
+import { normalizeDirectoryRecord } from "./types";
 
 const STATE_NAMES: Record<string, string> = {
   alabama: "AL",
@@ -97,13 +105,22 @@ const PROGRAM_PHRASES: Record<string, keyof DirectorySearchCriteria> = {
 export function getDirectoryForPack(pack: BuyerPackId): OrganizationRecord[] {
   switch (pack) {
     case "health-plans":
-      return HEALTH_PLANS_DIRECTORY;
+      return HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord);
     case "health-systems":
-      return HEALTH_SYSTEMS_DIRECTORY;
+      return HEALTH_SYSTEMS_DIRECTORY.map(normalizeDirectoryRecord);
     case "manufacturers":
-      return MANUFACTURERS_DIRECTORY;
+      return MANUFACTURERS_DIRECTORY.map(normalizeDirectoryRecord);
     case "employers":
-      return EMPLOYERS_DIRECTORY;
+      return [
+        ...EMPLOYERS_DIRECTORY,
+        ...FINANCIAL_SERVICES_DIRECTORY,
+        ...EDUCATION_DIRECTORY,
+        ...RETAIL_CONSUMER_DIRECTORY,
+        ...TECHNOLOGY_DIRECTORY,
+        ...NONPROFITS_DIRECTORY,
+      ].map(normalizeDirectoryRecord);
+    case "public-sector":
+      return PUBLIC_SECTOR_DIRECTORY.map(normalizeDirectoryRecord);
     default:
       return [];
   }
@@ -115,7 +132,13 @@ export function getAllDirectoryRecords(): OrganizationRecord[] {
     ...HEALTH_SYSTEMS_DIRECTORY,
     ...MANUFACTURERS_DIRECTORY,
     ...EMPLOYERS_DIRECTORY,
-  ];
+    ...PUBLIC_SECTOR_DIRECTORY,
+    ...FINANCIAL_SERVICES_DIRECTORY,
+    ...EDUCATION_DIRECTORY,
+    ...RETAIL_CONSUMER_DIRECTORY,
+    ...TECHNOLOGY_DIRECTORY,
+    ...NONPROFITS_DIRECTORY,
+  ].map(normalizeDirectoryRecord);
 }
 
 function normalizeText(value: string): string {
@@ -234,29 +257,54 @@ function scoreNameMatch(record: OrganizationRecord, query: string): DirectorySea
   };
 }
 
+function industryMatches(record: OrganizationRecord, industryId: string): boolean {
+  if (record.industryId === industryId) return true;
+  if (industryId === "life-sciences" && record.industryId === "medical-device-manufacturing") {
+    return true;
+  }
+  if (industryId === "medical-device-manufacturing" && record.industryId === "life-sciences") {
+    return true;
+  }
+  return false;
+}
+
 function passesFilters(
   record: OrganizationRecord,
   criteria: DirectorySearchCriteria,
 ): boolean {
-  if (criteria.organizationType && record.organizationType !== criteria.organizationType) {
+  const normalized = normalizeDirectoryRecord(record);
+
+  if (criteria.organizationType && normalized.organizationType !== criteria.organizationType) {
     return false;
   }
 
-  if (criteria.state && !record.statesServed.includes(criteria.state)) {
+  if (criteria.organizationTypeId && normalized.organizationTypeId !== criteria.organizationTypeId) {
+    return false;
+  }
+
+  if (criteria.industryId && !industryMatches(normalized, criteria.industryId)) {
+    return false;
+  }
+
+  if (criteria.sectorId && normalized.sectorId !== criteria.sectorId) {
+    return false;
+  }
+
+  if (criteria.state && !normalized.statesServed.includes(criteria.state)) {
     return false;
   }
 
   if (criteria.region) {
     const regionNorm = normalizeText(criteria.region);
     const regionSet = REGION_ALIASES[regionNorm] ?? [regionNorm];
-    const recordRegions = record.regions.map(normalizeText);
+    const recordRegions = normalized.regions.map(normalizeText);
     if (!regionSet.some((r) => recordRegions.includes(r))) {
       return false;
     }
   }
 
   for (const key of ["commercial", "medicare", "medicaid", "exchange", "aso", "tpa"] as const) {
-    if (criteria[key] === true && !recordMatchesProgram(record, key)) {
+    if (criteria[key] === true && !recordMatchesProgram(normalized, key)) {
       return false;
     }
   }
@@ -273,8 +321,67 @@ function isGeographicListingQuery(criteria: DirectorySearchCriteria): boolean {
     Boolean(inferRegionFromQuery(criteria.query));
   const hasOrgType =
     Boolean(criteria.organizationType) ||
-    /health plan|health plans|blues|manufacturer|employer|health system/.test(norm);
+    Boolean(criteria.industryId) ||
+    /health plan|health plans|blues|manufacturer|employer|health system|municipal|universit|bank|food|packaging|device/.test(
+      norm,
+    );
   return hasGeo && hasOrgType;
+}
+
+function inferIndustryFromQueryKeywords(query: string): string | undefined {
+  const norm = normalizeText(query);
+  if (/packaging|packager/.test(norm)) return "packaging";
+  if (/food|beverage|snack|cpg food/.test(norm)) return "food-beverage";
+  if (/medical device|medtech|device maker/.test(norm)) return "medical-device-manufacturing";
+  if (/pharma|pharmaceutical|biotech/.test(norm)) return "life-sciences";
+  if (/chemical|specialty chemical|paint|coatings/.test(norm)) return "chemicals";
+  if (/automotive|auto parts|tire|vehicle assembly/.test(norm)) return "automotive";
+  if (/consumer goods|cpg|household/.test(norm)) return "consumer-goods";
+  if (/industrial|machinery/.test(norm)) return "industrial-products";
+  return undefined;
+}
+
+function inferOrganizationTypeFromQueryKeywords(query: string): string | undefined {
+  const norm = normalizeText(query);
+  if (/medical device|medtech/.test(norm)) return "medical-device";
+  if (/packaging/.test(norm)) return "packaging-company";
+  if (/food|beverage/.test(norm)) return "food-beverage-company";
+  return undefined;
+}
+
+function isGenericManufacturerQuery(query: string): boolean {
+  const norm = normalizeText(query);
+  return (
+    /manufacturer/.test(norm) &&
+    !/food|beverage|packaging|device|pharma|pharmaceutical|chemical|automotive|auto parts|tire|consumer goods|cpg|industrial machinery/.test(
+      norm,
+    )
+  );
+}
+
+function taxonomyFiltersFromQuery(
+  query: string,
+  taxonomy: ReturnType<typeof inferTaxonomyFromQuery>,
+): Pick<DirectorySearchCriteria, "sectorId" | "industryId" | "organizationTypeId"> {
+  const keywordIndustry = inferIndustryFromQueryKeywords(query);
+  const keywordOrgType = inferOrganizationTypeFromQueryKeywords(query);
+
+  if (keywordIndustry || keywordOrgType) {
+    return {
+      sectorId: taxonomy.sectorId,
+      industryId: keywordIndustry ?? taxonomy.industryId,
+      organizationTypeId: keywordOrgType ?? taxonomy.organizationTypeId,
+    };
+  }
+
+  if (isGenericManufacturerQuery(query)) {
+    return {};
+  }
+  return {
+    sectorId: taxonomy.sectorId,
+    industryId: taxonomy.industryId,
+    organizationTypeId: taxonomy.organizationTypeId,
+  };
 }
 
 function isBluesQuery(query: string): boolean {
@@ -290,10 +397,16 @@ export function searchDirectory(criteria: DirectorySearchCriteria): DirectorySea
   const pool = getDirectoryForPack(criteria.buyerPack);
   if (pool.length === 0) return [];
 
+  const taxonomy = inferTaxonomyFromQuery(criteria.query);
+  const taxonomyFilters = taxonomyFiltersFromQuery(criteria.query, taxonomy);
+
   const enriched: DirectorySearchCriteria = {
     ...criteria,
     state: criteria.state ?? inferStateFromQuery(criteria.query),
     region: criteria.region ?? inferRegionFromQuery(criteria.query),
+    sectorId: criteria.sectorId ?? taxonomyFilters.sectorId,
+    industryId: criteria.industryId ?? taxonomyFilters.industryId,
+    organizationTypeId: criteria.organizationTypeId ?? taxonomyFilters.organizationTypeId,
     organizationType:
       criteria.organizationType ??
       inferOrgTypeFromQuery(criteria.query) ??
@@ -305,7 +418,9 @@ export function searchDirectory(criteria: DirectorySearchCriteria): DirectorySea
             ? "manufacturer"
             : criteria.buyerPack === "employers"
               ? "employer"
-              : undefined),
+              : criteria.buyerPack === "public-sector"
+                ? "municipality"
+                : undefined),
     ...inferProgramFlags(criteria.query),
   };
 
