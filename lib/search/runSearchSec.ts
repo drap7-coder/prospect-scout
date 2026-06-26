@@ -23,8 +23,8 @@ import {
 } from "@/lib/providers/secEdgar";
 import {
   CMS_UNAVAILABLE_EVIDENCE,
-  fetchCmsProspectData,
-  looksLikeHealthPlanReference,
+  fetchCmsProspects,
+  isHealthPlanScopedQuery,
   type CmsFetchResult,
 } from "@/lib/providers/cms";
 
@@ -155,19 +155,20 @@ async function tryCmsProvider(base: SearchResponse): Promise<SearchResponse> {
   if (query.profile.targetBuyer !== "health-plans") return base;
 
   const hint = orgHint(query);
-  if (!hint || !looksLikeHealthPlanReference(hint)) return base;
+  if (!hint || !isHealthPlanScopedQuery(hint, query.profile.region)) return base;
 
   try {
-    const cmsData = await fetchCmsProspectData(
-      hint,
-      query.profile.region,
-    );
-    if (!cmsData) return base;
+    const cmsResults = await fetchCmsProspects(hint, query.profile.region);
+    if (cmsResults.length === 0) return base;
 
-    const cmsProspect = buildCmsProspect(cmsData, query);
-    const prospects = [cmsProspect, ...base.prospects].sort(
-      (a, b) => b.score - a.score,
-    );
+    const cmsProspects = cmsResults.map((data) => buildCmsProspect(data, query));
+    const named = cmsProspects.filter((_, i) => cmsResults[i].confidence === "named");
+    const criteria = cmsProspects.filter((_, i) => cmsResults[i].confidence === "criteria");
+    const merged = [...named, ...criteria].sort((a, b) => b.score - a.score);
+
+    const existingIds = new Set(merged.map((p) => p.id));
+    const rest = base.prospects.filter((p) => !existingIds.has(p.id));
+    const prospects = [...merged, ...rest].sort((a, b) => b.score - a.score);
     return { query, prospects };
   } catch (err) {
     console.warn("[cms] provider unavailable, falling back to mock:", err);
@@ -194,7 +195,19 @@ function buildCmsProspect(
   };
 
   const breakdown = scoreProspect(raw, signals, query);
-  const prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+  let prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+
+  // Named org matches are highest-confidence CMS hits.
+  if (cmsData.confidence === "named") {
+    prospect = {
+      ...prospect,
+      score: Math.min(100, prospect.score + 5),
+      scoreBreakdown: {
+        ...prospect.scoreBreakdown,
+        total: Math.min(100, prospect.scoreBreakdown.total + 5),
+      },
+    };
+  }
 
   const trail = [...prospect.sourceTrail];
   if (enrollmentTrend) {
@@ -205,7 +218,10 @@ function buildCmsProspect(
   }
   trail.push({
     source: "CMS",
-    evidenceText: "Contract registry · CMS CPSC / Star Ratings",
+    evidenceText:
+      cmsData.confidence === "named"
+        ? "Contract registry · named organization match"
+        : `Contract registry · ${cmsData.match.matchedOn}`,
   });
 
   return { ...prospect, sourceTrail: trail };

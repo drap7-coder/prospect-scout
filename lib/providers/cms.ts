@@ -67,6 +67,8 @@ export interface CmsOrganization {
   /** Weighted / representative CMS Star Rating (0–5), when published. */
   overallStarRating: number | null;
   aliases: string[];
+  /** Optional tags for generic search filters (e.g. Blues plans). */
+  tags?: string[];
 }
 
 export interface CmsOrganizationMatch {
@@ -110,6 +112,7 @@ export const CMS_ORGANIZATIONS: CmsOrganization[] = [
     partDExposure: "both",
     overallStarRating: 3.5,
     aliases: ["elevance", "anthem", "anthem blue cross", "wellpoint"],
+    tags: ["blues"],
   },
   {
     id: "cms-kaiser",
@@ -160,6 +163,7 @@ export const CMS_ORGANIZATIONS: CmsOrganization[] = [
     partDExposure: "mapd",
     overallStarRating: 4.0,
     aliases: ["bcbs michigan", "blue cross michigan", "bcbsmi", "blue cross blue shield of michigan"],
+    tags: ["blues"],
   },
   {
     id: "cms-aetna",
@@ -170,6 +174,61 @@ export const CMS_ORGANIZATIONS: CmsOrganization[] = [
     partDExposure: "both",
     overallStarRating: 3.5,
     aliases: ["aetna", "cvs aetna"],
+  },
+  {
+    id: "cms-highmark",
+    organizationName: "Highmark Inc.",
+    parentOrganization: "Highmark Health",
+    contracts: ["H3015", "H4032", "H5597"],
+    states: ["PA", "WV", "DE", "NY"],
+    partDExposure: "both",
+    overallStarRating: 3.5,
+    aliases: ["highmark", "bcbs pa", "blue cross pennsylvania", "blue cross blue shield pennsylvania"],
+    tags: ["blues"],
+  },
+  {
+    id: "cms-ibx",
+    organizationName: "Independence Blue Cross",
+    parentOrganization: "Independence Health Group",
+    contracts: ["H5594", "H2159"],
+    states: ["PA", "NJ"],
+    partDExposure: "both",
+    overallStarRating: 4.0,
+    aliases: ["independence blue cross", "ibx", "independence health"],
+    tags: ["blues"],
+  },
+  {
+    id: "cms-bcbs-il",
+    organizationName: "Blue Cross Blue Shield of Illinois",
+    parentOrganization: "Health Care Service Corporation",
+    contracts: ["H0154", "H4513"],
+    states: ["IL", "TX", "OK", "MT", "NM"],
+    partDExposure: "both",
+    overallStarRating: 3.5,
+    aliases: ["bcbs illinois", "blue cross illinois", "hcsc", "blue cross blue shield of illinois"],
+    tags: ["blues"],
+  },
+  {
+    id: "cms-bcbs-nc",
+    organizationName: "Blue Cross Blue Shield of North Carolina",
+    parentOrganization: "Blue Cross Blue Shield of North Carolina",
+    contracts: ["H5599", "H0594"],
+    states: ["NC"],
+    partDExposure: "both",
+    overallStarRating: 3.5,
+    aliases: ["bcbs nc", "blue cross north carolina", "blue cross blue shield of north carolina"],
+    tags: ["blues"],
+  },
+  {
+    id: "cms-florida-blue",
+    organizationName: "Florida Blue",
+    parentOrganization: "Guidewell Mutual Holding Corporation",
+    contracts: ["H0104", "H1799"],
+    states: ["FL"],
+    partDExposure: "both",
+    overallStarRating: 4.0,
+    aliases: ["florida blue", "bcbs florida", "blue cross florida"],
+    tags: ["blues"],
   },
 ];
 
@@ -217,7 +276,8 @@ export function matchOrganization(
       ...org.aliases,
     ].map(normalizeOrganizationName);
     for (const alias of names) {
-      if (alias.length >= 3 && normHint.includes(alias)) {
+      if (alias.length < 3 || GEOGRAPHIC_TERMS.has(alias)) continue;
+      if (normHint.includes(alias)) {
         aliasCandidates.push({ org, alias });
       }
     }
@@ -227,8 +287,8 @@ export function matchOrganization(
     return { org: aliasCandidates[0].org, matchedOn: aliasCandidates[0].alias };
   }
 
-  // Token overlap: require at least one distinctive token match.
-  const tokens = tokenizeHint(hint);
+  // Token overlap: require at least one distinctive token match (not geography).
+  const tokens = tokenizeHint(hint).filter((t) => !GEOGRAPHIC_TERMS.has(t));
   if (tokens.length === 0) return null;
 
   let best: { org: CmsOrganization; score: number; token: string } | null = null;
@@ -237,7 +297,7 @@ export function matchOrganization(
       [org.organizationName, org.parentOrganization, ...org.aliases].join(" "),
     );
     for (const token of tokens) {
-      if (token.length < 4) continue;
+      if (token.length < 3) continue;
       if (haystack.includes(token)) {
         const score = token.length;
         if (!best || score > best.score) {
@@ -252,7 +312,7 @@ export function matchOrganization(
 
 /**
  * Heuristic gate: does the query hint plausibly name a specific health plan org?
- * Prevents CMS network calls for generic queries like "regional health plans".
+ * Prevents CMS network calls for unrelated queries.
  */
 export function looksLikeHealthPlanReference(hint: string): boolean {
   if (!hint?.trim()) return false;
@@ -263,6 +323,255 @@ export function looksLikeHealthPlanReference(hint: string): boolean {
 
   // A lone distinctive token (e.g. "Humana") is enough.
   return tokens.some((t) => t.length >= 5);
+}
+
+// ---------------------------------------------------------------------------
+// Generic CMS search (region / state / Part D / Blues)
+// ---------------------------------------------------------------------------
+
+type RegionId =
+  | "northeast"
+  | "mid-atlantic"
+  | "southeast"
+  | "midwest"
+  | "southwest"
+  | "west";
+
+const REGION_STATES: Record<RegionId, string[]> = {
+  northeast: ["CT", "MA", "ME", "NH", "RI", "VT"],
+  "mid-atlantic": ["PA", "NJ", "NY", "DE", "MD", "DC", "VA", "WV"],
+  southeast: ["FL", "GA", "NC", "SC", "AL", "MS", "TN", "KY", "AR", "LA"],
+  midwest: ["IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI"],
+  southwest: ["TX", "AZ", "CO", "NM", "OK", "NV", "UT"],
+  west: ["CA", "OR", "WA", "AK", "HI", "ID", "MT", "WY"],
+};
+
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA",
+  hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
+  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
+  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+  "north carolina": "NC", "north dakota": "ND", ohio: "OH", oklahoma: "OK",
+  oregon: "OR", pennsylvania: "PA", "rhode island": "RI", "south carolina": "SC",
+  "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
+  virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI",
+  wyoming: "WY", "district of columbia": "DC",
+};
+
+const GEOGRAPHIC_TERMS = new Set<string>([
+  ...Object.keys(STATE_NAME_TO_CODE),
+  ...Object.values(STATE_NAME_TO_CODE).map((c) => c.toLowerCase()),
+  "northeast", "midwest", "midwest", "southeast", "southwest", "west",
+  "mid-atlantic", "mid atlantic", "midatlantic", "new england", "great lakes",
+  "pacific",
+]);
+
+const REGION_LABELS: Record<RegionId, string[]> = {
+  northeast: ["northeast", "new england"],
+  "mid-atlantic": ["mid-atlantic", "mid atlantic", "midatlantic"],
+  southeast: ["southeast", "south east"],
+  midwest: ["midwest", "mid west", "great lakes"],
+  southwest: ["southwest", "south west"],
+  west: ["west", "pacific"],
+};
+
+export interface CmsSearchCriteria {
+  states: string[];
+  region: RegionId | "any";
+  requirePartD: boolean;
+  requireBlues: boolean;
+  requireStarPressure: boolean;
+  requireMedicareAdvantage: boolean;
+}
+
+/** Infers US state codes mentioned in free text. */
+export function inferStatesFromText(text: string): string[] {
+  if (!text?.trim()) return [];
+  const norm = text.toLowerCase();
+  const found = new Set<string>();
+
+  for (const [name, code] of Object.entries(STATE_NAME_TO_CODE)) {
+    if (new RegExp(`\\b${name.replace(/\s+/g, "\\s+")}\\b`).test(norm)) {
+      found.add(code);
+    }
+  }
+
+  // Match uppercase postal codes only (avoids "in" inside "in Pennsylvania").
+  const validCodes = new Set(Object.values(STATE_NAME_TO_CODE));
+  for (const match of text.matchAll(/\b([A-Z]{2})\b/g)) {
+    if (validCodes.has(match[1])) found.add(match[1]);
+  }
+
+  return [...found];
+}
+
+/** Infers a region bucket from free text. */
+export function inferRegionFromText(text: string): RegionId | "any" {
+  if (!text?.trim()) return "any";
+  const norm = text.toLowerCase();
+  for (const [region, labels] of Object.entries(REGION_LABELS) as [RegionId, string[]][]) {
+    if (labels.some((label) => norm.includes(label))) {
+      return region;
+    }
+  }
+  return "any";
+}
+
+/** Returns all state codes in a region bucket. */
+export function statesForRegion(region: RegionId): string[] {
+  return REGION_STATES[region] ?? [];
+}
+
+/** Parses generic CMS search filters from query hint + profile region. */
+export function parseCmsSearchCriteria(
+  hint: string,
+  queryRegion?: string,
+): CmsSearchCriteria {
+  const norm = hint.toLowerCase();
+  const textStates = inferStatesFromText(hint);
+  const textRegion = inferRegionFromText(hint);
+  const profileRegion =
+    queryRegion && queryRegion !== "any"
+      ? (queryRegion as RegionId)
+      : "any";
+  const region = textRegion !== "any" ? textRegion : profileRegion;
+
+  return {
+    states: textStates,
+    region,
+    requirePartD: /\bpart\s*d\b|\bpartd\b|\bpdp\b|\bmapd\b|\bma-pd\b/.test(norm),
+    requireBlues: /\bblues?\b|\bblue cross\b|\bbcbs\b/.test(norm),
+    requireStarPressure: /\bstar ratings?\b|\bstars\b|\bquality rating/.test(norm),
+    requireMedicareAdvantage:
+      /\bmedicare advantage\b|\bma plans?\b|\bma\b/.test(norm) ||
+      /\bhealth plan/.test(norm),
+  };
+}
+
+/** Whether an org is a Blues / Blue Cross plan. */
+export function isBluesPlan(org: CmsOrganization): boolean {
+  if (org.tags?.includes("blues")) return true;
+  const blob = normalizeOrganizationName(
+    [org.organizationName, org.parentOrganization, ...org.aliases].join(" "),
+  );
+  return blob.includes("blue cross") || blob.includes("bcbs");
+}
+
+export interface CmsRankedOrganization {
+  org: CmsOrganization;
+  score: number;
+  matchedOn: string;
+}
+
+/** Ranks curated registry orgs against generic search criteria. */
+export function rankOrganizationsByCriteria(
+  criteria: CmsSearchCriteria,
+  registry: CmsOrganization[] = CMS_ORGANIZATIONS,
+): CmsRankedOrganization[] {
+  const regionStates =
+    criteria.region !== "any" ? new Set(statesForRegion(criteria.region)) : null;
+  const targetStates = new Set(criteria.states);
+  if (targetStates.size === 0 && regionStates) {
+    for (const s of regionStates) targetStates.add(s);
+  }
+
+  const ranked: CmsRankedOrganization[] = [];
+
+  for (const org of registry) {
+    let score = 0;
+    const reasons: string[] = [];
+
+    const orgStates = new Set(org.states);
+    const stateOverlap = [...targetStates].filter((s) => orgStates.has(s));
+    if (targetStates.size > 0) {
+      if (stateOverlap.length === 0) continue;
+      score += stateOverlap.length * 12;
+      reasons.push(stateOverlap.join(", "));
+    } else if (regionStates) {
+      const regionOverlap = org.states.filter((s) => regionStates.has(s));
+      if (regionOverlap.length === 0) continue;
+      score += regionOverlap.length * 8;
+      reasons.push(`${criteria.region}: ${regionOverlap.slice(0, 3).join(", ")}`);
+    }
+
+    if (criteria.requirePartD) {
+      if (org.partDExposure === "none") continue;
+      score += org.partDExposure === "both" ? 10 : 6;
+      reasons.push("Part D");
+    }
+
+    if (criteria.requireBlues) {
+      if (!isBluesPlan(org)) continue;
+      score += 10;
+      reasons.push("Blues");
+    }
+
+    if (criteria.requireStarPressure) {
+      if (org.overallStarRating === null || org.overallStarRating >= 4.0) continue;
+      score += org.overallStarRating < 3.5 ? 8 : 5;
+      reasons.push("Star pressure");
+    }
+
+    if (criteria.requireMedicareAdvantage && org.contracts.length === 0) continue;
+
+    // Prefer broader regional footprint when criteria are geographic.
+    if (criteria.region !== "any" || criteria.states.length > 0) {
+      score += Math.min(org.states.length, 6);
+    }
+
+    if (score <= 0 && targetStates.size === 0 && !regionStates) continue;
+
+    ranked.push({
+      org,
+      score,
+      matchedOn: reasons.length > 0 ? reasons.join(" · ") : "Medicare Advantage",
+    });
+  }
+
+  return ranked.sort((a, b) => b.score - a.score || a.org.organizationName.localeCompare(b.org.organizationName));
+}
+
+/** True when the query is health-plan scoped enough to attempt CMS. */
+export function isHealthPlanScopedQuery(hint: string, queryRegion?: string): boolean {
+  if (!hint?.trim()) return false;
+  if (matchOrganization(hint)) return true;
+
+  const norm = hint.toLowerCase();
+  const hasPlanTerms =
+    /\b(health plan|health plans|medicare advantage|ma plan|part d|blues?|blue cross|medicaid managed|payer|mco|managed care)\b/.test(
+      norm,
+    );
+  if (!hasPlanTerms) return false;
+
+  const criteria = parseCmsSearchCriteria(hint, queryRegion);
+  if (criteria.states.length > 0) return true;
+  if (criteria.region !== "any") return true;
+  if (criteria.requirePartD || criteria.requireBlues || criteria.requireStarPressure) {
+    return true;
+  }
+  return hasPlanTerms;
+}
+
+const MAX_GENERIC_CMS_RESULTS = 3;
+
+/** Picks the enrollment lookup state for an org given search criteria. */
+export function pickStateForOrg(
+  org: CmsOrganization,
+  criteria: CmsSearchCriteria,
+): string {
+  if (criteria.states.length > 0) {
+    const hit = criteria.states.find((s) => org.states.includes(s));
+    if (hit) return hit;
+  }
+  if (criteria.region !== "any") {
+    const regionStates = statesForRegion(criteria.region);
+    const hit = regionStates.find((s) => org.states.includes(s));
+    if (hit) return hit;
+  }
+  return org.states[0] ?? "US";
 }
 
 // ---------------------------------------------------------------------------
@@ -369,6 +678,7 @@ export async function fetchStateEnrollmentTrend(
     throw new Error(`CMS enrollment API returned ${res.status} for ${state}`);
   }
   const data = (await res.json()) as CmsEnrollmentRow[];
+  if (!Array.isArray(data)) return null;
   return normalizeEnrollmentTrend(state, data);
 }
 
@@ -377,55 +687,19 @@ export function resolveEnrollmentState(
   org: CmsOrganization,
   queryRegion?: string,
 ): string {
-  if (queryRegion && queryRegion !== "any") {
-    const regionStates: Record<string, string[]> = {
-      northeast: ["MA", "NY", "CT"],
-      "mid-atlantic": ["PA", "NJ", "MD", "VA"],
-      southeast: ["FL", "GA", "NC"],
-      midwest: ["OH", "MI", "IL", "IN"],
-      southwest: ["TX", "AZ", "NM"],
-      west: ["CA", "WA", "OR"],
-    };
-    const candidates = regionStates[queryRegion] ?? [];
-    const hit = candidates.find((s) => org.states.includes(s));
-    if (hit) return hit;
-  }
-  return org.states[0] ?? "US";
+  const criteria = parseCmsSearchCriteria("", queryRegion);
+  return pickStateForOrg(org, criteria);
 }
 
 // ---------------------------------------------------------------------------
 // Location / region enrichment
 // ---------------------------------------------------------------------------
 
-type RegionId =
-  | "northeast"
-  | "mid-atlantic"
-  | "southeast"
-  | "midwest"
-  | "southwest"
-  | "west";
-
 const REGION_BY_STATE: Record<string, RegionId> = {};
-for (const s of ["PA", "NJ", "NY", "DE", "MD", "DC", "VA", "WV"]) {
-  REGION_BY_STATE[s] = "mid-atlantic";
-}
-for (const s of ["CT", "MA", "ME", "NH", "RI", "VT"]) {
-  REGION_BY_STATE[s] = "northeast";
-}
-for (const s of ["FL", "GA", "NC", "SC", "AL", "MS", "TN", "KY", "AR", "LA"]) {
-  REGION_BY_STATE[s] = "southeast";
-}
-for (const s of ["IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI"]) {
-  REGION_BY_STATE[s] = "midwest";
-}
-for (const s of ["AZ", "CO", "ID", "MT", "NV", "NM", "UT", "WY", "OK"]) {
-  REGION_BY_STATE[s] = "southwest";
-}
-for (const s of ["CA", "OR", "WA", "AK", "HI"]) {
-  REGION_BY_STATE[s] = "west";
-}
-for (const s of ["TX"]) {
-  REGION_BY_STATE[s] = "southwest";
+for (const [region, states] of Object.entries(REGION_STATES) as [RegionId, string[]][]) {
+  for (const s of states) {
+    REGION_BY_STATE[s] = region;
+  }
 }
 
 export function inferRegionFromState(state: string): RegionId | "any" {
@@ -671,53 +945,117 @@ export function extractSignalsFromCmsData(
 // High-level fetch (org match + enrollment + signals)
 // ---------------------------------------------------------------------------
 
+export type CmsMatchConfidence = "named" | "criteria";
+
 export interface CmsFetchResult {
   match: CmsOrganizationMatch;
+  confidence: CmsMatchConfidence;
   enrollmentTrend: StateEnrollmentTrend | null;
   signals: ProspectSignal[];
   location: ReturnType<typeof buildOrganizationLocation>;
 }
 
+function dataFreshnessDaysFromTrend(
+  enrollmentTrend: StateEnrollmentTrend | null,
+): number {
+  if (!enrollmentTrend) return 60;
+  const now = new Date();
+  return Math.max(
+    30,
+    Math.floor(
+      (now.getTime() -
+        new Date(enrollmentTrend.currentYear, 6, 1).getTime()) /
+        86_400_000,
+    ),
+  );
+}
+
+async function buildCmsFetchResult(
+  org: CmsOrganization,
+  matchedOn: string,
+  confidence: CmsMatchConfidence,
+  state: string,
+  enrollmentCache: Map<string, StateEnrollmentTrend | null>,
+  opts?: ProviderOpts,
+): Promise<CmsFetchResult | null> {
+  let enrollmentTrend: StateEnrollmentTrend | null = null;
+  if (state !== "US") {
+    if (!enrollmentCache.has(state)) {
+      enrollmentCache.set(state, await fetchStateEnrollmentTrend(state, opts));
+    }
+    enrollmentTrend = enrollmentCache.get(state) ?? null;
+  }
+
+  const signals = extractSignalsFromCmsData({
+    org,
+    enrollmentTrend,
+    dataFreshnessDays: dataFreshnessDaysFromTrend(enrollmentTrend),
+  });
+  if (signals.length === 0) return null;
+
+  return {
+    match: { org, matchedOn },
+    confidence,
+    enrollmentTrend,
+    signals,
+    location: buildOrganizationLocation(org, enrollmentTrend),
+  };
+}
+
 /**
- * Resolves a health plan org from the query hint, fetches CMS enrollment
- * trends for the best-matching state, and returns extracted signals.
+ * Resolves CMS prospects from a query: named org match (highest confidence)
+ * or ranked generic matches by state / region / Part D / Blues filters.
+ */
+export async function fetchCmsProspects(
+  hint: string,
+  queryRegion?: string,
+  opts?: ProviderOpts,
+): Promise<CmsFetchResult[]> {
+  const enrollmentCache = new Map<string, StateEnrollmentTrend | null>();
+  const named = matchOrganization(hint);
+
+  if (named) {
+    const state = resolveEnrollmentState(named.org, queryRegion);
+    const result = await buildCmsFetchResult(
+      named.org,
+      named.matchedOn,
+      "named",
+      state,
+      enrollmentCache,
+      opts,
+    );
+    return result ? [result] : [];
+  }
+
+  const criteria = parseCmsSearchCriteria(hint, queryRegion);
+  const ranked = rankOrganizationsByCriteria(criteria);
+  if (ranked.length === 0) return [];
+
+  const results: CmsFetchResult[] = [];
+  for (const entry of ranked.slice(0, MAX_GENERIC_CMS_RESULTS)) {
+    const state = pickStateForOrg(entry.org, criteria);
+    const result = await buildCmsFetchResult(
+      entry.org,
+      entry.matchedOn,
+      "criteria",
+      state,
+      enrollmentCache,
+      opts,
+    );
+    if (result) results.push(result);
+  }
+  return results;
+}
+
+/**
+ * Single-org fetch — named match only. Returns null for generic queries;
+ * use `fetchCmsProspects` for broad health-plan searches.
  */
 export async function fetchCmsProspectData(
   hint: string,
   queryRegion?: string,
   opts?: ProviderOpts,
 ): Promise<CmsFetchResult | null> {
-  const match = matchOrganization(hint);
-  if (!match) return null;
-
-  const state = resolveEnrollmentState(match.org, queryRegion);
-  let enrollmentTrend: StateEnrollmentTrend | null = null;
-  if (state !== "US") {
-    enrollmentTrend = await fetchStateEnrollmentTrend(state, opts);
-  }
-
-  const now = new Date();
-  const dataFreshnessDays = enrollmentTrend
-    ? Math.max(
-        30,
-        Math.floor(
-          (now.getTime() - new Date(enrollmentTrend.currentYear, 6, 1).getTime()) /
-            86_400_000,
-        ),
-      )
-    : 60;
-
-  const signals = extractSignalsFromCmsData({
-    org: match.org,
-    enrollmentTrend,
-    dataFreshnessDays,
-  });
-  if (signals.length === 0) return null;
-
-  return {
-    match,
-    enrollmentTrend,
-    signals,
-    location: buildOrganizationLocation(match.org, enrollmentTrend),
-  };
+  const results = await fetchCmsProspects(hint, queryRegion, opts);
+  return results[0] ?? null;
 }
