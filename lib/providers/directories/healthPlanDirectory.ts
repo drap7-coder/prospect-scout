@@ -1,6 +1,12 @@
+import { HEALTH_PLANS_DIRECTORY } from "@/lib/directories/healthPlans";
+import type { OrganizationRecord } from "@/lib/directories/types";
+
 /**
  * Curated directory of regional, community, and private health-plan organizations
  * that may not appear in SEC EDGAR or the CMS MA contract registry.
+ *
+ * Master directory records are the source of truth; supplemental entries cover
+ * additional regional plans used by the Public Web provider.
  */
 
 export type HealthPlanBuyerType =
@@ -32,29 +38,36 @@ export interface HealthPlanDirectoryEntry {
   aliases: string[];
 }
 
-export const HEALTH_PLAN_DIRECTORY: HealthPlanDirectoryEntry[] = [
-  {
-    id: "dir-hp-capital-blue",
-    name: "Capital BlueCross",
-    website: "https://www.capbluecross.com",
-    state: "PA",
-    region: "mid-atlantic",
-    buyerType: "regional-plan",
-    notes: "Central Pennsylvania Blues plan; strong commercial and Medicare footprint.",
-    knownPrograms: ["commercial", "Medicare Advantage", "Medicaid", "exchange"],
-    aliases: ["capital bluecross", "capital blue cross", "cap bluecross"],
-  },
-  {
-    id: "dir-hp-geisinger",
-    name: "Geisinger Health Plan",
-    website: "https://www.geisinger.org/health-plan",
-    state: "PA",
-    region: "mid-atlantic",
-    buyerType: "regional-plan",
-    notes: "Provider-sponsored plan integrated with Geisinger Health System.",
-    knownPrograms: ["commercial", "Medicare Advantage", "Medicaid", "exchange"],
-    aliases: ["geisinger health plan", "geisinger plan", "geisinger"],
-  },
+function toHealthPlanDirectoryEntry(record: OrganizationRecord): HealthPlanDirectoryEntry {
+  const programs: KnownProgram[] = [];
+  if (record.commercial) programs.push("commercial");
+  if (record.medicaid) programs.push("Medicaid");
+  if (record.medicare) programs.push("Medicare", "Medicare Advantage");
+  if (record.exchange) programs.push("exchange");
+  if (record.tpa) programs.push("TPA");
+  if (record.aso) programs.push("ASO");
+
+  let buyerType: HealthPlanBuyerType = "community-plan";
+  if (record.tpa) buyerType = "tpa";
+  else if (record.aso) buyerType = "aso";
+  else if (record.medicaid && !record.commercial) buyerType = "medicaid-mco";
+  else if (record.exchange) buyerType = "exchange-carrier";
+  else if (record.tags?.includes("regional")) buyerType = "regional-plan";
+
+  return {
+    id: record.id,
+    name: record.name,
+    website: record.website ?? "",
+    state: record.statesServed[0] ?? "US",
+    region: record.regions[0] ?? "national",
+    buyerType,
+    knownPrograms: programs,
+    aliases: record.aliases,
+  };
+}
+
+/** Regional plans not yet mirrored in the master health-plans directory. */
+const SUPPLEMENTAL_HEALTH_PLANS: HealthPlanDirectoryEntry[] = [
   {
     id: "dir-hp-fallon",
     name: "Fallon Health",
@@ -111,7 +124,7 @@ export const HEALTH_PLAN_DIRECTORY: HealthPlanDirectoryEntry[] = [
     aliases: ["selecthealth", "select health"],
   },
   {
-    id: "dir-hp-healthpartners",
+    id: "dir-hp-healthpartners-mn",
     name: "HealthPartners",
     website: "https://www.healthpartners.com",
     state: "MN",
@@ -119,7 +132,7 @@ export const HEALTH_PLAN_DIRECTORY: HealthPlanDirectoryEntry[] = [
     buyerType: "regional-plan",
     notes: "Minnesota provider-sponsored plan and care system.",
     knownPrograms: ["commercial", "Medicaid", "Medicare Advantage", "exchange"],
-    aliases: ["healthpartners", "health partners"],
+    aliases: ["healthpartners", "health partners minnesota"],
   },
   {
     id: "dir-hp-quartz",
@@ -154,4 +167,15 @@ export const HEALTH_PLAN_DIRECTORY: HealthPlanDirectoryEntry[] = [
     knownPrograms: ["Medicaid", "commercial", "Medicare Advantage", "exchange"],
     aliases: ["bluecare tennessee", "bcbst", "bluecross blueshield tennessee"],
   },
+];
+
+const masterNames = new Set(
+  HEALTH_PLANS_DIRECTORY.map((r) => r.name.toLowerCase()),
+);
+
+export const HEALTH_PLAN_DIRECTORY: HealthPlanDirectoryEntry[] = [
+  ...HEALTH_PLANS_DIRECTORY.map(toHealthPlanDirectoryEntry),
+  ...SUPPLEMENTAL_HEALTH_PLANS.filter(
+    (entry) => !masterNames.has(entry.name.toLowerCase()),
+  ),
 ];

@@ -189,6 +189,10 @@ export interface RawProspect {
   signals: RawSignalInstance[];
   /** Seller offerings this org is an especially good fit for (keywords). */
   fitKeywords: string[];
+  /** Master directory id when sourced from lib/directories. */
+  directoryId?: string;
+  /** True when the org exists in the curated master directory. */
+  directoryMatch?: boolean;
 }
 
 /** A fully enriched signal ready to score, explain, and display. */

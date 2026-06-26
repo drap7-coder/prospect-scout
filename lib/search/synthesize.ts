@@ -159,7 +159,10 @@ function buildOutreachAngle(
   return `${top.suggestedAction}.`;
 }
 
-function buildSourceTrail(signals: ProspectSignal[]): SourceTrailItem[] {
+function buildSourceTrail(
+  signals: ProspectSignal[],
+  prospect: RawProspect,
+): SourceTrailItem[] {
   const seen = new Set<string>();
   const trail: SourceTrailItem[] = [];
   for (const signal of signals) {
@@ -167,6 +170,12 @@ function buildSourceTrail(signals: ProspectSignal[]): SourceTrailItem[] {
     if (seen.has(key)) continue;
     seen.add(key);
     trail.push({ source: signal.source, evidenceText: signal.evidenceText });
+  }
+  if (prospect.directoryMatch && trail.length === 0) {
+    trail.push({
+      source: "Company",
+      evidenceText: "Master directory · curated organization record",
+    });
   }
   return trail;
 }
@@ -190,7 +199,7 @@ export function synthesizeProspect(
     whyItMatters: buildWhyItMatters(signals, query, prospect, pack),
     signals,
     whyNow: buildWhyNow(signals),
-    sourceTrail: buildSourceTrail(signals),
+    sourceTrail: buildSourceTrail(signals, prospect),
     outreachAngle: buildOutreachAngle(signals, query, pack),
     contactRoles: pack.contactRoles.slice(0, 4),
     size: prospect.size,
