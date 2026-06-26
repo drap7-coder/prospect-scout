@@ -1,46 +1,63 @@
 import type { BuyerPackId, RawSearchInput } from "./types";
 import { inferRegionFromText, normalizeRegion, ANY_REGION } from "./regions";
+import {
+  EXAMPLE_SEARCHES,
+  FRESHNESS_FILTERS,
+  TAXONOMY_ORGANIZATION_TYPES,
+  TAXONOMY_SECTORS,
+  getIndustry,
+  getIndustryByLabel,
+  industriesForSector,
+  industryLabel,
+  inferTaxonomyFromQuery,
+  legacyIndustryToSectorId,
+  normalizeOrganizationTypeId,
+  organizationTypeLabel,
+  resolveTaxonomyTarget,
+  sectorLabel,
+  taxonomyTargetsForIndustry,
+  taxonomyTargetsForSector,
+} from "@/lib/taxonomy";
 
-/** Structured search state for the company-discovery workflow. */
+/** Structured search state for universal organization discovery. */
 export interface SearchState {
   query: string;
+  sector: string | null;
   industry: string | null;
   organizationType: string | null;
   location: string | null;
   companySize: string | null;
   signals: string[];
   sources: string[];
-  /** Optional advanced seller context (not required for search). */
+  freshness: string | null;
+  /** Optional outreach personalization — not required for search. */
   sellerContext: string | null;
 }
 
 export const EMPTY_SEARCH_STATE: SearchState = {
   query: "",
+  sector: null,
   industry: null,
   organizationType: null,
   location: null,
   companySize: null,
   signals: [],
   sources: [],
+  freshness: null,
   sellerContext: null,
 };
 
-export const INDUSTRIES = [
-  "Healthcare",
-  "Manufacturing",
-  "Retail",
-  "Financial Services",
-  "Public Sector",
-] as const;
+export { EXAMPLE_SEARCHES, FRESHNESS_FILTERS };
 
-export const ORGANIZATION_TYPES = [
-  { id: "health-plan", label: "Health Plan", buyerPack: "health-plans" as BuyerPackId },
-  { id: "hospital", label: "Hospital / Health System", buyerPack: "health-systems" as BuyerPackId },
-  { id: "manufacturer", label: "Manufacturer", buyerPack: "manufacturers" as BuyerPackId },
-  { id: "employer", label: "Employer", buyerPack: "employers" as BuyerPackId },
-  { id: "municipality", label: "Municipality", buyerPack: "public-sector" as BuyerPackId },
-  { id: "university", label: "University", buyerPack: "employers" as BuyerPackId },
-] as const;
+export const SECTORS = TAXONOMY_SECTORS;
+
+export const ORGANIZATION_TYPES = TAXONOMY_ORGANIZATION_TYPES.map((o) => ({
+  id: o.id,
+  label: o.label,
+  sectorId: o.sectorId,
+  industryId: o.industryId,
+  taxonomyTarget: o.taxonomyTarget,
+}));
 
 export const LOCATIONS = [
   { id: "northeast", label: "Northeast" },
@@ -81,31 +98,8 @@ export const SOURCE_FILTERS = [
   { id: "Mock", label: "Mock" },
 ] as const;
 
-export const EXAMPLE_SEARCHES = [
-  "Regional health plans in Pennsylvania",
-  "Food manufacturers in Ohio",
-  "Hospitals with merger activity",
-  "Medicare Advantage plans in the Mid-Atlantic",
-  "Manufacturers with FDA recalls",
-  "Employers with benefits cost pressure",
-] as const;
-
-const INDUSTRY_KEYWORDS: Record<string, string[]> = {
-  Healthcare: ["health", "hospital", "medicare", "medicaid", "payer", "clinical"],
-  Manufacturing: ["manufacturer", "manufacturing", "plant", "factory", "food", "packaging"],
-  Retail: ["retail", "store", "consumer", "grocery"],
-  "Financial Services": ["bank", "financial", "insurance", "capital"],
-  "Public Sector": ["municipal", "government", "public sector", "county", "city"],
-};
-
-const ORG_TYPE_KEYWORDS: Record<string, string[]> = {
-  "health-plan": ["health plan", "payer", "medicare advantage", "mco", "insurer"],
-  hospital: ["hospital", "health system", "medical center", "idn", "provider"],
-  manufacturer: ["manufacturer", "manufacturing", "plant", "factory", "cpg"],
-  employer: ["employer", "benefits", "workforce", "self-insured"],
-  municipality: ["municipal", "municipality", "city", "county", "government"],
-  university: ["university", "college", "campus", "higher ed"],
-};
+/** @deprecated Use SECTORS — kept for import compatibility. */
+export const INDUSTRIES = SECTORS.map((s) => s.label);
 
 const SIGNAL_MATCHERS: Record<string, (text: string) => boolean> = {
   "leadership-change": (t) =>
@@ -126,18 +120,45 @@ function parseList(value: string | null): string[] {
   return value.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function normalizeSectorParam(value: string | null): string | null {
+  if (!value) return null;
+  if (SECTORS.some((s) => s.id === value)) return value;
+  return legacyIndustryToSectorId(value);
+}
+
+function normalizeIndustryParam(value: string | null, sector: string | null): string | null {
+  if (!value) return null;
+  if (getIndustry(value)) return value;
+  const byLabel = getIndustryByLabel(value);
+  if (byLabel) return byLabel.id;
+  if (sector) {
+    const match = industriesForSector(sector).find(
+      (i) => i.label.toLowerCase() === value.toLowerCase(),
+    );
+    if (match) return match.id;
+  }
+  return null;
+}
+
 /** Reads structured search state from URL search params. */
 export function parseSearchStateFromParams(
   params: URLSearchParams,
 ): SearchState {
+  const sector =
+    normalizeSectorParam(params.get("sector")) ??
+    legacyIndustryToSectorId(params.get("industry"));
+  const industry = normalizeIndustryParam(params.get("industry"), sector);
+
   return {
     query: params.get("q") ?? "",
-    industry: params.get("industry"),
-    organizationType: params.get("org"),
+    sector,
+    industry,
+    organizationType: normalizeOrganizationTypeId(params.get("org")),
     location: params.get("location"),
     companySize: params.get("size"),
     signals: parseList(params.get("signals")),
     sources: parseList(params.get("sources")),
+    freshness: params.get("freshness"),
     sellerContext: params.get("seller"),
   };
 }
@@ -146,12 +167,14 @@ export function parseSearchStateFromParams(
 export function searchStateToParams(state: SearchState): URLSearchParams {
   const p = new URLSearchParams();
   if (state.query.trim()) p.set("q", state.query.trim());
+  if (state.sector) p.set("sector", state.sector);
   if (state.industry) p.set("industry", state.industry);
   if (state.organizationType) p.set("org", state.organizationType);
   if (state.location) p.set("location", state.location);
   if (state.companySize) p.set("size", state.companySize);
   if (state.signals.length) p.set("signals", state.signals.join(","));
   if (state.sources.length) p.set("sources", state.sources.join(","));
+  if (state.freshness) p.set("freshness", state.freshness);
   if (state.sellerContext?.trim()) p.set("seller", state.sellerContext.trim());
   return p;
 }
@@ -160,20 +183,11 @@ export function searchStateToParams(state: SearchState): URLSearchParams {
 export function inferSearchStateFromQuery(query: string): Partial<SearchState> {
   const hay = query.toLowerCase();
   const inferred: Partial<SearchState> = {};
+  const taxonomy = inferTaxonomyFromQuery(query);
 
-  for (const industry of INDUSTRIES) {
-    if (INDUSTRY_KEYWORDS[industry]?.some((kw) => hay.includes(kw))) {
-      inferred.industry = industry;
-      break;
-    }
-  }
-
-  for (const org of ORGANIZATION_TYPES) {
-    if (ORG_TYPE_KEYWORDS[org.id]?.some((kw) => hay.includes(kw))) {
-      inferred.organizationType = org.id;
-      break;
-    }
-  }
+  if (taxonomy.sectorId) inferred.sector = taxonomy.sectorId;
+  if (taxonomy.industryId) inferred.industry = taxonomy.industryId;
+  if (taxonomy.organizationTypeId) inferred.organizationType = taxonomy.organizationTypeId;
 
   const regionFromText = inferRegionFromText(query);
   if (regionFromText !== ANY_REGION) {
@@ -209,26 +223,16 @@ export function resolveSearchState(state: SearchState): SearchState {
     ...inferred,
     ...state,
     query: state.query,
+    sector: state.sector ?? inferred.sector ?? null,
+    industry: state.industry ?? inferred.industry ?? null,
+    organizationType: normalizeOrganizationTypeId(
+      state.organizationType ?? inferred.organizationType ?? null,
+    ),
+    location: state.location ?? inferred.location ?? null,
+    freshness: state.freshness ?? inferred.freshness ?? null,
     signals: state.signals.length ? state.signals : (inferred.signals ?? []),
     sources: state.sources.length ? state.sources : (inferred.sources ?? []),
   };
-}
-
-function orgTypeToBuyerPack(orgId: string | null): BuyerPackId | undefined {
-  if (!orgId) return undefined;
-  return ORGANIZATION_TYPES.find((o) => o.id === orgId)?.buyerPack;
-}
-
-function industryToBuyerPack(industry: string | null): BuyerPackId | undefined {
-  if (!industry) return undefined;
-  const map: Record<string, BuyerPackId> = {
-    Healthcare: "health-plans",
-    Manufacturing: "manufacturers",
-    Retail: "manufacturers",
-    "Financial Services": "employers",
-    "Public Sector": "public-sector",
-  };
-  return map[industry];
 }
 
 function locationToRegion(location: string | null): string | undefined {
@@ -240,9 +244,12 @@ function locationToRegion(location: string | null): string | undefined {
 /** Maps UI search state to the existing API / pipeline input shape. */
 export function searchStateToRawInput(state: SearchState): RawSearchInput {
   const resolved = resolveSearchState(state);
-  const buyerPack =
-    orgTypeToBuyerPack(resolved.organizationType) ??
-    industryToBuyerPack(resolved.industry);
+  const buyerPack: BuyerPackId | undefined =
+    resolveTaxonomyTarget({
+      organizationTypeId: resolved.organizationType,
+      industryId: resolved.industry,
+      sectorId: resolved.sector,
+    });
 
   return {
     query: resolved.query.trim(),
@@ -259,8 +266,7 @@ export function locationLabel(id: string | null): string {
 }
 
 export function orgTypeLabel(id: string | null): string {
-  if (!id) return "";
-  return ORGANIZATION_TYPES.find((o) => o.id === id)?.label ?? id;
+  return organizationTypeLabel(id);
 }
 
 /** Human-readable summary for the results header. */
@@ -270,10 +276,14 @@ export function describeSearch(state: SearchState): string {
 
   if (resolved.query.trim()) {
     parts.push(resolved.query.trim());
+  } else if (resolved.organizationType) {
+    parts.push(orgTypeLabel(resolved.organizationType).toLowerCase());
+  } else if (resolved.industry) {
+    parts.push(industryLabel(resolved.industry).toLowerCase());
+  } else if (resolved.sector) {
+    parts.push(sectorLabel(resolved.sector).toLowerCase());
   } else {
-    if (resolved.organizationType) parts.push(orgTypeLabel(resolved.organizationType));
-    else if (resolved.industry) parts.push(resolved.industry.toLowerCase());
-    else parts.push("organizations");
+    parts.push("organizations");
   }
 
   if (resolved.location && resolved.location !== "nationwide") {
@@ -281,12 +291,24 @@ export function describeSearch(state: SearchState): string {
   }
 
   if (parts.length === 1 && !resolved.query.trim()) {
-    return `Showing opportunities for ${parts[0]}`;
+    return `Showing organizations · ${parts[0]}`;
   }
 
-  return `Showing opportunities for ${parts.join(" ")}`;
+  return `Showing organizations · ${parts.join(" ")}`;
 }
 
 export function mountainWestRegions(): string[] {
   return ["west", "southwest"];
+}
+
+/** Taxonomy targets allowed when filtering by sector/industry (client-side). */
+export function allowedTaxonomyTargets(state: SearchState): BuyerPackId[] | null {
+  const resolved = resolveSearchState(state);
+  if (resolved.organizationType) {
+    const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
+    return org ? [org.taxonomyTarget] : null;
+  }
+  if (resolved.industry) return taxonomyTargetsForIndustry(resolved.industry);
+  if (resolved.sector) return taxonomyTargetsForSector(resolved.sector);
+  return null;
 }

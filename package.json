@@ -13,6 +13,7 @@
     "test:fda": "node scripts/fdaChecks.ts",
     "test:phase": "node --import tsx scripts/providerPhaseChecks.ts",
     "test:directory": "node --import tsx scripts/directoryChecks.ts",
+    "test:taxonomy": "node --import tsx scripts/taxonomyChecks.ts",
     "test:web": "node --import tsx scripts/publicWebChecks.ts"
   },
   "dependencies": {

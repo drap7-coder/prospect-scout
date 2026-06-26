@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Prospect, SearchQuery } from "@/lib/search/types";
 import { mergeProspectLists } from "@/lib/search/mergeProspects";
@@ -87,7 +87,6 @@ export function ResultsClient() {
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [plannedProviders, setPlannedProviders] = useState<ProviderBadgeKey[]>(
     [],
   );
@@ -272,12 +271,9 @@ export function ResultsClient() {
     const next = resolveSearchState({ ...searchState, ...partial });
     setSearchState(next);
     syncUrl(next);
-  }
-
-  function handleAdvancedSubmit(e: FormEvent) {
-    e.preventDefault();
-    syncUrl(searchState);
-    fetchProgressive(searchState);
+    if (partial.sellerContext !== undefined && searchState.query.trim()) {
+      fetchProgressive(next);
+    }
   }
 
   const summary = describeSearch(searchState);
@@ -289,7 +285,7 @@ export function ResultsClient() {
     phase === "mock-loading" && allProspects.length === 0;
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full overflow-x-hidden bg-background">
       <header className="sticky top-0 z-30 border-b border-border/80 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[90rem] items-center justify-between gap-4 px-4 lg:px-8">
           <Link href="/" className="shrink-0">
@@ -314,14 +310,14 @@ export function ResultsClient() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[90rem] px-4 py-5 lg:px-8 lg:py-6">
+      <div className="mx-auto max-w-[90rem] px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
         {!hasQuery ? (
           <ResultsEmptyState variant="no-query" />
         ) : (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/60 pb-4">
+            <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-muted">{summary}</p>
+                <p className="text-sm leading-snug text-muted">{summary}</p>
                 {showResults || phase === "ready" ? (
                   <p className="mt-1 font-mono text-xs text-muted-2">
                     <span className="text-accent-cyan">{filtered.length}</span>
@@ -332,7 +328,7 @@ export function ResultsClient() {
                   </p>
                 ) : null}
                 {hasQuery && phase !== "idle" ? (
-                  <div className="mt-3">
+                  <div className="mt-3 overflow-x-auto">
                     <ProviderStatusBar
                       statuses={providerStatuses}
                       planned={plannedProviders}
@@ -340,12 +336,12 @@ export function ResultsClient() {
                   </div>
                 ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="label-mono">Sort</span>
+              <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+                <span className="label-mono shrink-0">Sort</span>
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as ResultsSortKey)}
-                  className="rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent"
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent sm:flex-none"
                   aria-label="Sort results"
                 >
                   {SORT_OPTIONS.map((o) => (
@@ -354,50 +350,10 @@ export function ResultsClient() {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="rounded-lg border border-border px-3 py-2 font-mono text-xs text-muted transition hover:text-foreground"
-                >
-                  {showAdvanced ? "Hide" : "Advanced"}
-                </button>
               </div>
             </div>
 
-            {showAdvanced ? (
-              <form
-                onSubmit={handleAdvancedSubmit}
-                className="mt-4 rounded-xl border border-border/80 bg-surface/40 p-4"
-              >
-                <p className="label-mono text-muted-2">
-                  Optional seller context
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  Refine ranking when you know what you sell — not required for
-                  company discovery.
-                </p>
-                <input
-                  type="text"
-                  value={searchState.sellerContext ?? ""}
-                  onChange={(e) =>
-                    setSearchState((s) => ({
-                      ...s,
-                      sellerContext: e.target.value || null,
-                    }))
-                  }
-                  placeholder="e.g. PBM consulting, packaging automation"
-                  className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-accent"
-                />
-                <button
-                  type="submit"
-                  className="mt-3 rounded-lg bg-surface-2 px-4 py-2 text-xs font-medium text-foreground ring-1 ring-border transition hover:ring-accent/40"
-                >
-                  Apply &amp; re-run search
-                </button>
-              </form>
-            ) : null}
-
-            <div className="mt-5 flex gap-6 lg:mt-6">
+            <div className="mt-4 flex flex-col gap-4 lg:mt-6 lg:flex-row lg:gap-6">
               <ResultsFilterRail
                 state={searchState}
                 onChange={handleFiltersChange}

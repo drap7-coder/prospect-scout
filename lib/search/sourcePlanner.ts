@@ -1,67 +1,23 @@
 import type { ProviderId, SearchQuery, SourcePlan } from "@/lib/search/types";
+import { resolveProviders } from "@/lib/taxonomy";
 
 /**
- * Decides which buyer pack(s) and data providers a search should hit.
+ * Decides which taxonomy target and data providers a search should hit.
  *
- * MVP behavior: a single buyer pack, served only by the `mock` provider.
- *
- * Future: this is the natural place to fan out to real free providers based
- * on the buyer pack. For example:
- *   - health-plans   -> CMS (Medicare enrollment / plan data), NPPES, news-rss
- *   - manufacturers  -> SEC EDGAR (public filings), FDA (recalls), news-rss
- *   - health-systems -> CMS, NPPES, news-rss, company-site
- *   - employers      -> SEC EDGAR, Census (County Business Patterns), news-rss
- *   - public-sector  -> Census, government RFP feeds (RSS), company-site
- * Each provider would implement the same `ProspectProvider` contract used by
- * the mock provider, so the scoring/synthesis pipeline stays unchanged.
+ * Provider routing is taxonomy-driven:
+ *   - SEC EDGAR — public companies across sectors
+ *   - CMS — healthcare payers and providers
+ *   - FDA / openFDA — life sciences, food, pharma, device, manufacturing
+ *   - RSS — broad press-release fallback
+ *   - Public Web — regional directory intelligence
+ *   - Mock / master directory — always the baseline
  */
 export function planSources(query: SearchQuery): SourcePlan {
-  const providers: ProviderId[] = ["mock"];
   const pack = query.profile.targetBuyer;
-
-  // SEC EDGAR is the first real provider. It is eligible whenever the target
-  // ecosystem can contain public companies:
-  //   - manufacturers, employers           -> always eligible
-  //   - health-plans, health-systems       -> eligible *if* a public
-  //                                            parent/company match exists
-  //   - public-sector                      -> not eligible (no SEC filers)
-  // For the conditional packs, the provider still only contributes when a
-  // company is actually resolved at fetch time, so listing it here is safe.
-  if (pack !== "public-sector") {
-    providers.push("sec-edgar");
-  }
-
-  // CMS is the second real provider — Medicare Advantage / Part D signals for
-  // the Health Plans pack only. Failures fall back to mock data.
-  if (pack === "health-plans") {
-    providers.push("cms");
-  }
-
-  // RSS / press-release feeds — curated public URLs per org and buyer pack.
-  if (
-    pack === "health-plans" ||
-    pack === "manufacturers" ||
-    pack === "health-systems" ||
-    pack === "employers"
-  ) {
-    providers.push("news-rss");
-  }
-
-  // FDA / openFDA enforcement recalls — manufacturers always; health-systems
-  // and employers gated at fetch time. Not health-plans.
-  if (
-    pack === "manufacturers" ||
-    pack === "health-systems" ||
-    pack === "employers"
-  ) {
-    providers.push("fda");
-  }
-
-  // Public website / directory intelligence — regional private orgs for
-  // health-plans and manufacturers when SEC/CMS do not cover them.
-  if (pack === "health-plans" || pack === "manufacturers") {
-    providers.push("company-site");
-  }
+  const providers = resolveProviders({
+    taxonomyTarget: pack,
+    queryText: `${query.targets} ${query.profile.whatTheySell}`.trim(),
+  }) as ProviderId[];
 
   return {
     query,

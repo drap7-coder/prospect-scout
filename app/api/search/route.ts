@@ -19,10 +19,12 @@ type SearchPhase = "mock" | "provider" | "full";
 function buildInput(
   body: Partial<RawSearchInput> & {
     query?: string;
+    sector?: string;
     industry?: string;
     organizationType?: string;
     location?: string;
     companySize?: string;
+    freshness?: string;
     signals?: string[];
     sources?: string[];
     sellerContext?: string;
@@ -50,19 +52,23 @@ function buildInput(
   }
 
   if (
+    body.sector ||
     body.industry ||
     body.organizationType ||
     body.location ||
     body.companySize ||
+    body.freshness ||
     body.signals?.length ||
     body.sources?.length
   ) {
     return searchStateToRawInput({
       query: query.trim() || sells.trim(),
+      sector: body.sector ?? null,
       industry: body.industry ?? null,
       organizationType: body.organizationType ?? null,
       location: body.location ?? null,
       companySize: body.companySize ?? null,
+      freshness: body.freshness ?? null,
       signals: body.signals ?? [],
       sources: body.sources ?? [],
       sellerContext: body.sellerContext ?? (sells || null),

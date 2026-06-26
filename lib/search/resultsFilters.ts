@@ -6,6 +6,8 @@ import {
 } from "@/lib/intelligence/evidence";
 import type { SearchState } from "@/lib/search/searchState";
 import {
+  allowedTaxonomyTargets,
+  FRESHNESS_FILTERS,
   mountainWestRegions,
   ORGANIZATION_TYPES,
   resolveSearchState,
@@ -133,28 +135,25 @@ function prospectHasSource(
   );
 }
 
+function matchesFreshness(prospect: Prospect, freshnessId: string): boolean {
+  const filter = FRESHNESS_FILTERS.find((f) => f.id === freshnessId);
+  if (!filter || filter.id === "any" || !("maxDays" in filter)) return true;
+  return prospectFreshness(prospect) <= filter.maxDays;
+}
+
 export function applyResultsFilters(
   prospects: Prospect[],
   state: SearchState,
 ): Prospect[] {
   const resolved = resolveSearchState(state);
+  const allowedTargets = allowedTaxonomyTargets(resolved);
 
   return prospects.filter((p) => {
     if (resolved.organizationType) {
       const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
-      if (org && p.buyerPack !== org.buyerPack) return false;
-    }
-
-    if (resolved.industry) {
-      const industryPacks: Record<string, string[]> = {
-        Healthcare: ["health-plans", "health-systems"],
-        Manufacturing: ["manufacturers"],
-        Retail: ["manufacturers"],
-        "Financial Services": ["employers"],
-        "Public Sector": ["public-sector"],
-      };
-      const allowed = industryPacks[resolved.industry];
-      if (allowed && !allowed.includes(p.buyerPack)) return false;
+      if (org && p.buyerPack !== org.taxonomyTarget) return false;
+    } else if (allowedTargets && !allowedTargets.includes(p.buyerPack)) {
+      return false;
     }
 
     if (resolved.location && resolved.location !== "nationwide") {
@@ -170,6 +169,10 @@ export function applyResultsFilters(
     if (resolved.companySize) {
       const tiers = SIZE_MAP[resolved.companySize];
       if (tiers && p.size && !tiers.includes(p.size)) return false;
+    }
+
+    if (resolved.freshness && resolved.freshness !== "any") {
+      if (!matchesFreshness(p, resolved.freshness)) return false;
     }
 
     if (resolved.signals.length > 0) {

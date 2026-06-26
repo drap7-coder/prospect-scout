@@ -1,15 +1,10 @@
 /**
  * Core domain types for Prospect Scout.
  *
- * The app is organized around BUYER ECOSYSTEMS ("buyer packs"), not the
- * seller's industry. A seller (e.g. "PBM consulting") targets a buyer pack
- * (e.g. "Health Plans"). Each buyer pack defines the opportunity signals,
- * contact roles, and regions that make sense for that ecosystem.
- *
- * These types are intentionally provider-agnostic. The MVP fills them with
- * mock data, but real free data providers (CMS, SEC EDGAR, Census, FDA,
- * NPPES, Wikipedia, RSS/news, company websites) can produce the same shapes
- * later without changing the search pipeline.
+ * Prospect Scout is a universal organization discovery platform. Internal
+ * taxonomy targets (formerly "buyer packs") anchor signal catalogs, provider
+ * routing, and scoring. The UI speaks in sectors, industries, and organization
+ * types — not seller-centric buyer ecosystems.
  */
 
 /** Stable identifier for each buyer ecosystem. */
@@ -249,8 +244,9 @@ export interface Prospect {
   location: string;
   /** Region bucket (matches RegionSelector values). */
   region: string;
-  /** Human label for the buyer pack, e.g. "Health Plans". */
+  /** Human label for organization type, e.g. "Health Plan". */
   buyerType: string;
+  /** Internal taxonomy target (pipeline anchor). */
   buyerPack: BuyerPackId;
   /** 0–100 opportunity score. */
   score: number;

@@ -6,22 +6,15 @@ import type {
   UserProfile,
 } from "@/lib/search/types";
 import { isBuyerPackId } from "@/lib/packs";
+import { inferTaxonomyFromQuery } from "@/lib/taxonomy";
 import { normalizeRegion, inferRegionFromText, ANY_REGION } from "./regions";
 import { inferIdealSignals } from "./capabilities";
 
 /**
  * Heuristic intent parser.
  *
- * Turns free text into a structured `UserProfile`: it infers the buyer pack,
- * the region, and the seller's capability (as ideal signals), and extracts
- * any excluded targets. No external LLM is used. The `HeuristicIntentParser`
- * implements the `IntentParser` interface, so an LLM-backed parser can be
- * dropped in later without touching the downstream pipeline.
- *
- * Supported example queries:
- *   "I help regional health plans reduce specialty drug spend in the Mid-Atlantic"
- *   "Find food manufacturers that may need packaging automation"
- *   "Show public employers with benefits cost pressure"
+ * Turns free text into a structured `UserProfile`: it infers the taxonomy target,
+ * region, optional capability signals, and excluded targets.
  */
 
 /** Keyword cues that hint at each buyer pack. Order encodes priority. */
@@ -45,10 +38,10 @@ const PACK_KEYWORDS: [BuyerPackId, string[]][] = [
     [
       "health system",
       "hospital",
+      "hospitals",
       "idn",
       "medical center",
-      "provider",
-      "clinic",
+      "physician group",
       "340b",
     ],
   ],
@@ -56,6 +49,7 @@ const PACK_KEYWORDS: [BuyerPackId, string[]][] = [
     "manufacturers",
     [
       "manufacturer",
+      "manufacturers",
       "manufacturing",
       "plant",
       "factory",
@@ -66,6 +60,8 @@ const PACK_KEYWORDS: [BuyerPackId, string[]][] = [
       "device maker",
       "food",
       "beverage",
+      "pepsi",
+      "pepsico",
     ],
   ],
   [
@@ -73,38 +69,49 @@ const PACK_KEYWORDS: [BuyerPackId, string[]][] = [
     [
       "municipal",
       "municipality",
+      "municipalities",
       "government",
       "public sector",
       "public employer",
-      "city",
+      "city of",
       "county",
       "state agency",
       "school district",
+      "transit authority",
       "rfp",
     ],
   ],
   [
     "employers",
     [
+      "bank",
+      "banks",
+      "credit union",
+      "university",
+      "universities",
+      "college",
       "employer",
       "self-insured",
       "self insured",
       "workforce",
       "benefits",
-      "company",
-      "business",
+      "fintech",
+      "consulting firm",
+      "law firm",
     ],
   ],
 ];
 
 function guessBuyerPack(text: string): BuyerPackId {
+  const taxonomy = inferTaxonomyFromQuery(text);
+  if (taxonomy.taxonomyTarget) return taxonomy.taxonomyTarget;
+
   const haystack = text.toLowerCase();
   for (const [packId, keywords] of PACK_KEYWORDS) {
     if (keywords.some((kw) => haystack.includes(kw))) {
       return packId;
     }
   }
-  // Sensible default: health plans is the flagship ecosystem for the MVP.
   return "health-plans";
 }
 

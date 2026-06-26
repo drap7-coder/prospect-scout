@@ -7,6 +7,7 @@ import type {
   SearchQuery,
   SourceTrailItem,
 } from "@/lib/search/types";
+import { displayOrganizationType } from "@/lib/taxonomy";
 import { ANY_REGION, regionLabel } from "./regions";
 
 /**
@@ -192,7 +193,7 @@ export function synthesizeProspect(
     name: prospect.name,
     location: prospect.location,
     region: prospect.region,
-    buyerType: pack.label,
+    buyerType: displayOrganizationType(prospect.buyerPack),
     buyerPack: prospect.buyerPack,
     score: breakdown.total,
     scoreBreakdown: breakdown,

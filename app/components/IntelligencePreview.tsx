@@ -238,7 +238,7 @@ export function IntelligencePreview({
       />
 
       <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-border bg-surface shadow-2xl shadow-black/60"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-border bg-surface shadow-2xl shadow-black/60 pb-[env(safe-area-inset-bottom)]"
         role="dialog"
         aria-modal="true"
         aria-label={`Intelligence preview for ${prospect.name}`}

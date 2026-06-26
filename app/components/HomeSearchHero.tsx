@@ -28,16 +28,16 @@ export function HomeSearchHero() {
         className="mx-auto shadow-lg shadow-black/30 ring-1 ring-white/10"
       />
       <p className="label-mono mt-6 text-accent-cyan/90">
-        Opportunity intelligence
+        Organization discovery · Signal intelligence
       </p>
       <h1 className="font-display mt-5 text-balance text-[2.25rem] font-normal leading-[1.05] tracking-[-0.03em] text-foreground sm:text-[3rem] lg:text-[3.5rem]">
-        Search companies.
+        Search organizations.
         <br />
-        <span className="text-muted">Discover why they matter.</span>
+        <span className="text-muted">Find the signal.</span>
       </h1>
       <p className="mx-auto mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-muted">
-        Find organizations by industry, type, location, and public signals — then
-        see the evidence behind each opportunity.
+        Discover companies, public agencies, institutions, and operators by sector,
+        location, and public evidence.
       </p>
 
       <form onSubmit={handleSubmit} className="relative mx-auto mt-10 max-w-2xl">
@@ -46,9 +46,9 @@ export function HomeSearchHero() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search health plans, manufacturers, hospitals, employers..."
+            placeholder="Search health plans, manufacturers, banks, universities, municipalities..."
             className="min-w-0 flex-1 bg-transparent px-5 py-4 text-[1.0625rem] text-foreground placeholder:text-muted-2 outline-none"
-            aria-label="Search companies"
+            aria-label="Search organizations"
           />
           <button
             type="submit"

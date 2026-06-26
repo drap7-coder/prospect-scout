@@ -20,7 +20,7 @@ export default function Home() {
         <div className="mx-auto flex h-[3.75rem] w-full max-w-[88rem] items-center justify-between px-6 lg:px-10">
           <ScoutBrand size={36} />
           <p className="label-mono hidden text-muted-2 sm:block">
-            Company discovery · Signal intelligence
+            Organization discovery · Signal intelligence
           </p>
         </div>
       </header>
