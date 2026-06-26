@@ -7,12 +7,17 @@
  */
 import assert from "node:assert/strict";
 import {
+  FeedFailureCache,
   RSS_UNAVAILABLE_EVIDENCE,
+  RSS_FEED_SOURCES,
   extractSignalsFromRssItems,
+  fetchFeedWithFallback,
   fetchRssProspects,
+  filterItemsForOrganization,
   isRssScopedQuery,
   matchFeedSources,
   parseRssXml,
+  secEdgarAtomUrl,
 } from "../lib/providers/rssNews.ts";
 
 let passed = 0;
@@ -99,11 +104,28 @@ const WALMART_RSS = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+const PRN_MIXED = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>OtherCo announces partnership with regional distributor</title>
+      <description>Unrelated company news.</description>
+      <pubDate>Mon, 02 Jun 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Humana expands value-based care program in Kentucky</title>
+      <description>Humana Inc. is expanding its value-based care footprint.</description>
+      <pubDate>Fri, 16 May 2026 09:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+
 const FEEDS: Record<string, string> = {
   "https://press.humana.com/news-releases/rss": HUMANA_RSS,
   "https://www.pepsico.com/news/rss": PEPSI_RSS,
   "https://hcahealthcare.com/util/pages/rss/news-releases.rss": HCA_RSS,
   "https://corporate.walmart.com/newsroom/rss": WALMART_RSS,
+  "https://www.prnewswire.com/rss/news-releases-list.rss": PRN_MIXED,
 };
 
 const mockFetch = async (url: string) => {
@@ -197,32 +219,151 @@ async function main() {
     );
   });
 
-  await checkAsync("fetchRssProspects throws on feed failure (orchestrator catches)", async () => {
-    await assert.rejects(
-      () =>
-        fetchRssProspects("Humana", "health-plans", {
-          fetchImpl: async () => ({ ok: false, status: 503, text: async () => "" }),
-        }),
-      /RSS feed returned 503/,
-    );
+  check("each registry org has multiple source candidates", () => {
+    for (const feed of RSS_FEED_SOURCES) {
+      assert.ok(
+        feed.sources.length >= 2,
+        `${feed.id} should have multiple sources`,
+      );
+    }
   });
 
+  check("secEdgarAtomUrl zero-pads CIK", () => {
+    assert.ok(secEdgarAtomUrl("77476").includes("CIK=0000077476"));
+  });
+
+  check("filterItemsForOrganization keeps matching headlines", () => {
+    const items = parseRssXml(PRN_MIXED);
+    const filtered = filterItemsForOrganization(items, [
+      "Humana Inc.",
+      "humana",
+    ]);
+    assert.equal(filtered.length, 1);
+    assert.ok(filtered[0].title.includes("Humana"));
+  });
+
+  check("FeedFailureCache skips cached failed URLs", () => {
+    const cache = new FeedFailureCache();
+    cache.mark("https://example.com/blocked.rss");
+    assert.equal(cache.has("https://example.com/blocked.rss"), true);
+    assert.equal(cache.has("https://example.com/other.rss"), false);
+  });
+
+  await checkAsync(
+    "fetchFeedWithFallback falls back from blocked feed to second source",
+    async () => {
+      const humana = RSS_FEED_SOURCES.find((f) => f.id === "rss-humana")!;
+      const blockedUrl = humana.sources[0].url;
+      const fallbackUrl = humana.sources[humana.sources.length - 1].url;
+
+      let calls = 0;
+      const fetchImpl = async (url: string) => {
+        calls += 1;
+        if (url === blockedUrl) {
+          return { ok: false, status: 403, text: async () => "" };
+        }
+        const xml = FEEDS[url];
+        return { ok: true, status: 200, text: async () => xml ?? "" };
+      };
+
+      const cache = new FeedFailureCache();
+      const hit = await fetchFeedWithFallback(
+        humana.sources,
+        cache,
+        ["Humana Inc.", "humana"],
+        { fetchImpl },
+      );
+
+      assert.ok(hit);
+      assert.equal(hit!.source.url, fallbackUrl);
+      assert.equal(cache.has(blockedUrl), true);
+      assert.ok(calls >= 2);
+    },
+  );
+
+  await checkAsync(
+    "fetchFeedWithFallback uses failure cache on repeated candidate",
+    async () => {
+      const humana = RSS_FEED_SOURCES.find((f) => f.id === "rss-humana")!;
+      const blockedUrl = humana.sources[0].url;
+      let blockedCalls = 0;
+
+      const fetchImpl = async (url: string) => {
+        if (url === blockedUrl) {
+          blockedCalls += 1;
+          return { ok: false, status: 403, text: async () => "" };
+        }
+        return { ok: false, status: 404, text: async () => "" };
+      };
+
+      const cache = new FeedFailureCache();
+      await fetchFeedWithFallback(humana.sources, cache, ["humana"], {
+        fetchImpl,
+      });
+      await fetchFeedWithFallback(humana.sources, cache, ["humana"], {
+        fetchImpl,
+      });
+
+      assert.equal(blockedCalls, 1);
+    },
+  );
+
+  await checkAsync(
+    "fetchRssProspects returns allSourcesFailed when every source fails",
+    async () => {
+      const { results, allSourcesFailed } = await fetchRssProspects(
+        "Humana",
+        "health-plans",
+        {
+          fetchImpl: async () => ({
+            ok: false,
+            status: 503,
+            text: async () => "",
+          }),
+        },
+      );
+      assert.equal(results.length, 0);
+      assert.equal(allSourcesFailed, true);
+    },
+  );
+
   await checkAsync("fetchRssProspects returns Humana signals from mocked feed", async () => {
-    const results = await fetchRssProspects("Humana Medicare", "health-plans", {
-      fetchImpl: mockFetch,
-    });
+    const { results, allSourcesFailed } = await fetchRssProspects(
+      "Humana Medicare",
+      "health-plans",
+      { fetchImpl: mockFetch },
+    );
+    assert.equal(allSourcesFailed, false);
     assert.equal(results.length, 1);
     assert.equal(results[0].match.feed.id, "rss-humana");
     assert.ok(results[0].signals.length >= 2);
+    assert.ok(results[0].sourceUsed.label.length > 0);
   });
 
   await checkAsync("fetchRssProspects returns PepsiCo signals for manufacturers", async () => {
-    const results = await fetchRssProspects("PepsiCo", "manufacturers", {
+    const { results } = await fetchRssProspects("PepsiCo", "manufacturers", {
       fetchImpl: mockFetch,
     });
     assert.ok(results.length > 0);
     assert.ok(results[0].signals.some((s) => s.id === "rss-acquisition-merger"));
   });
+
+  await checkAsync(
+    "fetchRssProspects falls back to PR Newswire when press room is blocked",
+    async () => {
+      const { results } = await fetchRssProspects("Humana", "health-plans", {
+        fetchImpl: async (url) => {
+          if (url.includes("press.humana.com")) {
+            return { ok: false, status: 403, text: async () => "" };
+          }
+          return mockFetch(url);
+        },
+      });
+      assert.equal(results.length, 1);
+      assert.equal(results[0].sourceUsed.kind, "pr-newswire");
+      assert.ok(results[0].signals.some((s) => s.id === "rss-expansion"));
+    },
+  );
 
   console.log(`\nAll ${passed} RSS provider checks passed.`);
 }

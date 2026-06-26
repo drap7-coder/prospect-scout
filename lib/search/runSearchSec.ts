@@ -270,10 +270,15 @@ async function tryRssProvider(base: SearchResponse): Promise<SearchResponse> {
   if (!hint || !isRssScopedQuery(hint, query.profile.targetBuyer)) return base;
 
   try {
-    const rssResults = await fetchRssProspects(hint, query.profile.targetBuyer);
-    if (rssResults.length === 0) return base;
+    const { results, allSourcesFailed } = await fetchRssProspects(
+      hint,
+      query.profile.targetBuyer,
+    );
+    if (results.length === 0) {
+      return allSourcesFailed ? withRssUnavailableNote(base) : base;
+    }
 
-    const rssProspects = rssResults.map((data) => buildRssProspect(data, query));
+    const rssProspects = results.map((data) => buildRssProspect(data, query));
     const existingIds = new Set(rssProspects.map((p) => p.id));
     const rest = base.prospects.filter((p) => !existingIds.has(p.id));
     const prospects = [...rssProspects, ...rest].sort((a, b) => b.score - a.score);
@@ -289,7 +294,7 @@ function buildRssProspect(
   query: SearchQuery,
 ): Prospect {
   const pack = getBuyerPack(query.profile.targetBuyer);
-  const { match, signals } = rssData;
+  const { match, signals, sourceUsed } = rssData;
   const { feed } = match;
 
   const raw: RawProspect = {
@@ -309,7 +314,7 @@ function buildRssProspect(
   const trail = [...prospect.sourceTrail];
   trail.push({
     source: "RSS",
-    evidenceText: `Press feed · ${match.matchedOn}`,
+    evidenceText: `${sourceUsed.label} · ${match.matchedOn}`,
   });
 
   return { ...prospect, sourceTrail: trail };

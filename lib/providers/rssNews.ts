@@ -12,10 +12,15 @@ import type {
  * no LinkedIn, no paid APIs) and extracts normalized `ProspectSignal`s from
  * recent headlines and descriptions.
  *
+ * Each organization may register multiple source candidates (press room, IR,
+ * PR Newswire, GlobeNewswire, SEC EDGAR Atom). Sources are tried in order;
+ * failed URLs are cached for the remainder of a single request so repeated
+ * 403s from blocked press rooms do not slow the response.
+ *
  * Design notes:
  *   - Self-contained (type-only imports) for offline unit tests.
  *   - Injectable text `fetch` for tests; global fetch in production.
- *   - Failures throw and are handled non-fatally by the search orchestrator.
+ *   - When all candidates fail, returns `allSourcesFailed` (non-throwing).
  */
 
 /** Source-trail text when RSS is unavailable (source badge adds "RSS ·"). */
@@ -47,11 +52,111 @@ function resolveFetch(opts?: ProviderOpts): TextFetchLike {
   return impl;
 }
 
-function rssHeaders(): Record<string, string> {
+function rssHeaders(kind?: NewsSourceKind): Record<string, string> {
+  const accept =
+    "application/rss+xml, application/atom+xml, application/xml, text/xml";
+  if (kind === "sec-edgar") {
+    const ua =
+      process.env.SEC_USER_AGENT?.trim() ||
+      "Prospect Scout RSS Reader/1.0 set-SEC_USER_AGENT@example.com";
+    return { Accept: accept, "User-Agent": ua };
+  }
+  return { Accept: accept, "User-Agent": "Prospect Scout RSS Reader/1.0" };
+}
+
+// ---------------------------------------------------------------------------
+// Shared permissive public feeds (org-filtered when used as fallback)
+// ---------------------------------------------------------------------------
+
+const PR_NEWSWIRE_ALL =
+  "https://www.prnewswire.com/rss/news-releases-list.rss";
+const GLOBE_HEALTHCARE =
+  "https://www.globenewswire.com/RssFeed/subjectcode/12-Health%20Care%20%26%20Hospitals/feedTitle/GlobeNewswire%20-%20Health%20Care%20%26%20Hospitals";
+const GLOBE_CONSUMER =
+  "https://www.globenewswire.com/RssFeed/subjectcode/25-Consumer%20Products%20%26%20Retail/feedTitle/GlobeNewswire%20-%20Consumer%20Products%20%26%20Retail";
+
+/** Builds the SEC EDGAR Atom feed URL for a company CIK. */
+export function secEdgarAtomUrl(cik: string | number): string {
+  const padded = String(cik).replace(/\D/g, "").padStart(10, "0");
+  return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${padded}&count=40&output=atom`;
+}
+
+export type NewsSourceKind =
+  | "press-room"
+  | "investor-relations"
+  | "pr-newswire"
+  | "business-wire"
+  | "globe-newswire"
+  | "sec-edgar"
+  | "official-blog";
+
+export interface NewsSourceCandidate {
+  url: string;
+  kind: NewsSourceKind;
+  /** Short label for source trail, e.g. "PR Newswire". */
+  label: string;
+  /** When true, keep only items mentioning the matched organization. */
+  orgFilter?: boolean;
+}
+
+/** Tracks feed URLs that failed during a single fetchRssProspects call. */
+export class FeedFailureCache {
+  private failed = new Set<string>();
+
+  has(url: string): boolean {
+    return this.failed.has(url);
+  }
+
+  mark(url: string): void {
+    this.failed.add(url);
+  }
+}
+
+function pressRoom(url: string): NewsSourceCandidate {
+  return { url, kind: "press-room", label: "Press room" };
+}
+
+function investorRelations(url: string): NewsSourceCandidate {
+  return { url, kind: "investor-relations", label: "Investor relations" };
+}
+
+function secFilings(cik: string | number): NewsSourceCandidate {
   return {
-    Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
-    "User-Agent": "Prospect Scout RSS Reader/1.0",
+    url: secEdgarAtomUrl(cik),
+    kind: "sec-edgar",
+    label: "SEC EDGAR filings",
   };
+}
+
+function prNewswire(orgFilter = true): NewsSourceCandidate {
+  return {
+    url: PR_NEWSWIRE_ALL,
+    kind: "pr-newswire",
+    label: "PR Newswire",
+    orgFilter,
+  };
+}
+
+function globeHealthcare(orgFilter = true): NewsSourceCandidate {
+  return {
+    url: GLOBE_HEALTHCARE,
+    kind: "globe-newswire",
+    label: "GlobeNewswire",
+    orgFilter,
+  };
+}
+
+function globeConsumer(orgFilter = true): NewsSourceCandidate {
+  return {
+    url: GLOBE_CONSUMER,
+    kind: "globe-newswire",
+    label: "GlobeNewswire",
+    orgFilter,
+  };
+}
+
+function officialBlog(url: string): NewsSourceCandidate {
+  return { url, kind: "official-blog", label: "Official blog" };
 }
 
 // ---------------------------------------------------------------------------
@@ -62,8 +167,8 @@ export interface RssFeedSource {
   id: string;
   organizationName: string;
   buyerPacks: BuyerPackId[];
-  /** Public RSS / Atom press-release feed URL. */
-  feedUrl: string;
+  /** Ordered source candidates — first success wins. */
+  sources: NewsSourceCandidate[];
   aliases: string[];
   location: string;
   region: string;
@@ -79,7 +184,13 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-humana",
     organizationName: "Humana Inc.",
     buyerPacks: ["health-plans"],
-    feedUrl: "https://press.humana.com/news-releases/rss",
+    sources: [
+      pressRoom("https://press.humana.com/news-releases/rss"),
+      investorRelations("https://investors.humana.com/rss/news-releases.xml"),
+      secFilings("49071"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["humana"],
     location: "Louisville, KY",
     region: "southeast",
@@ -89,7 +200,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-uhc",
     organizationName: "UnitedHealthcare",
     buyerPacks: ["health-plans"],
-    feedUrl: "https://www.uhc.com/newsroom/rss.xml",
+    sources: [
+      pressRoom("https://www.uhc.com/newsroom/rss.xml"),
+      secFilings("731766"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["unitedhealthcare", "united healthcare", "uhc", "unitedhealth"],
     location: "Minnetonka, MN",
     region: "midwest",
@@ -99,7 +215,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-cvs-aetna",
     organizationName: "Aetna",
     buyerPacks: ["health-plans"],
-    feedUrl: "https://news.cvshealth.com/news-releases/rss",
+    sources: [
+      pressRoom("https://news.cvshealth.com/news-releases/rss"),
+      secFilings("64803"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["aetna", "cvs health", "cvs aetna"],
     location: "Hartford, CT",
     region: "northeast",
@@ -109,7 +230,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-pepsico",
     organizationName: "PepsiCo",
     buyerPacks: ["manufacturers"],
-    feedUrl: "https://www.pepsico.com/news/rss",
+    sources: [
+      pressRoom("https://www.pepsico.com/news/rss"),
+      secFilings("77476"),
+      globeConsumer(),
+      prNewswire(),
+    ],
     aliases: ["pepsico", "pepsi"],
     location: "Purchase, NY",
     region: "mid-atlantic",
@@ -119,7 +245,13 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-general-mills",
     organizationName: "General Mills",
     buyerPacks: ["manufacturers"],
-    feedUrl: "https://investors.generalmills.com/press-releases/rss",
+    sources: [
+      investorRelations("https://investors.generalmills.com/press-releases/rss"),
+      pressRoom("https://www.generalmills.com/news/releases"),
+      secFilings("40704"),
+      globeConsumer(),
+      prNewswire(),
+    ],
     aliases: ["general mills", "generalmills"],
     location: "Minneapolis, MN",
     region: "midwest",
@@ -129,7 +261,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-hca",
     organizationName: "HCA Healthcare",
     buyerPacks: ["health-systems"],
-    feedUrl: "https://hcahealthcare.com/util/pages/rss/news-releases.rss",
+    sources: [
+      pressRoom("https://hcahealthcare.com/util/pages/rss/news-releases.rss"),
+      secFilings("860730"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["hca", "hca healthcare"],
     location: "Nashville, TN",
     region: "southeast",
@@ -139,7 +276,11 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-ascension",
     organizationName: "Ascension",
     buyerPacks: ["health-systems"],
-    feedUrl: "https://about.ascension.org/news/rss",
+    sources: [
+      pressRoom("https://about.ascension.org/news/rss"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["ascension", "ascension health"],
     location: "St. Louis, MO",
     region: "midwest",
@@ -149,7 +290,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-walmart",
     organizationName: "Walmart",
     buyerPacks: ["employers"],
-    feedUrl: "https://corporate.walmart.com/newsroom/rss",
+    sources: [
+      pressRoom("https://corporate.walmart.com/newsroom/rss"),
+      secFilings("104169"),
+      globeConsumer(),
+      prNewswire(),
+    ],
     aliases: ["walmart", "wal-mart"],
     location: "Bentonville, AR",
     region: "southwest",
@@ -159,7 +305,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-starbucks",
     organizationName: "Starbucks",
     buyerPacks: ["employers"],
-    feedUrl: "https://stories.starbucks.com/feed",
+    sources: [
+      officialBlog("https://stories.starbucks.com/feed"),
+      secFilings("829224"),
+      globeConsumer(),
+      prNewswire(),
+    ],
     aliases: ["starbucks"],
     location: "Seattle, WA",
     region: "west",
@@ -169,7 +320,12 @@ export const RSS_FEED_SOURCES: RssFeedSource[] = [
     id: "rss-elevance",
     organizationName: "Elevance Health",
     buyerPacks: ["health-plans", "employers"],
-    feedUrl: "https://www.elevancehealth.com/newsroom/rss",
+    sources: [
+      pressRoom("https://www.elevancehealth.com/newsroom/rss"),
+      secFilings("1156039"),
+      globeHealthcare(),
+      prNewswire(),
+    ],
     aliases: ["elevance", "anthem", "elevance health"],
     location: "Indianapolis, IN",
     region: "midwest",
@@ -249,6 +405,22 @@ export function matchFeedSources(
 /** True when the query hint resolves to at least one RSS feed for this pack. */
 export function isRssScopedQuery(hint: string, buyerPack: BuyerPackId): boolean {
   return matchFeedSources(hint, buyerPack).length > 0;
+}
+
+/** Keeps items whose title/description mention the organization or an alias. */
+export function filterItemsForOrganization(
+  items: RssItem[],
+  orgNames: string[],
+): RssItem[] {
+  const needles = orgNames
+    .map(normalizeHint)
+    .filter((n) => n.length >= 3);
+  if (needles.length === 0) return items;
+
+  return items.filter((item) => {
+    const text = normalizeHint(`${item.title} ${item.description}`);
+    return needles.some((needle) => text.includes(needle));
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -576,9 +748,10 @@ export function extractSignalsFromRssItems(
 export async function fetchRssFeed(
   url: string,
   opts?: ProviderOpts,
+  kind?: NewsSourceKind,
 ): Promise<RssItem[]> {
   const fetchImpl = resolveFetch(opts);
-  const res = await fetchImpl(url, { headers: rssHeaders() });
+  const res = await fetchImpl(url, { headers: rssHeaders(kind) });
   if (!res.ok) {
     throw new Error(`RSS feed returned ${res.status} for ${url}`);
   }
@@ -586,28 +759,83 @@ export async function fetchRssFeed(
   return parseRssXml(xml);
 }
 
+/**
+ * Tries source candidates in order until one returns parseable items.
+ * Skips URLs already marked failed in `cache` for this request.
+ */
+export async function fetchFeedWithFallback(
+  candidates: NewsSourceCandidate[],
+  cache: FeedFailureCache,
+  orgNames: string[],
+  opts?: ProviderOpts,
+): Promise<{ items: RssItem[]; source: NewsSourceCandidate } | null> {
+  for (const candidate of candidates) {
+    if (cache.has(candidate.url)) continue;
+    try {
+      const items = await fetchRssFeed(candidate.url, opts, candidate.kind);
+      const filtered = candidate.orgFilter
+        ? filterItemsForOrganization(items, orgNames)
+        : items;
+      if (filtered.length === 0) continue;
+      return { items: filtered, source: candidate };
+    } catch {
+      cache.mark(candidate.url);
+    }
+  }
+  return null;
+}
+
 export interface RssFetchResult {
   match: RssFeedMatch;
   items: RssItem[];
   signals: ProspectSignal[];
+  sourceUsed: NewsSourceCandidate;
+}
+
+export interface RssProspectsResponse {
+  results: RssFetchResult[];
+  /** True when feeds matched but no source returned usable signals. */
+  allSourcesFailed: boolean;
 }
 
 export async function fetchRssProspects(
   hint: string,
   buyerPack: BuyerPackId,
   opts?: ProviderOpts,
-): Promise<RssFetchResult[]> {
+): Promise<RssProspectsResponse> {
   const matches = matchFeedSources(hint, buyerPack);
-  if (matches.length === 0) return [];
-
-  const results: RssFetchResult[] = [];
-  for (const match of matches) {
-    const items = await fetchRssFeed(match.feed.feedUrl, opts);
-    const signals = extractSignalsFromRssItems(items);
-    if (signals.length === 0) continue;
-    results.push({ match, items, signals });
+  if (matches.length === 0) {
+    return { results: [], allSourcesFailed: false };
   }
-  return results;
+
+  const cache = new FeedFailureCache();
+  const results: RssFetchResult[] = [];
+
+  for (const match of matches) {
+    const orgNames = [match.feed.organizationName, ...match.feed.aliases];
+    const hit = await fetchFeedWithFallback(
+      match.feed.sources,
+      cache,
+      orgNames,
+      opts,
+    );
+    if (!hit) continue;
+
+    const signals = extractSignalsFromRssItems(hit.items);
+    if (signals.length === 0) continue;
+
+    results.push({
+      match,
+      items: hit.items,
+      signals,
+      sourceUsed: hit.source,
+    });
+  }
+
+  return {
+    results,
+    allSourcesFailed: results.length === 0,
+  };
 }
 
 /** Returns the default source-trail row for a set of RSS signals. */
