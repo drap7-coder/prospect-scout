@@ -32,6 +32,9 @@
   /* Meridian timing — one slow, deliberate sweep */
   --meridian-duration: 11s;
   --meridian-signal-x: 67%; /* aligns with SIGNAL.x / 400 */
+
+  /* Readable type scale (1.25× browser default) */
+  --type-scale: 1.25;
 }
 
 @theme inline {
@@ -60,12 +63,14 @@
 
 html {
   color-scheme: dark;
+  font-size: calc(100% * var(--type-scale));
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  line-height: 1.55;
 }
 
 .font-display {

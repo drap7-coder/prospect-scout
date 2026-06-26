@@ -44,7 +44,7 @@ export function ResultRow({
       {/* Organization */}
       <div className="min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[10px] tabular-nums text-muted-2">
+          <span className="font-mono text-[0.625rem] tabular-nums text-muted-2">
             {String(rank).padStart(2, "0")}
           </span>
           <h3 className="truncate text-[0.975rem] font-semibold text-foreground">
@@ -66,7 +66,7 @@ export function ResultRow({
             return (
               <span
                 key={src}
-                className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${st.bg} ${st.border} ${st.text}`}
+                className={`rounded border px-1.5 py-0.5 font-mono text-[0.5625rem] ${st.bg} ${st.border} ${st.text}`}
               >
                 {src === "Public Web" ? "Web" : src}
               </span>
@@ -92,7 +92,7 @@ export function ResultRow({
           return (
             <span
               key={s.id}
-              className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[10px] ${st.bg} ${st.border} ${st.text}`}
+              className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[0.625rem] ${st.bg} ${st.border} ${st.text}`}
             >
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.dot}`} />
               {s.label}
@@ -101,7 +101,7 @@ export function ResultRow({
         })}
       </div>
 
-      <p className="mt-1 font-mono text-[11px] text-muted lg:mt-0 lg:text-right">
+      <p className="mt-1 font-mono text-[0.6875rem] text-muted lg:mt-0 lg:text-right">
         <span className="label-mono mr-2 lg:hidden">Evidence</span>
         {evidence}
       </p>
@@ -109,7 +109,7 @@ export function ResultRow({
       {/* Freshness + sources desktop */}
       <div className="mt-1 lg:mt-0 lg:text-right">
         <p
-          className={`font-mono text-[11px] tabular-nums ${freshnessTone(freshness)}`}
+          className={`font-mono text-[0.6875rem] tabular-nums ${freshnessTone(freshness)}`}
         >
           <span className="label-mono mr-2 lg:hidden">Fresh</span>
           {formatFreshness(freshness)}
@@ -120,7 +120,7 @@ export function ResultRow({
             return (
               <span
                 key={src}
-                className={`rounded border px-1 py-0.5 font-mono text-[8px] uppercase ${st.bg} ${st.border} ${st.text}`}
+                className={`rounded border px-1 py-0.5 font-mono text-[0.5rem] uppercase ${st.bg} ${st.border} ${st.text}`}
               >
                 {src === "Public Web" ? "Web" : src}
               </span>

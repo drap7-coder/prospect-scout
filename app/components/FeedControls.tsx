@@ -98,7 +98,7 @@ export function FeedControls({
             <span className="text-accent-cyan">{shown}</span>
             <span className="text-muted-2"> / {total} opportunities</span>
             {activeFilterCount > 0 ? (
-              <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] text-accent">
+              <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[0.625rem] text-accent">
                 {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
               </span>
             ) : null}
@@ -112,7 +112,7 @@ export function FeedControls({
               key={o.key}
               type="button"
               onClick={() => onSortChange(o.key)}
-              className={`rounded-lg border px-2.5 py-1.5 font-mono text-[11px] transition ${
+              className={`rounded-lg border px-2.5 py-1.5 font-mono text-[0.6875rem] transition ${
                 sort === o.key
                   ? "border-accent/50 bg-accent text-white"
                   : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground"
@@ -219,7 +219,7 @@ export function FeedControls({
                     source: active ? "all" : s,
                   })
                 }
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[0.625rem] transition ${
                   active
                     ? `${st.bg} ${st.border} ${st.text} ring-2 ${st.ring}`
                     : "border-border bg-surface text-muted-2 hover:text-muted"

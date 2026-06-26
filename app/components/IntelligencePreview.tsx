@@ -84,16 +84,16 @@ export function IntelligencePreview({
             >
               {prospect.score}
             </span>
-            <span className={`font-mono text-[10px] uppercase ${tone.text}`}>
+            <span className={`font-mono text-[0.625rem] uppercase ${tone.text}`}>
               {tone.label}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-lg border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-foreground">
+            <span className="rounded-lg border border-border bg-surface px-2.5 py-1 font-mono text-[0.6875rem] text-foreground">
               {prospect.buyerType}
             </span>
             <span
-              className={`rounded-lg border border-border bg-surface px-2.5 py-1 font-mono text-[11px] ${freshnessTone(freshness)}`}
+              className={`rounded-lg border border-border bg-surface px-2.5 py-1 font-mono text-[0.6875rem] ${freshnessTone(freshness)}`}
             >
               {formatFreshness(freshness)}
             </span>
@@ -146,13 +146,13 @@ export function IntelligencePreview({
                           </p>
                           <div className="mt-2.5 flex flex-wrap items-center gap-2">
                             <span
-                              className={`font-mono text-[10px] ${freshnessTone(item.freshnessDays)}`}
+                              className={`font-mono text-[0.625rem] ${freshnessTone(item.freshnessDays)}`}
                             >
                               {formatFreshness(item.freshnessDays)}
                             </span>
                             <span className="text-muted-2">·</span>
                             <span
-                              className={`inline-flex items-center gap-1 font-mono text-[10px] ${conf.text}`}
+                              className={`inline-flex items-center gap-1 font-mono text-[0.625rem] ${conf.text}`}
                             >
                               <span
                                 className={`h-1.5 w-1.5 rounded-full ${conf.dot}`}
@@ -192,7 +192,7 @@ export function IntelligencePreview({
               return (
                 <li
                   key={i}
-                  className={`rounded-lg border border-border/60 px-3 py-2 font-mono text-[11px] ${st.bg}`}
+                  className={`rounded-lg border border-border/60 px-3 py-2 font-mono text-[0.6875rem] ${st.bg}`}
                 >
                   <span className={`${st.text}`}>{item.source}</span>
                   <span className="mt-1 block text-foreground/85">

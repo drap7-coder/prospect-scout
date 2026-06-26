@@ -114,7 +114,7 @@ export function SearchPanel() {
 
       <div className="min-w-0">
         {status === "done" && lastQuery ? (
-          <p className="mb-4 font-mono text-[11px] text-muted-2">
+          <p className="mb-4 font-mono text-[0.6875rem] text-muted-2">
             {(lastQuery.sells || "Your offering") +
               " · " +
               regionLabel(lastQuery.region)}

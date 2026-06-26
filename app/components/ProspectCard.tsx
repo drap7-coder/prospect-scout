@@ -81,7 +81,7 @@ export function ProspectCard({
               <span
                 key={signal.id}
                 title={`${signal.strength} · ~${signal.freshnessDays}d ago · ${signal.source}`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-accent/25 bg-accent-soft px-2 py-0.5 font-mono text-[11px] text-accent-cyan"
+                className="inline-flex items-center gap-1.5 rounded-md border border-accent/25 bg-accent-soft px-2 py-0.5 font-mono text-[0.6875rem] text-accent-cyan"
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${strengthDot(signal.strength)}`}
@@ -119,7 +119,7 @@ export function ProspectCard({
           <h4 className="label-mono">Source trail</h4>
           <ul className="mt-2 space-y-1.5">
             {prospect.sourceTrail.map((item, i) => (
-              <li key={i} className="flex items-baseline gap-2 font-mono text-[11px]">
+              <li key={i} className="flex items-baseline gap-2 font-mono text-[0.6875rem]">
                 <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-accent-cyan">
                   {item.source}
                 </span>

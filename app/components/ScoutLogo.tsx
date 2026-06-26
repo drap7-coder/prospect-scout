@@ -38,7 +38,7 @@ export function ScoutBrand({
     <div className={`flex items-center gap-2.5 ${className}`}>
       <ScoutLogo size={size} />
       <div className="min-w-0">
-        <span className="block text-[0.9375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+        <span className="block text-base font-semibold leading-tight tracking-[-0.02em] text-foreground">
           Prospect Scout
         </span>
         {showSubtitle ? (

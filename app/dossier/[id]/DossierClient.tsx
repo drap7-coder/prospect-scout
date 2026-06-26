@@ -141,7 +141,7 @@ export function DossierClient({ id }: { id: string }) {
                       <span
                         className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full ring-2 ring-background ${st.dot}`}
                       />
-                      <p className="font-mono text-[11px] text-muted-2">
+                      <p className="font-mono text-[0.6875rem] text-muted-2">
                         <span className={freshnessTone(signal.freshnessDays)}>
                           {formatFreshness(signal.freshnessDays)}
                         </span>
@@ -177,7 +177,7 @@ export function DossierClient({ id }: { id: string }) {
                           <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
                           {item.source}
                         </span>
-                        <span className="flex items-center gap-2 font-mono text-[10px]">
+                        <span className="flex items-center gap-2 font-mono text-[0.625rem]">
                           <span className={freshnessTone(item.freshnessDays)}>
                             {formatFreshness(item.freshnessDays)}
                           </span>
@@ -217,7 +217,7 @@ export function DossierClient({ id }: { id: string }) {
                           <li key={item.id} className="text-sm leading-relaxed">
                             <span className="text-foreground">{item.snippet}</span>
                             <span
-                              className={`ml-2 font-mono text-[10px] ${freshnessTone(item.freshnessDays)}`}
+                              className={`ml-2 font-mono text-[0.625rem] ${freshnessTone(item.freshnessDays)}`}
                             >
                               {formatFreshness(item.freshnessDays)}
                             </span>
@@ -243,7 +243,7 @@ export function DossierClient({ id }: { id: string }) {
                         <span className="font-medium text-foreground">
                           {s.label}
                         </span>
-                        <span className={`ml-2 font-mono text-[10px] ${st.text}`}>
+                        <span className={`ml-2 font-mono text-[0.625rem] ${st.text}`}>
                           {s.source}
                         </span>
                         <p className="mt-1.5 leading-relaxed text-muted">
@@ -294,7 +294,7 @@ export function DossierClient({ id }: { id: string }) {
                   return (
                     <li
                       key={i}
-                      className={`flex flex-wrap items-baseline gap-2 rounded-lg border border-border/60 px-3 py-2 font-mono text-[11px] ${st.bg}`}
+                      className={`flex flex-wrap items-baseline gap-2 rounded-lg border border-border/60 px-3 py-2 font-mono text-[0.6875rem] ${st.bg}`}
                     >
                       <span
                         className={`rounded border px-1.5 py-0.5 ${st.border} ${st.text}`}
@@ -358,7 +358,7 @@ export function DossierClient({ id }: { id: string }) {
                 <p className="label-mono">Organization profile</p>
                 <dl className="mt-4 space-y-3">
                   <div>
-                    <dt className="font-mono text-[10px] text-muted-2">
+                    <dt className="font-mono text-[0.625rem] text-muted-2">
                       Buyer ecosystem
                     </dt>
                     <dd className="mt-0.5 text-sm text-foreground">
@@ -366,7 +366,7 @@ export function DossierClient({ id }: { id: string }) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-mono text-[10px] text-muted-2">
+                    <dt className="font-mono text-[0.625rem] text-muted-2">
                       Region
                     </dt>
                     <dd className="mt-0.5 text-sm text-foreground">
@@ -374,7 +374,7 @@ export function DossierClient({ id }: { id: string }) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-mono text-[10px] text-muted-2">
+                    <dt className="font-mono text-[0.625rem] text-muted-2">
                       Evidence sources
                     </dt>
                     <dd className="mt-1 flex flex-wrap gap-1">
@@ -383,7 +383,7 @@ export function DossierClient({ id }: { id: string }) {
                         return (
                           <span
                             key={src}
-                            className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${st.bg} ${st.border} ${st.text}`}
+                            className={`rounded border px-1.5 py-0.5 font-mono text-[0.5625rem] ${st.bg} ${st.border} ${st.text}`}
                           >
                             {src}
                           </span>
@@ -402,7 +402,7 @@ export function DossierClient({ id }: { id: string }) {
                     return (
                       <span
                         key={s.id}
-                        className={`rounded-md border px-2 py-1 font-mono text-[10px] ${st.bg} ${st.border} ${st.text}`}
+                        className={`rounded-md border px-2 py-1 font-mono text-[0.625rem] ${st.bg} ${st.border} ${st.text}`}
                       >
                         {s.label}
                       </span>

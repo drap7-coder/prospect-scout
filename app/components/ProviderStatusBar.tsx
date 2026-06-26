@@ -52,7 +52,7 @@ export function ProviderStatusBar({
         return (
           <span
             key={key}
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${STATUS_STYLES[status]}`}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-wide ${STATUS_STYLES[status]}`}
           >
             {label}
             {suffix ? (

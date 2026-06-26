@@ -64,7 +64,7 @@ export function OpportunityFeedRow({
 
       {/* Score */}
       <div className="flex items-center gap-3 lg:block lg:text-center">
-        <span className="label-mono w-5 shrink-0 text-[10px] text-muted-2 lg:hidden">
+        <span className="label-mono w-5 shrink-0 text-[0.625rem] text-muted-2 lg:hidden">
           {String(rank).padStart(2, "0")}
         </span>
         <div
@@ -75,7 +75,7 @@ export function OpportunityFeedRow({
           >
             {prospect.score}
           </span>
-          <span className={`mt-0.5 font-mono text-[9px] uppercase ${tone.text}`}>
+          <span className={`mt-0.5 font-mono text-[0.5625rem] uppercase ${tone.text}`}>
             {tone.label}
           </span>
         </div>
@@ -84,7 +84,7 @@ export function OpportunityFeedRow({
       {/* Organization + why now */}
       <div className="mt-2 min-w-0 lg:mt-0">
         <div className="flex items-baseline gap-2">
-          <span className="label-mono hidden w-5 shrink-0 text-[10px] text-muted-2 lg:inline">
+          <span className="label-mono hidden w-5 shrink-0 text-[0.625rem] text-muted-2 lg:inline">
             {String(rank).padStart(2, "0")}
           </span>
           <h3 className="truncate text-[0.975rem] font-semibold leading-snug tracking-tight text-foreground">
@@ -103,7 +103,7 @@ export function OpportunityFeedRow({
           return (
             <span
               key={s.id}
-              className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[10px] ${st.bg} ${st.border} ${st.text}`}
+              className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[0.625rem] ${st.bg} ${st.border} ${st.text}`}
             >
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.dot}`} />
               <span className="truncate">{s.label}</span>
@@ -113,13 +113,13 @@ export function OpportunityFeedRow({
       </div>
 
       {/* Buyer type */}
-      <p className="mt-2 truncate font-mono text-[11px] text-foreground/90 lg:mt-0">
+      <p className="mt-2 truncate font-mono text-[0.6875rem] text-foreground/90 lg:mt-0">
         {prospect.buyerType}
       </p>
 
       {/* Freshness */}
       <p
-        className={`mt-1 font-mono text-[11px] tabular-nums lg:mt-0 lg:text-right ${freshnessTone(freshness)}`}
+        className={`mt-1 font-mono text-[0.6875rem] tabular-nums lg:mt-0 lg:text-right ${freshnessTone(freshness)}`}
       >
         {formatFreshness(freshness)}
       </p>
@@ -131,7 +131,7 @@ export function OpportunityFeedRow({
           return (
             <span
               key={src}
-              className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wide ${st.bg} ${st.border} ${st.text}`}
+              className={`rounded border px-1.5 py-0.5 font-mono text-[0.5625rem] font-medium uppercase tracking-wide ${st.bg} ${st.border} ${st.text}`}
             >
               {src === "Public Web" ? "Web" : src}
             </span>

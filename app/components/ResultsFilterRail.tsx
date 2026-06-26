@@ -206,7 +206,7 @@ export function ResultsFilterRail({
               sources: [],
             })
           }
-          className="mt-3 w-full rounded-lg border border-border py-2 font-mono text-[11px] text-muted transition hover:text-foreground"
+          className="mt-3 w-full rounded-lg border border-border py-2 font-mono text-[0.6875rem] text-muted transition hover:text-foreground"
         >
           Clear all filters
         </button>
