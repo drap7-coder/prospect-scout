@@ -29,7 +29,7 @@ function buildInput(
     sources?: string[];
     sellerContext?: string;
     ownership?: string;
-    state?: string;
+    state?: string | null;
     metro?: string;
     opStates?: string;
     sort?: string;
@@ -189,6 +189,7 @@ export async function POST(request: Request) {
         provider: providerRaw,
         status: "skipped",
         prospects: base.prospects,
+        coverage: base.coverage,
         ms: 0,
       });
     }
@@ -203,6 +204,7 @@ export async function POST(request: Request) {
       provider: outcome.provider,
       status: outcome.status,
       prospects: outcome.prospects,
+      coverage: base.coverage,
       ms: outcome.ms,
     });
   }

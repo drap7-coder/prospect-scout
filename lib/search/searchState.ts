@@ -259,12 +259,12 @@ export function resolveSearchState(state: SearchState): SearchState {
     ),
     location: state.location ?? inferred.location ?? null,
     freshness: state.freshness ?? inferred.freshness ?? null,
-    signals: state.signals.length ? state.signals : (inferred.signals ?? []),
-    sources: state.sources.length ? state.sources : (inferred.sources ?? []),
+    signals: state.signals?.length ? state.signals : (inferred.signals ?? []),
+    sources: state.sources?.length ? state.sources : (inferred.sources ?? []),
     ownership: state.ownership ?? inferred.ownership ?? null,
     state: state.state ?? inferred.state ?? null,
     metro: state.metro ?? null,
-    operatingStates: state.operatingStates.length ? state.operatingStates : [],
+    operatingStates: state.operatingStates?.length ? state.operatingStates : [],
     sort: state.sort ?? null,
   };
 }
@@ -291,6 +291,10 @@ export function searchStateToRawInput(state: SearchState): RawSearchInput {
     targets: resolved.query.trim(),
     buyerPack,
     region: locationToRegion(resolved.location),
+    sectorId: resolved.sector,
+    industryId: resolved.industry,
+    organizationTypeId: resolved.organizationType,
+    state: resolved.state,
   };
 }
 

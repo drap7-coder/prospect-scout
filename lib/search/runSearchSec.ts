@@ -108,7 +108,7 @@ export async function trySecProvider(base: SearchResponse): Promise<SearchRespon
     const prospects = [secProspect, ...base.prospects].sort(
       (a, b) => b.score - a.score,
     );
-    return { query, prospects };
+    return { ...base, prospects };
   } catch (err) {
     console.warn("[secEdgar] provider unavailable, falling back to mock:", err);
     return withSecUnavailableNote(base);
@@ -163,7 +163,7 @@ export function withSecUnavailableNote(base: SearchResponse): SearchResponse {
       },
     ],
   };
-  return { query: base.query, prospects: [noted, ...rest] };
+  return { ...base, prospects: [noted, ...rest] };
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ export async function tryCmsProvider(base: SearchResponse): Promise<SearchRespon
     const existingIds = new Set(merged.map((p) => p.id));
     const rest = base.prospects.filter((p) => !existingIds.has(p.id));
     const prospects = [...merged, ...rest].sort((a, b) => b.score - a.score);
-    return { query, prospects };
+    return { ...base, prospects };
   } catch (err) {
     console.warn("[cms] provider unavailable, falling back to mock:", err);
     return withCmsUnavailableNote(base);
@@ -257,7 +257,7 @@ export function withCmsUnavailableNote(base: SearchResponse): SearchResponse {
       { source: "CMS", evidenceText: CMS_UNAVAILABLE_EVIDENCE },
     ],
   };
-  return { query: base.query, prospects: [noted, ...rest] };
+  return { ...base, prospects: [noted, ...rest] };
 }
 
 // ---------------------------------------------------------------------------
@@ -291,7 +291,7 @@ export async function tryRssProvider(base: SearchResponse): Promise<SearchRespon
     const existingIds = new Set(rssProspects.map((p) => p.id));
     const rest = base.prospects.filter((p) => !existingIds.has(p.id));
     const prospects = [...rssProspects, ...rest].sort((a, b) => b.score - a.score);
-    return { query, prospects };
+    return { ...base, prospects };
   } catch (err) {
     console.warn("[rss] provider unavailable, falling back to mock:", err);
     return withRssUnavailableNote(base);
@@ -339,7 +339,7 @@ export function withRssUnavailableNote(base: SearchResponse): SearchResponse {
       { source: "RSS", evidenceText: RSS_UNAVAILABLE_EVIDENCE },
     ],
   };
-  return { query: base.query, prospects: [noted, ...rest] };
+  return { ...base, prospects: [noted, ...rest] };
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ export async function tryFdaProvider(base: SearchResponse): Promise<SearchRespon
     const existingIds = new Set(fdaProspects.map((p) => p.id));
     const rest = base.prospects.filter((p) => !existingIds.has(p.id));
     const prospects = [...fdaProspects, ...rest].sort((a, b) => b.score - a.score);
-    return { query, prospects };
+    return { ...base, prospects };
   } catch (err) {
     console.warn("[fda] provider unavailable, falling back to mock:", err);
     return withFdaUnavailableNote(base);
@@ -425,7 +425,7 @@ export function withFdaUnavailableNote(base: SearchResponse): SearchResponse {
       { source: "FDA", evidenceText: FDA_UNAVAILABLE_EVIDENCE },
     ],
   };
-  return { query: base.query, prospects: [noted, ...rest] };
+  return { ...base, prospects: [noted, ...rest] };
 }
 
 // ---------------------------------------------------------------------------
@@ -486,7 +486,7 @@ export async function tryPublicWebProvider(
     const existingIds = new Set(webProspects.map((p) => p.id));
     const rest = base.prospects.filter((p) => !existingIds.has(p.id));
     const prospects = [...webProspects, ...rest].sort((a, b) => b.score - a.score);
-    return { query, prospects };
+    return { ...base, prospects };
   } catch (err) {
     console.warn("[publicWeb] provider unavailable, falling back to mock:", err);
     return withPublicWebUnavailableNote(base);
@@ -549,5 +549,5 @@ export function withPublicWebUnavailableNote(base: SearchResponse): SearchRespon
       { source: "Public Web", evidenceText: PUBLIC_WEB_UNAVAILABLE_EVIDENCE },
     ],
   };
-  return { query: base.query, prospects: [noted, ...rest] };
+  return { ...base, prospects: [noted, ...rest] };
 }

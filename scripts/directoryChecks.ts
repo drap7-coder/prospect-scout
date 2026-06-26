@@ -186,7 +186,7 @@ check("UPMC resolves correctly", () => {
   assert.equal(record!.organizationType, "health-plan");
 });
 
-check("directory-only prospects appear with lower confidence and Directory provenance", () => {
+check("directory-only prospects appear with structured scores and Directory provenance", () => {
   const response = runSearch({
     targets: "manufacturers in Ohio",
     sells: "",
@@ -196,7 +196,10 @@ check("directory-only prospects appear with lower confidence and Directory prove
   );
   assert.ok(directoryOnly.length > 0, "expected directory-only prospects");
   for (const p of directoryOnly.slice(0, 5)) {
-    assert.ok(p.score <= 55, `${p.name} score ${p.score} should reflect lower confidence`);
+    assert.ok(
+      p.score >= 40 && p.score <= 85,
+      `${p.name} score ${p.score} should reflect structured match without live signals`,
+    );
     assert.ok(
       p.sourceTrail.some(
         (t) => t.source === "Directory" || /master directory/i.test(t.evidenceText),
@@ -211,7 +214,9 @@ check("filters render from taxonomy even when result set is small", () => {
     targets: "food manufacturers in Ohio",
     sells: "",
   });
-  assert.ok(response.prospects.length > 0 && response.prospects.length < 15);
+  assert.ok(response.prospects.length > 0);
+  assert.ok(response.coverage.totalCatalogRecords >= 100_000);
+  assert.ok(response.coverage.confidence > 0);
   assert.ok(TAXONOMY_SECTORS.length >= 10);
   assert.ok(TAXONOMY_INDUSTRIES.length >= 30);
   const manufacturingCount = countProspectsForFilter(

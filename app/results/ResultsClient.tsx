@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Prospect, SearchQuery } from "@/lib/search/types";
+import type { Prospect, SearchQuery, SearchResponse } from "@/lib/search/types";
 import { mergeProspectLists } from "@/lib/search/mergeProspects";
 import type { ProviderBadgeKey } from "@/lib/search/providerPlan";
 import type { LiveProviderKey } from "@/lib/search/providerPlan";
@@ -54,6 +54,7 @@ type ProviderBadgeStatus =
 interface MockPhaseResponse {
   query: SearchQuery;
   prospects: Prospect[];
+  coverage: SearchResponse["coverage"];
   phase: "mock";
   plannedProviders: ProviderBadgeKey[];
   secondaryProviders: LiveProviderKey[];
@@ -64,6 +65,7 @@ interface ProviderPhaseResponse {
   provider: LiveProviderKey;
   status: "ready" | "unavailable" | "skipped";
   prospects: Prospect[];
+  coverage: SearchResponse["coverage"];
   ms: number;
 }
 
@@ -103,6 +105,7 @@ export function ResultsClient() {
   const [plannedProviders, setPlannedProviders] = useState<ProviderBadgeKey[]>(
     [],
   );
+  const [coverage, setCoverage] = useState<SearchResponse["coverage"] | null>(null);
   const [providerStatuses, setProviderStatuses] = useState<
     Record<BadgeKey, ProviderBadgeStatus>
   >(initialProviderStatuses([]));
@@ -130,6 +133,7 @@ export function ResultsClient() {
     setError(null);
     setSelectedId(null);
     setAllProspects([]);
+    setCoverage(null);
     setPlannedProviders([]);
     setProviderStatuses(initialProviderStatuses([]));
 
@@ -154,6 +158,7 @@ export function ResultsClient() {
       if (ac.signal.aborted) return;
 
       setAllProspects(mockData.prospects);
+      setCoverage(mockData.coverage);
       setPlannedProviders(mockData.plannedProviders);
       setPhase("enriching");
       setProviderStatuses(
@@ -302,6 +307,9 @@ export function ResultsClient() {
 
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
+  const coverageSummary = coverage
+    ? ` · coverage ${coverage.coveragePercent}% · confidence ${Math.round(coverage.confidence * 100)}%`
+    : "";
   const hasQuery = Boolean(searchState.query.trim());
   const showResults =
     allProspects.length > 0 &&
@@ -350,6 +358,7 @@ export function ResultsClient() {
                 {showResults || phase === "ready" ? (
                   <p className="mt-1 font-mono text-xs text-muted-2">
                     {sourceSummary}
+                    {coverageSummary}
                     {filtered.length !== allProspects.length ? (
                       <>
                         {" "}

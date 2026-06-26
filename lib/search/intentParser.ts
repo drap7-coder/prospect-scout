@@ -7,6 +7,7 @@ import type {
 } from "@/lib/search/types";
 import { isBuyerPackId } from "@/lib/packs";
 import { inferTaxonomyFromQuery } from "@/lib/taxonomy";
+import { parseSearchIntent } from "@/lib/discovery/intent";
 import { normalizeRegion, inferRegionFromText, ANY_REGION } from "./regions";
 import { inferIdealSignals } from "./capabilities";
 
@@ -157,6 +158,18 @@ export class HeuristicIntentParser implements IntentParser {
     // Capability → ideal signals, scoped to the chosen pack.
     const idealSignals = inferIdealSignals(combined, targetBuyer);
 
+    const structured = parseSearchIntent(combined, {
+      sectorId: input.sectorId ?? undefined,
+      industryId: input.industryId ?? undefined,
+      organizationTypeId: input.organizationTypeId ?? undefined,
+      state: input.state ?? undefined,
+      region: input.region,
+    });
+    const sectorId = structured.sectorId;
+    const industryId = structured.industryId;
+    const organizationTypeId = structured.organizationTypeId;
+    const state = structured.state;
+
     // Exclusions: explicit input plus anything parsed from the text.
     const excludedTargets = [
       ...(input.excludedTargets ?? []),
@@ -169,6 +182,10 @@ export class HeuristicIntentParser implements IntentParser {
       region,
       idealSignals,
       excludedTargets: [...new Set(excludedTargets)],
+      sectorId,
+      industryId,
+      organizationTypeId,
+      state,
     };
 
     return {
@@ -182,6 +199,10 @@ export class HeuristicIntentParser implements IntentParser {
         region: input.region,
         sellerContext: input.sellerContext,
         excludedTargets: input.excludedTargets,
+        sectorId,
+        industryId,
+        organizationTypeId,
+        state,
       },
     };
   }

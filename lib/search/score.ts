@@ -9,22 +9,27 @@ import { ANY_REGION, regionLabel } from "./regions";
 import { freshnessFactor } from "./signalBuilder";
 
 /**
- * Explainable, SIGNAL-DRIVEN opportunity scoring.
+ * Explainable opportunity scoring with STRUCTURED DISCOVERY first.
  *
- * Unlike a static "fit" score, this rewards live evidence: a prospect ranks
- * high when it shows strong, fresh signals that match the problem the user
- * solves — and when the timing is urgent. The total (0–100) is the sum of six
- * transparent factors, each reporting points, max, and a human reason.
+ * When the query carries industry / sector / org-type / state intent,
+ * those factors dominate (before signals). Cross-sector mismatches
+ * are strongly penalized so "manufacturers in Ohio" does not return banks.
  */
 
 const MAX_POINTS = {
-  buyerMatch: 20,
-  regionMatch: 15,
-  problemFit: 20,
-  signalStrength: 20,
-  signalFreshness: 15,
+  industryMatch: 25,
+  sectorMatch: 15,
+  orgTypeMatch: 15,
+  stateMatch: 20,
+  regionMatch: 10,
+  buyerMatch: 10,
+  problemFit: 15,
+  signalStrength: 15,
+  signalFreshness: 10,
   outreachUrgency: 10,
 } as const;
+
+const STRUCTURE_PENALTY_MAX = 40;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -35,16 +40,200 @@ function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+function hasStructuredIntent(query: SearchQuery): boolean {
+  const p = query.profile;
+  return Boolean(p.industryId || p.sectorId || p.organizationTypeId || p.state);
+}
+
+function industryMatches(prospect: RawProspect, industryId: string): boolean {
+  if (prospect.industryId === industryId) return true;
+  if (
+    industryId === "life-sciences" &&
+    prospect.industryId === "medical-device-manufacturing"
+  ) {
+    return true;
+  }
+  if (
+    industryId === "medical-device-manufacturing" &&
+    prospect.industryId === "life-sciences"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+const SECTOR_INCOMPATIBLE: Record<string, string[]> = {
+  manufacturing: ["financial-services", "education"],
+  "financial-services": ["manufacturing", "healthcare"],
+  education: ["manufacturing", "financial-services"],
+  healthcare: ["manufacturing", "retail-consumer"],
+  "retail-consumer": ["healthcare", "financial-services"],
+};
+
+function scoreIndustryMatch(
+  prospect: RawProspect,
+  query: SearchQuery,
+): ScoreFactor {
+  const industryId = query.profile.industryId;
+  if (!industryId) {
+    return {
+      key: "industryMatch",
+      label: "Industry match",
+      points: 0,
+      maxPoints: MAX_POINTS.industryMatch,
+      detail: "No industry filter",
+    };
+  }
+  const matches = industryMatches(prospect, industryId);
+  return {
+    key: "industryMatch",
+    label: "Industry match",
+    points: matches ? MAX_POINTS.industryMatch : 0,
+    maxPoints: MAX_POINTS.industryMatch,
+    detail: matches
+      ? `Matches ${industryId} industry`
+      : `Outside ${industryId} industry`,
+  };
+}
+
+function scoreSectorMatch(
+  prospect: RawProspect,
+  query: SearchQuery,
+): ScoreFactor {
+  const sectorId = query.profile.sectorId;
+  if (!sectorId) {
+    return {
+      key: "sectorMatch",
+      label: "Sector match",
+      points: 0,
+      maxPoints: MAX_POINTS.sectorMatch,
+      detail: "No sector filter",
+    };
+  }
+  const matches = prospect.sectorId === sectorId;
+  return {
+    key: "sectorMatch",
+    label: "Sector match",
+    points: matches ? MAX_POINTS.sectorMatch : 0,
+    maxPoints: MAX_POINTS.sectorMatch,
+    detail: matches
+      ? `In ${sectorId} sector`
+      : `Outside ${sectorId} sector`,
+  };
+}
+
+function scoreOrgTypeMatch(
+  prospect: RawProspect,
+  query: SearchQuery,
+): ScoreFactor {
+  const orgTypeId = query.profile.organizationTypeId;
+  if (!orgTypeId) {
+    return {
+      key: "orgTypeMatch",
+      label: "Organization type match",
+      points: 0,
+      maxPoints: MAX_POINTS.orgTypeMatch,
+      detail: "No organization type filter",
+    };
+  }
+  const matches = prospect.organizationTypeId === orgTypeId;
+  return {
+    key: "orgTypeMatch",
+    label: "Organization type match",
+    points: matches ? MAX_POINTS.orgTypeMatch : 0,
+    maxPoints: MAX_POINTS.orgTypeMatch,
+    detail: matches
+      ? `Matches ${orgTypeId}`
+      : `Different organization type`,
+  };
+}
+
+function scoreStateMatch(
+  prospect: RawProspect,
+  query: SearchQuery,
+): ScoreFactor {
+  const state = query.profile.state;
+  if (!state) {
+    return {
+      key: "stateMatch",
+      label: "State match",
+      points: 0,
+      maxPoints: MAX_POINTS.stateMatch,
+      detail: "No state filter",
+    };
+  }
+  const matches = prospect.stateCode === state;
+  return {
+    key: "stateMatch",
+    label: "State match",
+    points: matches ? MAX_POINTS.stateMatch : 0,
+    maxPoints: MAX_POINTS.stateMatch,
+    detail: matches
+      ? `Located in ${state}`
+      : `Outside ${state}`,
+  };
+}
+
+function scoreStructurePenalty(
+  prospect: RawProspect,
+  query: SearchQuery,
+): ScoreFactor {
+  if (!hasStructuredIntent(query)) {
+    return {
+      key: "structurePenalty",
+      label: "Structure penalty",
+      points: 0,
+      maxPoints: 0,
+      detail: "No structured intent",
+    };
+  }
+
+  let penalty = 0;
+  const reasons: string[] = [];
+
+  const sectorId = query.profile.sectorId;
+  if (
+    sectorId &&
+    prospect.sectorId &&
+    prospect.sectorId !== sectorId &&
+    SECTOR_INCOMPATIBLE[sectorId]?.includes(prospect.sectorId)
+  ) {
+    penalty += STRUCTURE_PENALTY_MAX;
+    reasons.push(`Incompatible sector (${prospect.sectorId})`);
+  }
+
+  const industryId = query.profile.industryId;
+  if (
+    industryId &&
+    prospect.industryId &&
+    !industryMatches(prospect, industryId)
+  ) {
+    penalty += 25;
+    reasons.push("Wrong industry");
+  }
+
+  return {
+    key: "structurePenalty",
+    label: "Structure penalty",
+    points: -penalty,
+    maxPoints: 0,
+    detail: reasons.length > 0 ? reasons.join("; ") : "No mismatch",
+  };
+}
+
 function scoreBuyerMatch(
   prospect: RawProspect,
   query: SearchQuery,
 ): ScoreFactor {
   const matches = prospect.buyerPack === query.profile.targetBuyer;
+  const max = hasStructuredIntent(query)
+    ? Math.round(MAX_POINTS.buyerMatch * 0.5)
+    : MAX_POINTS.buyerMatch;
   return {
     key: "buyerMatch",
     label: "Buyer match",
-    points: matches ? MAX_POINTS.buyerMatch : 0,
-    maxPoints: MAX_POINTS.buyerMatch,
+    points: matches ? max : 0,
+    maxPoints: max,
     detail: matches
       ? "In the buyer ecosystem you targeted"
       : "Outside the selected buyer ecosystem",
@@ -97,7 +286,6 @@ function scoreProblemFit(
     };
   }
 
-  // Fallback when no capability was inferred: use seller keyword overlap.
   const sells = query.profile.whatTheySell.toLowerCase();
   const sellsTokens = sells.split(/[^a-z0-9]+/).filter(Boolean);
   const matchedKeyword = prospect.fitKeywords.find((kw) => {
@@ -180,15 +368,20 @@ function scoreOutreachUrgency(signals: ProspectSignal[]): ScoreFactor {
   };
 }
 
-/** Compute the explainable, signal-driven opportunity score. */
+/** Compute the explainable opportunity score (structured discovery first). */
 export function scoreProspect(
   prospect: RawProspect,
   signals: ProspectSignal[],
   query: SearchQuery,
 ): ScoreBreakdown {
   const factors: ScoreFactor[] = [
-    scoreBuyerMatch(prospect, query),
+    scoreIndustryMatch(prospect, query),
+    scoreSectorMatch(prospect, query),
+    scoreOrgTypeMatch(prospect, query),
+    scoreStateMatch(prospect, query),
     scoreRegionMatch(prospect, query),
+    scoreStructurePenalty(prospect, query),
+    scoreBuyerMatch(prospect, query),
     scoreProblemFit(signals, prospect, query),
     scoreSignalStrength(signals),
     scoreSignalFreshness(signals),

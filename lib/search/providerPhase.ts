@@ -122,10 +122,10 @@ async function buildEnrichedBaseForPublicWeb(
   let prospects = base.prospects;
   const primary = plannedPrimaryProviders(plan);
   for (const p of primary) {
-    const r = await runProviderPhase(p, { query: base.query, prospects });
+    const r = await runProviderPhase(p, { ...base, prospects });
     prospects = mergeProspectLists(prospects, r.prospects);
   }
-  return { query: base.query, prospects };
+  return { ...base, prospects };
 }
 
 /** Runs primary providers in parallel, then secondary (Public Web) sequentially. */
@@ -148,12 +148,12 @@ export async function enrichWithLiveProviders(
   }
 
   if (secondary.includes("public-web")) {
-    const interim: SearchResponse = { query: base.query, prospects };
+    const interim: SearchResponse = { ...base, prospects };
     const r = await runProviderPhase("public-web", interim);
     prospects = mergeProspectLists(prospects, r.prospects);
   }
 
-  return { query: base.query, prospects };
+  return { ...base, prospects };
 }
 
 /** Provider phase for Public Web with primary enrichment on server. */

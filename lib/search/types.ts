@@ -93,6 +93,12 @@ export interface UserProfile {
   idealSignals: string[];
   /** Buyer name/keyword fragments to exclude from results. */
   excludedTargets: string[];
+  /** Structured discovery filters (from builder or URL). */
+  sectorId?: string | null;
+  industryId?: string | null;
+  organizationTypeId?: string | null;
+  /** US state postal code filter. */
+  state?: string | null;
 }
 
 /**
@@ -119,6 +125,11 @@ export interface RawSearchInput {
   sellerContext?: string;
   /** Optional explicit exclusions (also inferred from free text). */
   excludedTargets?: string[];
+  /** Structured taxonomy filters — preserved for discovery ranking. */
+  sectorId?: string | null;
+  industryId?: string | null;
+  organizationTypeId?: string | null;
+  state?: string | null;
 }
 
 /**
@@ -225,6 +236,11 @@ export interface ScoreFactor {
   key:
     | "buyerMatch"
     | "regionMatch"
+    | "industryMatch"
+    | "sectorMatch"
+    | "orgTypeMatch"
+    | "stateMatch"
+    | "structurePenalty"
     | "problemFit"
     | "signalStrength"
     | "signalFreshness"
@@ -286,4 +302,10 @@ export interface Prospect {
 export interface SearchResponse {
   query: SearchQuery;
   prospects: Prospect[];
+  coverage: {
+    totalCatalogRecords: number;
+    searchedRecords: number;
+    coveragePercent: number;
+    confidence: number;
+  };
 }
