@@ -37,6 +37,16 @@ export function planSources(query: SearchQuery): SourcePlan {
     providers.push("cms");
   }
 
+  // RSS / press-release feeds — curated public URLs per org and buyer pack.
+  if (
+    pack === "health-plans" ||
+    pack === "manufacturers" ||
+    pack === "health-systems" ||
+    pack === "employers"
+  ) {
+    providers.push("news-rss");
+  }
+
   return {
     query,
     buyerPacks: [pack],

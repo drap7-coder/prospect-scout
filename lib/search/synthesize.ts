@@ -63,6 +63,15 @@ const SIGNAL_WHY: Record<string, string> = {
   "cms-regional-plan-presence": "Multi-state footprint multiplies coordination needs",
   "cms-contract-concentration": "Multiple contracts create enterprise program leverage",
   "cms-parent-org-relationship": "Parent org oversight drives enterprise vendor decisions",
+  "rss-leadership-change": "Public leadership news often opens the door to new strategy",
+  "rss-acquisition-merger": "M&A press releases reopen vendor and integration decisions",
+  "rss-expansion": "Expansion announcements signal new investment and capacity needs",
+  "rss-new-product-launch": "Product launches reshape supply, packaging, and program needs",
+  "rss-contract-award": "Contract awards create a defined delivery and buying window",
+  "rss-partnership": "Partnership news often precedes program realignment",
+  "rss-regulatory-issue": "Regulatory press coverage forces near-term compliance action",
+  "rss-hiring-workforce": "Workforce growth signals budget flowing toward people and programs",
+  "rss-cost-pressure": "Public cost pressure sharpens appetite for savings",
 };
 
 function capitalize(text: string): string {

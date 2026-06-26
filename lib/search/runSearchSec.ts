@@ -27,6 +27,12 @@ import {
   isHealthPlanScopedQuery,
   type CmsFetchResult,
 } from "@/lib/providers/cms";
+import {
+  RSS_UNAVAILABLE_EVIDENCE,
+  fetchRssProspects,
+  isRssScopedQuery,
+  type RssFetchResult,
+} from "@/lib/providers/rssNews";
 
 /**
  * Provider-aware search pipeline.
@@ -35,6 +41,7 @@ import {
  * real provider signals when eligible:
  *   - SEC EDGAR for public-company references (non public-sector packs)
  *   - CMS for health-plan org references (health-plans pack only)
+ *   - RSS for press releases when a curated feed matches (four packs)
  *
  * Guarantees:
  *   - Every real provider is best-effort. Failures are caught and mock results
@@ -53,6 +60,10 @@ export async function runSearchWithProviders(
 
   if (plan.providers.includes("cms")) {
     result = await tryCmsProvider(result);
+  }
+
+  if (plan.providers.includes("news-rss")) {
+    result = await tryRssProvider(result);
   }
 
   return result;
@@ -235,6 +246,83 @@ function withCmsUnavailableNote(base: SearchResponse): SearchResponse {
     sourceTrail: [
       ...first.sourceTrail,
       { source: "CMS", evidenceText: CMS_UNAVAILABLE_EVIDENCE },
+    ],
+  };
+  return { query: base.query, prospects: [noted, ...rest] };
+}
+
+// ---------------------------------------------------------------------------
+// RSS / Press releases
+// ---------------------------------------------------------------------------
+
+const RSS_ELIGIBLE_PACKS = new Set([
+  "health-plans",
+  "manufacturers",
+  "health-systems",
+  "employers",
+]);
+
+async function tryRssProvider(base: SearchResponse): Promise<SearchResponse> {
+  const { query } = base;
+  if (!RSS_ELIGIBLE_PACKS.has(query.profile.targetBuyer)) return base;
+
+  const hint = orgHint(query);
+  if (!hint || !isRssScopedQuery(hint, query.profile.targetBuyer)) return base;
+
+  try {
+    const rssResults = await fetchRssProspects(hint, query.profile.targetBuyer);
+    if (rssResults.length === 0) return base;
+
+    const rssProspects = rssResults.map((data) => buildRssProspect(data, query));
+    const existingIds = new Set(rssProspects.map((p) => p.id));
+    const rest = base.prospects.filter((p) => !existingIds.has(p.id));
+    const prospects = [...rssProspects, ...rest].sort((a, b) => b.score - a.score);
+    return { query, prospects };
+  } catch (err) {
+    console.warn("[rss] provider unavailable, falling back to mock:", err);
+    return withRssUnavailableNote(base);
+  }
+}
+
+function buildRssProspect(
+  rssData: RssFetchResult,
+  query: SearchQuery,
+): Prospect {
+  const pack = getBuyerPack(query.profile.targetBuyer);
+  const { match, signals } = rssData;
+  const { feed } = match;
+
+  const raw: RawProspect = {
+    id: feed.id,
+    name: feed.organizationName,
+    location: feed.location,
+    region: feed.region,
+    buyerPack: query.profile.targetBuyer,
+    size: feed.size,
+    signals: [],
+    fitKeywords: [],
+  };
+
+  const breakdown = scoreProspect(raw, signals, query);
+  const prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+
+  const trail = [...prospect.sourceTrail];
+  trail.push({
+    source: "RSS",
+    evidenceText: `Press feed · ${match.matchedOn}`,
+  });
+
+  return { ...prospect, sourceTrail: trail };
+}
+
+function withRssUnavailableNote(base: SearchResponse): SearchResponse {
+  if (base.prospects.length === 0) return base;
+  const [first, ...rest] = base.prospects;
+  const noted: Prospect = {
+    ...first,
+    sourceTrail: [
+      ...first.sourceTrail,
+      { source: "RSS", evidenceText: RSS_UNAVAILABLE_EVIDENCE },
     ],
   };
   return { query: base.query, prospects: [noted, ...rest] };
