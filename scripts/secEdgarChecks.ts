@@ -74,11 +74,26 @@ check("matchCompany returns null for generic categories", () => {
   assert.equal(matchCompany("food manufacturers", TICKERS), null);
 });
 
+check("matchCompany ignores geography so a listing query is not a company", () => {
+  const withNyt: TickerEntry[] = [
+    ...TICKERS,
+    { cik_str: 71691, ticker: "NYT", title: "NEW YORK TIMES CO" },
+  ];
+  // Geographic/category listing must NOT resolve to a same-state public company.
+  assert.equal(matchCompany("health plan in New York", withNyt), null);
+  assert.equal(matchCompany("manufacturers in Ohio", withNyt), null);
+  // Explicit company names still resolve (carry a non-location token).
+  const nyt = matchCompany("New York Times", withNyt);
+  assert.ok(nyt);
+  assert.equal(nyt!.ticker, "NYT");
+});
+
 // --- Company-reference heuristic ---
 check("looksLikeCompanyReference gates network calls", () => {
   assert.equal(looksLikeCompanyReference("AAPL"), true);
   assert.equal(looksLikeCompanyReference("PepsiCo"), true);
   assert.equal(looksLikeCompanyReference("food manufacturers"), false);
+  assert.equal(looksLikeCompanyReference("health plans in New York"), false);
   assert.equal(looksLikeCompanyReference(""), false);
 });
 

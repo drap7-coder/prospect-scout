@@ -124,8 +124,39 @@ const GENERIC_TERMS = new Set([
   "pharmacy", "packaging", "automation", "cost", "costs", "benefits",
 ]);
 
+/**
+ * Location words (US state-name tokens, regions, and geo connectors). On their
+ * own these never identify a public company, so a geographic/category query
+ * such as "health plan in New York" must not resolve to "The New York Times
+ * Company". Explicit company names still work because they carry a non-location
+ * token (e.g. "times", "instruments").
+ */
+const LOCATION_TERMS = new Set([
+  "in", "near", "around", "located", "based", "headquartered", "operating",
+  "nationwide", "national", "regional", "local", "metro", "area", "region",
+  "northeast", "midwest", "southeast", "southwest", "west", "east", "south",
+  "north", "central", "mid", "atlantic", "england", "coast", "pacific",
+  "mountain", "states", "state", "usa", "us",
+  // State-name tokens (multi-word states split into parts).
+  "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+  "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+  "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine",
+  "maryland", "massachusetts", "michigan", "minnesota", "mississippi",
+  "missouri", "montana", "nebraska", "nevada", "new", "hampshire", "jersey",
+  "mexico", "york", "carolina", "dakota", "ohio", "oklahoma", "oregon",
+  "pennsylvania", "rhode", "island", "tennessee", "texas", "utah", "vermont",
+  "virginia", "washington", "wisconsin", "wyoming",
+]);
+
 function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+}
+
+/** Significant company-identifying tokens: not generic, not location, len >= 3. */
+function companyTokens(hint: string): string[] {
+  return tokenize(hint).filter(
+    (t) => t.length >= 3 && !GENERIC_TERMS.has(t) && !LOCATION_TERMS.has(t),
+  );
 }
 
 function titleCase(text: string): string {
@@ -151,9 +182,10 @@ export function looksLikeCompanyReference(hint: string): boolean {
   if (!hint || !hint.trim()) return false;
   const rawTokens = hint.match(/[A-Za-z0-9.&-]+/g) ?? [];
   if (rawTokens.some((t) => /^[A-Z]{1,5}$/.test(t))) return true; // ticker-like
-  const significant = tokenize(hint).filter(
-    (t) => t.length >= 4 && !GENERIC_TERMS.has(t),
-  );
+  // Require at least one significant token that is neither generic nor a pure
+  // location word — otherwise this is a geographic/category listing, not a
+  // named company (e.g. "health plans in New York").
+  const significant = companyTokens(hint).filter((t) => t.length >= 4);
   return significant.length >= 1;
 }
 
@@ -177,10 +209,10 @@ export function matchCompany(
     }
   }
 
-  // 2) Company-name match on significant tokens.
-  const tokens = tokenize(hint).filter(
-    (t) => t.length >= 3 && !GENERIC_TERMS.has(t),
-  );
+  // 2) Company-name match on significant tokens. Location words are excluded
+  // so a geographic/category query never resolves to a same-state public
+  // company (e.g. "health plan in New York" -> "The New York Times Company").
+  const tokens = companyTokens(hint);
   if (tokens.length === 0) return null;
   // Require either two significant tokens, or one reasonably specific token.
   const need = tokens.length >= 2 ? tokens : tokens[0].length >= 4 ? tokens : [];

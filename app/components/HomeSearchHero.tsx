@@ -12,26 +12,30 @@ import { ScoutLogo } from "./ScoutLogo";
 import { useInteractionFeedback } from "./InteractionProvider";
 
 const HOME_EXAMPLES = [
-  { emoji: "🏭", label: "Manufacturers in Ohio", query: "Manufacturers in Ohio" },
   {
-    emoji: "💻",
-    label: "Software companies hiring",
-    query: "Software companies hiring sales leaders",
+    emoji: "🏥",
+    label: "Health plans in PA",
+    query: "Health plans in Pennsylvania",
+  },
+  {
+    emoji: "🏭",
+    label: "Manufacturers in Ohio",
+    query: "Manufacturers in Ohio",
+  },
+  {
+    emoji: "🩺",
+    label: "Health systems in Texas",
+    query: "Health systems in Texas",
+  },
+  {
+    emoji: "🍱",
+    label: "Food manufacturers in the Midwest",
+    query: "Food and beverage manufacturers in the Midwest",
   },
   {
     emoji: "🏛",
-    label: "Government contractors",
-    query: "Government contractors in Virginia",
-  },
-  {
-    emoji: "🎓",
-    label: "Universities doing AI research",
-    query: "Universities with research activity",
-  },
-  {
-    emoji: "🛍",
-    label: "Retail chains expanding",
-    query: "Retail chains expanding in Texas",
+    label: "Government agencies in California",
+    query: "Government agencies in California",
   },
 ] as const;
 
