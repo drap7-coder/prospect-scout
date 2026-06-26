@@ -81,7 +81,7 @@ export function HomeSearchHero() {
             : "border-border/70 bg-surface/40 text-muted hover:border-border-strong hover:bg-surface/70 hover:text-foreground"
         }`}
       >
-        {builderOpen ? "Hide prospect builder" : "Build Prospect List"}
+        {builderOpen ? "Close guided builder" : "Build a prospect list"}
       </button>
 
       <ProspectListBuilder open={builderOpen} onSubmit={goBuilderSearch} />

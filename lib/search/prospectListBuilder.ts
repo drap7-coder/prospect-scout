@@ -8,51 +8,77 @@ import {
 import { US_STATE_FILTERS } from "@/lib/taxonomy/data";
 
 export const BUILDER_OWNERSHIP_OPTIONS = [
-  { id: "public", label: "Public" },
-  { id: "private", label: "Private" },
-  { id: "nonprofit", label: "Nonprofit" },
-  { id: "government", label: "Government" },
-  { id: "education", label: "Education" },
+  { id: "public", label: "Public companies", hint: "Listed on a stock exchange" },
+  { id: "private", label: "Private companies", hint: "Not publicly traded" },
+  { id: "nonprofit", label: "Nonprofits", hint: "Charities, foundations, NGOs" },
+  { id: "government", label: "Government", hint: "Agencies and public bodies" },
+  { id: "education", label: "Schools & universities", hint: "K-12, colleges, campuses" },
 ] as const;
 
 export const BUILDER_SIZE_OPTIONS = [
-  { id: "Small", label: "Small" },
-  { id: "Mid-Market", label: "Mid-market" },
-  { id: "Large", label: "Large" },
-  { id: "Enterprise", label: "Enterprise" },
+  { id: "Small", label: "Small", hint: "Under ~200 employees" },
+  { id: "Mid-Market", label: "Mid-size", hint: "Regional players" },
+  { id: "Large", label: "Large", hint: "Major employers" },
+  { id: "Enterprise", label: "Enterprise", hint: "National or global scale" },
 ] as const;
+
+/** Featured sectors for the guided builder — full list remains available. */
+export const BUILDER_FEATURED_SECTOR_IDS = [
+  "manufacturing",
+  "technology",
+  "financial-services",
+  "healthcare",
+  "retail-consumer",
+  "public-sector",
+] as const;
+
+export const BUILDER_SECTOR_HINTS: Record<string, string> = {
+  healthcare: "Hospitals, payers, life sciences",
+  manufacturing: "Plants, CPG, industrial",
+  "financial-services": "Banks, insurance, fintech",
+  "public-sector": "Agencies, cities, transit",
+  "retail-consumer": "Retail chains, consumer brands",
+  technology: "Software, SaaS, platforms",
+  education: "Universities, school districts",
+  "real-estate-construction": "Developers, contractors",
+  "energy-utilities": "Power, oil & gas, utilities",
+  "transportation-logistics": "Shipping, freight, airlines",
+  "professional-services": "Consulting, legal, staffing",
+  "hospitality-leisure": "Hotels, restaurants, travel",
+  nonprofit: "Foundations and charities",
+};
 
 /** Homepage signal options — map to results filter signal ids where supported. */
 export const BUILDER_SIGNAL_OPTIONS = [
-  { id: "recent-news", label: "Recent news", signalId: "growth-expansion" },
-  { id: "hiring", label: "Hiring activity", signalId: "hiring" },
-  { id: "sec-filings", label: "SEC filings", signalId: "sec-filing" },
-  { id: "government-contracts", label: "Government contracts", signalId: "growth-expansion" },
-  { id: "regulatory", label: "Regulatory activity", signalId: "regulatory-pressure" },
-  { id: "funding", label: "Funding / investment", signalId: "partnership-acquisition" },
-  { id: "expansion", label: "Expansion / new locations", signalId: "growth-expansion" },
-  { id: "website-changes", label: "Website changes", signalId: "hiring" },
-  { id: "public-datasets", label: "Public datasets", signalId: null },
+  { id: "recent-news", label: "In the news", hint: "Recent headlines", signalId: "growth-expansion" },
+  { id: "hiring", label: "Hiring", hint: "Open roles & growth", signalId: "hiring" },
+  { id: "sec-filings", label: "SEC filings", hint: "Public company disclosures", signalId: "sec-filing" },
+  { id: "government-contracts", label: "Gov contracts", hint: "Federal & state awards", signalId: "growth-expansion" },
+  { id: "regulatory", label: "Regulatory activity", hint: "Compliance & enforcement", signalId: "regulatory-pressure" },
+  { id: "funding", label: "Funding rounds", hint: "Investment & M&A", signalId: "partnership-acquisition" },
+  { id: "expansion", label: "Expanding", hint: "New locations or markets", signalId: "growth-expansion" },
+  { id: "website-changes", label: "Website updates", hint: "Recent site changes", signalId: "hiring" },
+  { id: "public-datasets", label: "Public records", hint: "Government & registry data", signalId: null },
 ] as const;
 
 /** Homepage source options — map to client-side source filter ids. */
 export const BUILDER_SOURCE_OPTIONS = [
-  { id: "SEC", label: "SEC", filterId: "SEC" },
-  { id: "CMS", label: "CMS", filterId: "CMS" },
-  { id: "FDA", label: "FDA", filterId: "FDA" },
-  { id: "IRS", label: "IRS nonprofit data", filterId: "Directory" },
-  { id: "SAM", label: "SAM.gov / contracts", filterId: "Public Web" },
-  { id: "RSS", label: "News / RSS", filterId: "RSS" },
-  { id: "WEB", label: "Website", filterId: "Public Web" },
-  { id: "DIR", label: "Public directories", filterId: "Directory" },
+  { id: "SEC", label: "SEC filings", hint: "Public company records", filterId: "SEC" },
+  { id: "CMS", label: "Medicare & Medicaid", hint: "CMS public data", filterId: "CMS" },
+  { id: "FDA", label: "FDA records", hint: "Recalls & enforcement", filterId: "FDA" },
+  { id: "IRS", label: "Nonprofit filings", hint: "IRS 990 data", filterId: "Directory" },
+  { id: "SAM", label: "Government contracts", hint: "SAM.gov & awards", filterId: "Public Web" },
+  { id: "RSS", label: "News feeds", hint: "Headlines & press", filterId: "RSS" },
+  { id: "WEB", label: "Websites", hint: "Public web pages", filterId: "Public Web" },
+  { id: "DIR", label: "Directories", hint: "Industry & registry lists", filterId: "Directory" },
 ] as const;
 
 export const BUILDER_SORT_OPTIONS = [
-  { id: "score", label: "Most relevant" },
-  { id: "freshness", label: "Most recent signal" },
-  { id: "evidence", label: "Most signals" },
-  { id: "size", label: "Largest organizations" },
-  { id: "name", label: "Alphabetical" },
+  { id: "score", label: "Best match", hint: "Most relevant overall" },
+  { id: "freshness", label: "Most recent", hint: "Newest signals first" },
+  { id: "evidence", label: "Most signals", hint: "Richest evidence" },
+  { id: "size", label: "Largest", hint: "Biggest organizations" },
+  { id: "name", label: "A → Z", hint: "Alphabetical" },
 ] as const;
 
 export type BuilderSortId = (typeof BUILDER_SORT_OPTIONS)[number]["id"];
