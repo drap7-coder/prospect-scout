@@ -34,7 +34,7 @@ export type SignalType =
  * Where a signal's evidence would come from once real providers are wired.
  * These mirror the future free data sources (kept to the six shown on cards).
  */
-export type SignalSource = "CMS" | "SEC" | "FDA" | "RSS" | "Careers" | "Company";
+export type SignalSource = "CMS" | "SEC" | "FDA" | "RSS" | "Careers" | "Company" | "Public Web";
 
 /** Qualitative signal strength, mapped to a numeric score by the builder. */
 export type SignalStrength = "weak" | "moderate" | "strong";
@@ -114,10 +114,14 @@ export interface SearchQuery {
 
 /** Raw, unparsed input straight from the UI or API caller. */
 export interface RawSearchInput {
+  /** Primary company-discovery query (preferred over sells). */
+  query?: string;
   sells: string;
   buyerPack?: BuyerPackId | string;
   targets?: string;
   region?: string;
+  /** Optional advanced seller capability context. */
+  sellerContext?: string;
   /** Optional explicit exclusions (also inferred from free text). */
   excludedTargets?: string[];
 }
@@ -239,6 +243,8 @@ export interface Prospect {
   id: string;
   name: string;
   location: string;
+  /** Region bucket (matches RegionSelector values). */
+  region: string;
   /** Human label for the buyer pack, e.g. "Health Plans". */
   buyerType: string;
   buyerPack: BuyerPackId;
@@ -257,6 +263,8 @@ export interface Prospect {
   outreachAngle: string;
   /** Suggested contact roles to target. */
   contactRoles: string[];
+  /** Approximate organization size tier when available. */
+  size?: SizeTier;
 }
 
 /** Response shape returned by `/api/search`. */

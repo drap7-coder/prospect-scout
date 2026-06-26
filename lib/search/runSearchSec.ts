@@ -39,6 +39,14 @@ import {
   isFdaScopedQuery,
   type FdaFetchResult,
 } from "@/lib/providers/fda";
+import {
+  PUBLIC_WEB_UNAVAILABLE_EVIDENCE,
+  fetchPublicWebProspects,
+  isPublicWebScopedQuery,
+  matchDirectoryEntries,
+  publicWebTrailItem,
+  type PublicWebFetchResult,
+} from "@/lib/providers/publicWeb";
 
 /**
  * Provider-aware search pipeline.
@@ -49,6 +57,7 @@ import {
  *   - CMS for health-plan org references (health-plans pack only)
  *   - RSS for press releases when a curated feed matches (four packs)
  *   - FDA / openFDA for recall enforcement (manufacturers; conditional others)
+ *   - Public Web / directory for regional private orgs (health-plans, manufacturers)
  *
  * Guarantees:
  *   - Every real provider is best-effort. Failures are caught and mock results
@@ -75,6 +84,10 @@ export async function runSearchWithProviders(
 
   if (plan.providers.includes("fda")) {
     result = await tryFdaProvider(result);
+  }
+
+  if (plan.providers.includes("company-site")) {
+    result = await tryPublicWebProvider(result);
   }
 
   return result;
@@ -425,6 +438,130 @@ function withFdaUnavailableNote(base: SearchResponse): SearchResponse {
     sourceTrail: [
       ...first.sourceTrail,
       { source: "FDA", evidenceText: FDA_UNAVAILABLE_EVIDENCE },
+    ],
+  };
+  return { query: base.query, prospects: [noted, ...rest] };
+}
+
+// ---------------------------------------------------------------------------
+// Public Web / Directory
+// ---------------------------------------------------------------------------
+
+/** True when SEC or CMS already returned a high-confidence named org match. */
+function hasStrongSecOrCmsMatch(prospects: Prospect[]): boolean {
+  for (const p of prospects) {
+    if (p.id.startsWith("sec-") && p.score >= 55) return true;
+    if (
+      p.id.startsWith("cms-") &&
+      p.sourceTrail.some(
+        (t) =>
+          t.source === "CMS" &&
+          t.evidenceText.includes("named organization match"),
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function tryPublicWebProvider(
+  base: SearchResponse,
+): Promise<SearchResponse> {
+  const { query } = base;
+  const hint = orgHint(query);
+  if (
+    !hint ||
+    !isPublicWebScopedQuery(hint, query.profile.targetBuyer, query.profile.region)
+  ) {
+    return base;
+  }
+
+  const namedDirectory = matchDirectoryEntries(
+    hint,
+    query.profile.targetBuyer,
+    query.profile.region,
+  ).some((m) => m.score >= 20);
+
+  if (!namedDirectory && hasStrongSecOrCmsMatch(base.prospects)) {
+    return base;
+  }
+
+  try {
+    const { results, allSourcesFailed } = await fetchPublicWebProspects(
+      hint,
+      query.profile.targetBuyer,
+      query.profile.region,
+    );
+    if (results.length === 0) {
+      return allSourcesFailed ? withPublicWebUnavailableNote(base) : base;
+    }
+
+    const webProspects = results.map((data) => buildPublicWebProspect(data, query));
+    const existingIds = new Set(webProspects.map((p) => p.id));
+    const rest = base.prospects.filter((p) => !existingIds.has(p.id));
+    const prospects = [...webProspects, ...rest].sort((a, b) => b.score - a.score);
+    return { query, prospects };
+  } catch (err) {
+    console.warn("[publicWeb] provider unavailable, falling back to mock:", err);
+    return withPublicWebUnavailableNote(base);
+  }
+}
+
+function buildPublicWebProspect(
+  webData: PublicWebFetchResult,
+  query: SearchQuery,
+): Prospect {
+  const pack = getBuyerPack(query.profile.targetBuyer);
+  const { match, signals, pageTrails, confidence, location, region, size } =
+    webData;
+  const { entry } = match;
+
+  const raw: RawProspect = {
+    id: `web-${entry.id}`,
+    name: entry.name,
+    location,
+    region,
+    buyerPack: query.profile.targetBuyer,
+    size,
+    signals: [],
+    fitKeywords: [],
+  };
+
+  const breakdown = scoreProspect(raw, signals, query);
+  let prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+
+  if (confidence === "named") {
+    prospect = {
+      ...prospect,
+      score: Math.min(100, prospect.score + 5),
+      scoreBreakdown: {
+        ...prospect.scoreBreakdown,
+        total: Math.min(100, prospect.scoreBreakdown.total + 5),
+      },
+    };
+  }
+
+  const trail = [...prospect.sourceTrail];
+  for (const page of pageTrails) {
+    trail.push(publicWebTrailItem(page.trailLabel));
+  }
+  trail.push({
+    source: "Public Web",
+    evidenceText: `Directory · ${match.matchedOn}`,
+  });
+
+  return { ...prospect, sourceTrail: trail };
+}
+
+function withPublicWebUnavailableNote(base: SearchResponse): SearchResponse {
+  if (base.prospects.length === 0) return base;
+  const [first, ...rest] = base.prospects;
+  const noted: Prospect = {
+    ...first,
+    sourceTrail: [
+      ...first.sourceTrail,
+      { source: "Public Web", evidenceText: PUBLIC_WEB_UNAVAILABLE_EVIDENCE },
     ],
   };
   return { query: base.query, prospects: [noted, ...rest] };

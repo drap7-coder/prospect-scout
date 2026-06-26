@@ -1,51 +1,65 @@
-import { SearchPanel } from "./components/SearchPanel";
+import { HomeSearchHero } from "./components/HomeSearchHero";
+import { MeridianMark, ScoutMeridian } from "./components/ScoutMeridian";
+
+const SOURCES = ["CMS", "SEC EDGAR", "openFDA", "Public Web", "Press feeds"];
 
 export default function Home() {
   return (
-    <div className="min-h-full">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-            </span>
-            <span className="text-sm font-semibold tracking-tight text-foreground">
+    <div className="relative min-h-full overflow-x-hidden">
+      <div
+        className="pointer-events-none fixed inset-0 -z-10"
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(900px_600px_at_50%_20%,rgba(56,224,216,0.07),transparent_65%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(700px_500px_at_80%_70%,rgba(61,139,255,0.05),transparent_70%)]" />
+      </div>
+
+      <header className="sticky top-0 z-20 border-b border-border/80 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-[3.75rem] w-full max-w-[88rem] items-center justify-between px-6 lg:px-10">
+          <div className="flex items-center gap-3">
+            <MeridianMark className="h-4 w-4 shrink-0 text-accent" />
+            <span className="text-[0.9375rem] font-semibold tracking-[-0.02em] text-foreground">
               Prospect Scout
             </span>
           </div>
-          <span className="label-mono hidden sm:block">
-            Opportunity Intelligence · Mock Feed
-          </span>
+          <p className="label-mono hidden text-muted-2 sm:block">
+            Company discovery · Signal intelligence
+          </p>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-20">
-        <section className="max-w-3xl">
-          <p className="label-mono text-accent-cyan">
-            What you sell · Who buys it · Where to look
-          </p>
-          <h1 className="mt-5 text-balance text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
-            Find the prospects
-            <br className="hidden sm:block" /> worth calling.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted">
-            Tell Prospect Scout what you sell and who buys it. It finds likely
-            opportunities, explains why they matter, and gives you a smarter
-            reason to reach out.
-          </p>
+      <main className="mx-auto w-full max-w-[88rem] px-6 lg:px-10">
+        <section className="relative flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center py-16 lg:py-20">
+          {/* Meridian backdrop */}
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.35] lg:opacity-45"
+            aria-hidden
+          >
+            <div className="aspect-[5/7] h-[min(70vh,520px)] w-auto max-w-[420px]">
+              <ScoutMeridian className="h-full w-full" />
+            </div>
+          </div>
+
+          <HomeSearchHero />
         </section>
 
-        <div className="mt-14">
-          <SearchPanel />
-        </div>
+        <section className="border-t border-border/60 py-10">
+          <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            {SOURCES.map((source) => (
+              <li key={source} className="label-mono text-muted-2">
+                {source}
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        <footer className="mt-20 flex flex-col gap-1 border-t border-border pt-6">
-          <p className="label-mono">Prospect Scout MVP</p>
-          <p className="max-w-2xl text-xs leading-relaxed text-muted-2">
-            Results use mock data. Architected to plug into free public sources
-            — CMS, SEC EDGAR, Census, FDA, NPPES, Wikipedia, and news feeds —
-            without changing the pipeline.
+        <footer className="flex flex-col gap-3 border-t border-border/60 py-8 sm:flex-row sm:items-center sm:justify-between">
+          <p className="label-mono text-muted-2">
+            Prospect Scout · {new Date().getFullYear()}
+          </p>
+          <p className="max-w-md text-xs leading-relaxed text-muted-2">
+            Ranked by signal strength, freshness, and organizational fit.
           </p>
         </footer>
       </main>

@@ -2,24 +2,36 @@
 
 /*
  * Prospect Scout design system.
- * Palantir-style intelligence console (deep near-black, fine grid, monospace
- * data, a single electric accent) with Jobs-level restraint (whitespace,
- * confident type, nothing decorative).
+ *
+ * Visual identity: the Scout Meridian — a single vertical line of intelligence
+ * sweeping organizational noise until one signal resolves. Cinematic restraint,
+ * enterprise precision, no decorative motion.
  */
 :root {
-  --background: #06080c;
-  --surface: #0b0f16;
-  --surface-2: #11161f;
-  --foreground: #e8edf4;
-  --muted: #8b95a7;
-  --muted-2: #5c6677;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  --background: #050608;
+  --surface: #0a0d12;
+  --surface-2: #101419;
+  --foreground: #eef1f6;
+  --muted: #8a939f;
+  --muted-2: #565f6d;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
   --accent: #3d8bff;
-  --accent-soft: rgba(61, 139, 255, 0.12);
+  --accent-soft: rgba(61, 139, 255, 0.1);
   --accent-cyan: #38e0d8;
   --good: #34d399;
   --warn: #fbbf24;
+
+  /* Intelligence source palette */
+  --source-cms: #6eb6ff;
+  --source-sec: #b49cff;
+  --source-fda: #ff9f5a;
+  --source-rss: #5ee4a0;
+  --source-web: #38e0d8;
+
+  /* Meridian timing — one slow, deliberate sweep */
+  --meridian-duration: 11s;
+  --meridian-signal-x: 67%; /* aligns with SIGNAL.x / 400 */
 }
 
 @theme inline {
@@ -36,8 +48,14 @@
   --color-accent-cyan: var(--accent-cyan);
   --color-good: var(--good);
   --color-warn: var(--warn);
+  --color-source-cms: var(--source-cms);
+  --color-source-sec: var(--source-sec);
+  --color-source-fda: var(--source-fda);
+  --color-source-rss: var(--source-rss);
+  --color-source-web: var(--source-web);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
 }
 
 html {
@@ -48,20 +66,12 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  /* Fine intelligence-console grid + a soft top-left accent glow. */
-  background-image:
-    radial-gradient(
-      900px 500px at 12% -8%,
-      rgba(61, 139, 255, 0.1),
-      transparent 60%
-    ),
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 100% 100%, 56px 56px, 56px 56px;
-  background-attachment: fixed;
 }
 
-/* Monospaced, tracked label used throughout for the analyst-console feel. */
+.font-display {
+  font-family: var(--font-display);
+}
+
 .label-mono {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
@@ -77,4 +87,144 @@ body {
 
 * {
   scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scout Meridian — identity animation                                  */
+/* ------------------------------------------------------------------ */
+
+.scout-meridian-sweep {
+  animation: meridian-sweep var(--meridian-duration) cubic-bezier(0.45, 0, 0.25, 1)
+    infinite;
+}
+
+@keyframes meridian-sweep {
+  0% {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(424px);
+    opacity: 0;
+  }
+}
+
+.scout-signal-core {
+  animation: signal-core var(--meridian-duration) cubic-bezier(0.45, 0, 0.25, 1)
+    infinite;
+}
+
+@keyframes signal-core {
+  0%,
+  58% {
+    opacity: 0.3;
+  }
+  62% {
+    opacity: 1;
+  }
+  68% {
+    opacity: 1;
+  }
+  76%,
+  100% {
+    opacity: 0.55;
+  }
+}
+
+.scout-signal-halo {
+  animation: signal-halo var(--meridian-duration) cubic-bezier(0.45, 0, 0.25, 1)
+    infinite;
+}
+
+@keyframes signal-halo {
+  0%,
+  58% {
+    opacity: 0.15;
+  }
+  64% {
+    opacity: 0.85;
+  }
+  78%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+.scout-signal-thread {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: signal-thread var(--meridian-duration) cubic-bezier(0.45, 0, 0.25, 1)
+    infinite;
+}
+
+@keyframes signal-thread {
+  0%,
+  59% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  62% {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 0.35;
+  }
+  78%,
+  100% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+}
+
+/* Loading state — meridian passes over skeleton rows */
+.scout-scan-line {
+  animation: scan-line 2.4s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.7;
+  }
+  92% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scout-meridian-sweep,
+  .scout-signal-core,
+  .scout-signal-halo,
+  .scout-signal-thread,
+  .scout-scan-line {
+    animation: none;
+  }
+
+  .scout-meridian-sweep {
+    transform: translateX(268px);
+    opacity: 0.5;
+  }
+
+  .scout-signal-core {
+    opacity: 1;
+  }
+
+  .scout-signal-halo {
+    opacity: 0.5;
+  }
 }

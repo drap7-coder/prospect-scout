@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Serif, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const display = IBM_Plex_Serif({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 const mono = JetBrains_Mono({
@@ -13,9 +19,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prospect Scout — Find the prospects worth calling",
+  title: "Prospect Scout — Signal-ranked buyer intelligence",
   description:
-    "Tell Prospect Scout what you sell and who buys it. It finds likely opportunities, explains why they matter, and gives you a smarter reason to reach out.",
+    "Rank buyer organizations by live regulatory, enrollment, and enforcement signals — with the evidence chain your team needs to act.",
 };
 
 export default function RootLayout({
@@ -26,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${mono.variable} h-full antialiased`}
+      className={`${inter.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full">{children}</body>
     </html>

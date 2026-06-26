@@ -57,6 +57,12 @@ export function planSources(query: SearchQuery): SourcePlan {
     providers.push("fda");
   }
 
+  // Public website / directory intelligence — regional private orgs for
+  // health-plans and manufacturers when SEC/CMS do not cover them.
+  if (pack === "health-plans" || pack === "manufacturers") {
+    providers.push("company-site");
+  }
+
   return {
     query,
     buyerPacks: [pack],

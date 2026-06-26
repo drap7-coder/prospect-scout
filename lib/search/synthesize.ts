@@ -80,6 +80,15 @@ const SIGNAL_WHY: Record<string, string> = {
   "fda-packaging-contamination": "Packaging or contamination events demand immediate containment",
   "fda-regulatory-pressure": "FDA enforcement sharpens appetite for compliance investment",
   "fda-product-safety": "Product safety events elevate risk management urgency",
+  "web-expansion": "Public expansion language signals new investment and capacity needs",
+  "web-hiring": "Active hiring on public pages indicates staffing and program investment",
+  "web-leadership-change": "Leadership pages mentioning new executives open vendor review windows",
+  "web-acquisition": "M&A language on public pages suggests integration and vendor realignment",
+  "web-new-product-service": "New offerings on public pages reshape supply and program needs",
+  "web-sustainability": "Sustainability goals on public pages trigger materials and process change",
+  "web-regulatory-compliance": "Compliance language signals near-term regulatory investment",
+  "web-packaging-automation": "Packaging and automation mentions indicate active line investment",
+  "web-pharmacy-pbm-specialty": "Pharmacy and PBM language signals formulary and trend management focus",
 };
 
 function capitalize(text: string): string {
@@ -173,6 +182,7 @@ export function synthesizeProspect(
     id: prospect.id,
     name: prospect.name,
     location: prospect.location,
+    region: prospect.region,
     buyerType: pack.label,
     buyerPack: prospect.buyerPack,
     score: breakdown.total,
@@ -183,5 +193,6 @@ export function synthesizeProspect(
     sourceTrail: buildSourceTrail(signals),
     outreachAngle: buildOutreachAngle(signals, query, pack),
     contactRoles: pack.contactRoles.slice(0, 4),
+    size: prospect.size,
   };
 }

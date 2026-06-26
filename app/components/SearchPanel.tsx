@@ -7,12 +7,13 @@ import type {
   SearchResponse,
 } from "@/lib/search/types";
 import { ANY_REGION, regionLabel } from "@/lib/search/regions";
+import { saveWorkspace } from "@/lib/intelligence/session";
 import { SellerInput } from "./SellerInput";
 import { BuyerPackSelector } from "./BuyerPackSelector";
 import { RegionSelector } from "./RegionSelector";
-import { ProspectCard } from "./ProspectCard";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
+import { IntelligenceWorkspace } from "./IntelligenceWorkspace";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -57,6 +58,11 @@ export function SearchPanel() {
 
       const data = (await res.json()) as SearchResponse;
       setProspects(data.prospects);
+      saveWorkspace({
+        query: data.query,
+        prospects: data.prospects,
+        savedAt: Date.now(),
+      });
       setLastQuery({
         sells: data.query.profile.whatTheySell,
         region: data.query.profile.region,
@@ -69,10 +75,10 @@ export function SearchPanel() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)] lg:gap-8">
       <form
         onSubmit={handleSearch}
-        className="h-fit space-y-5 rounded-2xl border border-border bg-surface/60 p-6 shadow-2xl shadow-black/40 backdrop-blur-sm lg:sticky lg:top-20"
+        className="h-fit space-y-5 rounded-2xl border border-border bg-surface/60 p-5 shadow-xl shadow-black/30 backdrop-blur-sm lg:sticky lg:top-[3.75rem]"
       >
         <SellerInput value={sells} onChange={setSells} />
         <BuyerPackSelector value={buyerPack} onChange={setBuyerPack} />
@@ -96,9 +102,9 @@ export function SearchPanel() {
         <button
           type="submit"
           disabled={status === "loading"}
-          className="group relative w-full overflow-hidden rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {status === "loading" ? "Scouting…" : "Search prospects"}
+          {status === "loading" ? "Resolving signals…" : "Run intelligence"}
         </button>
 
         {status === "error" && error ? (
@@ -106,17 +112,13 @@ export function SearchPanel() {
         ) : null}
       </form>
 
-      <div>
+      <div className="min-w-0">
         {status === "done" && lastQuery ? (
-          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-4">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              {prospects.length} prospect{prospects.length === 1 ? "" : "s"} worth
-              calling
-            </h2>
-            <p className="label-mono">
-              {(lastQuery.sells || "Your offering") + " · " + regionLabel(lastQuery.region)}
-            </p>
-          </div>
+          <p className="mb-4 font-mono text-[11px] text-muted-2">
+            {(lastQuery.sells || "Your offering") +
+              " · " +
+              regionLabel(lastQuery.region)}
+          </p>
         ) : null}
 
         {status === "loading" ? <LoadingState /> : null}
@@ -126,22 +128,18 @@ export function SearchPanel() {
         ) : null}
 
         {status === "done" && prospects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-surface/40 px-6 py-16 text-center">
+          <div className="rounded-xl border border-dashed border-border bg-surface/40 px-6 py-16 text-center">
             <p className="text-sm font-medium text-foreground">
-              No matching prospects yet.
+              No matching opportunities in this window.
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-              Try a different buyer ecosystem or widen the geography.
+              Adjust buyer ecosystem, geography, or target criteria.
             </p>
           </div>
         ) : null}
 
         {status === "done" && prospects.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-            {prospects.map((prospect, i) => (
-              <ProspectCard key={prospect.id} prospect={prospect} rank={i + 1} />
-            ))}
-          </div>
+          <IntelligenceWorkspace prospects={prospects} />
         ) : null}
       </div>
     </div>

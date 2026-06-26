@@ -130,9 +130,9 @@ function extractExclusions(text: string): string[] {
 
 export class HeuristicIntentParser implements IntentParser {
   parse(input: RawSearchInput): SearchQuery {
-    const sells = (input.sells ?? "").trim();
-    const targets = (input.targets ?? "").trim();
-    const combined = `${sells} ${targets}`.trim();
+    const sells = (input.sells ?? input.sellerContext ?? "").trim();
+    const targets = (input.targets ?? input.query ?? "").trim();
+    const combined = `${sells} ${targets}`.trim() || targets;
 
     // Buyer pack: explicit UI selection wins; otherwise infer from text.
     const explicitPack =
@@ -168,10 +168,12 @@ export class HeuristicIntentParser implements IntentParser {
       profile,
       targets,
       raw: {
+        query: input.query,
         sells: input.sells ?? "",
         buyerPack: input.buyerPack,
-        targets: input.targets,
+        targets: input.targets ?? input.query,
         region: input.region,
+        sellerContext: input.sellerContext,
         excludedTargets: input.excludedTargets,
       },
     };
