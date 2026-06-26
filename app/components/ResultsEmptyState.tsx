@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MeridianMark } from "./ScoutMeridian";
+import { ScoutLogo } from "./ScoutLogo";
 import { EXAMPLE_SEARCHES } from "@/lib/search/searchState";
 
 export function ResultsEmptyState({
@@ -10,7 +10,7 @@ export function ResultsEmptyState({
   if (variant === "no-query") {
     return (
       <div className="mx-auto max-w-lg py-24 text-center">
-        <MeridianMark className="mx-auto h-8 w-8 text-accent-cyan/70" />
+        <ScoutLogo size={56} className="mx-auto opacity-90" />
         <p className="mt-6 text-base font-medium text-foreground">
           Start with a company search
         </p>
@@ -42,7 +42,7 @@ export function ResultsEmptyState({
 
   return (
     <div className="rounded-xl border border-dashed border-border bg-surface/30 px-6 py-16 text-center">
-      <MeridianMark className="mx-auto h-7 w-7 text-muted-2" />
+      <ScoutLogo size={48} className="mx-auto opacity-70" />
       <p className="mt-5 text-sm font-medium text-foreground">
         No results found
       </p>

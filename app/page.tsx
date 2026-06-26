@@ -1,5 +1,6 @@
 import { HomeSearchHero } from "./components/HomeSearchHero";
-import { MeridianMark, ScoutMeridian } from "./components/ScoutMeridian";
+import { ScoutBrand } from "./components/ScoutLogo";
+import { ScoutMeridian } from "./components/ScoutMeridian";
 
 const SOURCES = ["CMS", "SEC EDGAR", "openFDA", "Public Web", "Press feeds"];
 
@@ -17,12 +18,7 @@ export default function Home() {
 
       <header className="sticky top-0 z-20 border-b border-border/80 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-[3.75rem] w-full max-w-[88rem] items-center justify-between px-6 lg:px-10">
-          <div className="flex items-center gap-3">
-            <MeridianMark className="h-4 w-4 shrink-0 text-accent" />
-            <span className="text-[0.9375rem] font-semibold tracking-[-0.02em] text-foreground">
-              Prospect Scout
-            </span>
-          </div>
+          <ScoutBrand size={36} />
           <p className="label-mono hidden text-muted-2 sm:block">
             Company discovery · Signal intelligence
           </p>

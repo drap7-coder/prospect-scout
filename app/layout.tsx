@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: "Prospect Scout — Signal-ranked buyer intelligence",
   description:
     "Rank buyer organizations by live regulatory, enrollment, and enforcement signals — with the evidence chain your team needs to act.",
+  icons: {
+    icon: "/prospect-scout-logo.png",
+    apple: "/prospect-scout-logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MeridianMark } from "@/app/components/ScoutMeridian";
+import { ScoutBrand } from "@/app/components/ScoutLogo";
 import { ProspectCard } from "@/app/components/ProspectCard";
 import type { Prospect } from "@/lib/search/types";
 import { regionLabel } from "@/lib/search/regions";
@@ -94,12 +94,8 @@ export function DossierClient({ id }: { id: string }) {
     <div className="min-h-full bg-background">
       <header className="sticky top-0 z-20 border-b border-border/80 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 lg:px-10">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 text-sm text-muted hover:text-foreground"
-          >
-            <MeridianMark className="h-3.5 w-3.5 text-accent" />
-            <span>Workspace</span>
+          <Link href="/">
+            <ScoutBrand size={28} />
           </Link>
           <span className="label-mono">Full dossier</span>
         </div>

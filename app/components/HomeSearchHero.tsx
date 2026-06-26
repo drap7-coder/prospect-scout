@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { EXAMPLE_SEARCHES } from "@/lib/search/searchState";
+import { ScoutLogo } from "./ScoutLogo";
 
 export function HomeSearchHero() {
   const router = useRouter();
@@ -21,7 +22,12 @@ export function HomeSearchHero() {
 
   return (
     <div className="relative z-10 mx-auto w-full max-w-3xl text-center">
-      <p className="label-mono text-accent-cyan/90">
+      <ScoutLogo
+        size={88}
+        priority
+        className="mx-auto shadow-lg shadow-black/30 ring-1 ring-white/10"
+      />
+      <p className="label-mono mt-6 text-accent-cyan/90">
         Opportunity intelligence
       </p>
       <h1 className="font-display mt-5 text-balance text-[2.25rem] font-normal leading-[1.05] tracking-[-0.03em] text-foreground sm:text-[3rem] lg:text-[3.5rem]">
