@@ -45,6 +45,17 @@ export function scoreTone(score: number): ScoreTone {
   };
 }
 
+/** High-contrast score badge for dark result cards. */
+export function resultScoreBadge(score: number): string {
+  if (score >= 80) {
+    return "border-good/50 bg-good/20 text-good shadow-[0_0_14px_rgba(52,211,153,0.35)] ring-1 ring-good/25";
+  }
+  if (score >= 60) {
+    return "border-warn/50 bg-warn/20 text-warn shadow-[0_0_12px_rgba(251,191,36,0.28)] ring-1 ring-warn/20";
+  }
+  return "border-white/15 bg-white/8 text-white/75 ring-1 ring-white/10";
+}
+
 const SOURCE_TONES: Record<string, SourceTone> = {
   Directory: {
     text: "text-accent-cyan",
