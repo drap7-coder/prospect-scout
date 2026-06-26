@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+ * Prospect Scout design system.
+ * Palantir-style intelligence console (deep near-black, fine grid, monospace
+ * data, a single electric accent) with Jobs-level restraint (whitespace,
+ * confident type, nothing decorative).
+ */
+:root {
+  --background: #06080c;
+  --surface: #0b0f16;
+  --surface-2: #11161f;
+  --foreground: #e8edf4;
+  --muted: #8b95a7;
+  --muted-2: #5c6677;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --accent: #3d8bff;
+  --accent-soft: rgba(61, 139, 255, 0.12);
+  --accent-cyan: #38e0d8;
+  --good: #34d399;
+  --warn: #fbbf24;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  /* Fine intelligence-console grid + a soft top-left accent glow. */
+  background-image:
+    radial-gradient(
+      900px 500px at 12% -8%,
+      rgba(61, 139, 255, 0.1),
+      transparent 60%
+    ),
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 56px 56px, 56px 56px;
+  background-attachment: fixed;
+}
+
+/* Monospaced, tracked label used throughout for the analyst-console feel. */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+* {
+  scrollbar-color: var(--border-strong) transparent;
+}
