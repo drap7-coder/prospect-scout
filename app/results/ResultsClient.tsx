@@ -386,28 +386,16 @@ export function ResultsClient() {
                 ) : null}
 
                 {showResults && filtered.length > 0 ? (
-                  <div className="overflow-hidden rounded-xl border border-border bg-surface/30">
-                    <div
-                      className="hidden border-b border-border/80 bg-surface-2/50 px-4 py-2.5 lg:grid lg:grid-cols-[minmax(0,1.2fr)_5rem_minmax(0,1fr)_4.5rem_5rem] lg:gap-3"
-                      aria-hidden
-                    >
-                      <span className="label-mono">Organization</span>
-                      <span className="label-mono text-center">Score</span>
-                      <span className="label-mono">Signals</span>
-                      <span className="label-mono text-right">Evidence</span>
-                      <span className="label-mono text-right">Fresh</span>
-                    </div>
-                    <div className="divide-y divide-border/50">
-                      {filtered.map((prospect, i) => (
-                        <ResultRow
-                          key={prospect.id}
-                          prospect={prospect}
-                          rank={i + 1}
-                          selected={prospect.id === selectedId}
-                          onSelect={() => setSelectedId(prospect.id)}
-                        />
-                      ))}
-                    </div>
+                  <div className="flex flex-col gap-2.5 sm:gap-3">
+                    {filtered.map((prospect, i) => (
+                      <ResultRow
+                        key={prospect.id}
+                        prospect={prospect}
+                        rank={i + 1}
+                        selected={prospect.id === selectedId}
+                        onSelect={() => setSelectedId(prospect.id)}
+                      />
+                    ))}
                   </div>
                 ) : null}
               </div>
