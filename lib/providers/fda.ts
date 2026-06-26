@@ -21,7 +21,7 @@ import type {
 export const FDA_UNAVAILABLE_EVIDENCE =
   "unavailable — showing mock regulatory signals";
 
-const DEFAULT_WINDOW_DAYS = 365;
+const DEFAULT_WINDOW_DAYS = 1460;
 const MAX_RECORDS = 25;
 const MAX_GENERIC_FDA_RESULTS = 3;
 
@@ -66,6 +66,7 @@ export function enforcementSearchUrl(
   const params = new URLSearchParams();
   params.set("search", search);
   params.set("limit", String(opts?.limit ?? MAX_RECORDS));
+  params.set("sort", "recall_initiation_date:desc");
   const apiKey = resolveFdaApiKey(opts);
   if (apiKey) params.set("api_key", apiKey);
   return `${FDA_BASE}/${domain}/enforcement.json?${params.toString()}`;
@@ -803,7 +804,27 @@ function extractSignalsFromTagged(
   for (const [domain, records] of byDomain) {
     out.push(...extractSignalsFromRecalls(records, domain, now));
   }
-  return dedupeSignals(out);
+  const deduped = dedupeSignals(out);
+  if (deduped.length > 0) return deduped;
+
+  // openFDA retains years of history; if nothing falls in the freshness window,
+  // still surface the single most recent recall as a weak signal.
+  let newest: TaggedRecord | null = null;
+  let newestDays = Infinity;
+  for (const entry of tagged) {
+    const days = recordFreshnessDays(entry.record, now);
+    if (days < newestDays) {
+      newestDays = days;
+      newest = entry;
+    }
+  }
+  if (!newest) return [];
+  return extractSignalsFromRecalls(
+    [newest.record],
+    newest.domain,
+    now,
+    9999,
+  );
 }
 
 function buildFetchResult(
