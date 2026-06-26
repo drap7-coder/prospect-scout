@@ -26,13 +26,13 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-[88rem] px-6 lg:px-10">
-        <section className="relative flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center py-16 lg:py-20">
+        <section className="relative flex min-h-[calc(100dvh-3.75rem)] flex-col items-center justify-center py-8 sm:py-10 lg:py-12">
           {/* Meridian backdrop */}
           <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.35] lg:opacity-45"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.3] lg:opacity-40"
             aria-hidden
           >
-            <div className="aspect-[5/7] h-[min(70vh,520px)] w-auto max-w-[420px]">
+            <div className="aspect-[5/7] h-[min(58vh,460px)] w-auto max-w-[360px]">
               <ScoutMeridian className="h-full w-full" />
             </div>
           </div>
