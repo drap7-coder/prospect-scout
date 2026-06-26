@@ -1,13 +1,39 @@
 @import "tailwindcss";
 
 /*
- * Prospect Scout design system.
- *
- * Visual identity: the Scout Meridian — a single vertical line of intelligence
- * sweeping organizational noise until one signal resolves. Cinematic restraint,
- * enterprise precision, no decorative motion.
+ * Prospect Scout — light-first research UI.
+ * Cyan accent for active/selected states only. Dark mode via html.dark.
  */
 :root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --foreground: #1c222b;
+  --muted: #5c6570;
+  --muted-2: #8b939e;
+  --border: rgba(28, 34, 43, 0.1);
+  --border-strong: rgba(28, 34, 43, 0.16);
+  --accent: #2563eb;
+  --accent-soft: rgba(13, 148, 136, 0.08);
+  --accent-cyan: #0d9488;
+  --good: #059669;
+  --warn: #d97706;
+
+  --source-cms: #2563eb;
+  --source-sec: #7c3aed;
+  --source-fda: #ea580c;
+  --source-rss: #059669;
+  --source-web: #0d9488;
+
+  --meridian-duration: 11s;
+  --meridian-signal-x: 67%;
+  --type-scale: 1;
+  --shadow-card: 0 1px 3px rgba(28, 34, 43, 0.06), 0 4px 16px rgba(28, 34, 43, 0.04);
+  --shadow-card-hover: 0 2px 6px rgba(28, 34, 43, 0.08), 0 8px 24px rgba(28, 34, 43, 0.06);
+}
+
+html.dark {
+  color-scheme: dark;
   --background: #050608;
   --surface: #0a0d12;
   --surface-2: #101419;
@@ -17,24 +43,12 @@
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.12);
   --accent: #3d8bff;
-  --accent-soft: rgba(61, 139, 255, 0.1);
+  --accent-soft: rgba(56, 224, 216, 0.1);
   --accent-cyan: #38e0d8;
   --good: #34d399;
   --warn: #fbbf24;
-
-  /* Intelligence source palette */
-  --source-cms: #6eb6ff;
-  --source-sec: #b49cff;
-  --source-fda: #ff9f5a;
-  --source-rss: #5ee4a0;
-  --source-web: #38e0d8;
-
-  /* Meridian timing — one slow, deliberate sweep */
-  --meridian-duration: 11s;
-  --meridian-signal-x: 67%; /* aligns with SIGNAL.x / 400 */
-
-  /* Readable type scale (1.25× browser default) */
-  --type-scale: 1.25;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.14);
+  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
 @theme inline {
@@ -62,14 +76,8 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   font-size: calc(100% * var(--type-scale));
-}
-
-@media (max-width: 639px) {
-  html {
-    font-size: 100%;
-  }
 }
 
 body {
@@ -91,6 +99,29 @@ body {
   color: var(--muted-2);
 }
 
+.card-float {
+  border-radius: 1.125rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    background-color 200ms ease;
+}
+
+.card-float:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card-selected {
+  border-color: color-mix(in srgb, var(--accent-cyan) 45%, transparent);
+  background: var(--accent-soft);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent-cyan) 12%, transparent),
+    var(--shadow-card);
+}
+
 ::selection {
   background: var(--accent-soft);
   color: var(--foreground);
@@ -99,10 +130,6 @@ body {
 * {
   scrollbar-color: var(--border-strong) transparent;
 }
-
-/* ------------------------------------------------------------------ */
-/* Scout Meridian — identity animation                                  */
-/* ------------------------------------------------------------------ */
 
 .scout-meridian-sweep {
   animation: meridian-sweep var(--meridian-duration) cubic-bezier(0.45, 0, 0.25, 1)
@@ -195,7 +222,6 @@ body {
   }
 }
 
-/* Loading state — meridian passes over skeleton rows */
 .scout-scan-line {
   animation: scan-line 2.4s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
@@ -224,18 +250,5 @@ body {
   .scout-signal-thread,
   .scout-scan-line {
     animation: none;
-  }
-
-  .scout-meridian-sweep {
-    transform: translateX(268px);
-    opacity: 0.5;
-  }
-
-  .scout-signal-core {
-    opacity: 1;
-  }
-
-  .scout-signal-halo {
-    opacity: 0.5;
   }
 }

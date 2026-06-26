@@ -49,7 +49,7 @@ function MetaChip({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-md border border-border/70 bg-surface-2/80 px-1.5 py-0.5 font-mono text-[0.625rem] text-muted ${className}`}
+      className={`inline-flex items-center rounded-md border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.625rem] text-muted ${className}`}
     >
       {children}
     </span>
@@ -85,46 +85,49 @@ export function ResultRow({
   const evidence = evidenceSourceCount(prospect);
   const category = prospectCategory(prospect);
   const typeLabel = prospectTypeLabel(prospect);
-  const summary =
+  const whyItMatters =
     prospect.signals.length > 0
       ? prospect.whyNow
       : (prospect.whyItMatters[0] ?? prospect.whyNow);
 
   const cardSurface = selected
-    ? "border-accent-cyan/45 border-l-[3px] border-l-accent-cyan bg-surface/70 shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
-    : "border-border/70 bg-surface/50 shadow-[0_1px_2px_rgba(0,0,0,0.14)] hover:border-border-strong hover:bg-surface/75 hover:shadow-[0_2px_4px_rgba(0,0,0,0.16)] active:border-border-strong active:bg-surface/85";
+    ? "border-accent-cyan/45 border-l-[3px] border-l-accent-cyan bg-surface shadow-[var(--shadow-card)]"
+    : "border-border bg-surface shadow-[var(--shadow-card)] hover:border-border-strong hover:shadow-[var(--shadow-card-hover)]";
 
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`group w-full cursor-pointer touch-manipulation rounded-lg border px-3.5 py-3.5 text-left outline-none transition-[background-color,border-color,box-shadow] duration-200 ease-out sm:px-4 sm:py-4 ${cardSurface}`}
+      className={`group w-full cursor-pointer touch-manipulation rounded-2xl border px-4 py-4 text-left outline-none transition duration-200 ease-out sm:px-5 sm:py-5 ${cardSurface}`}
     >
-      {/* Header */}
       <div className="flex items-start gap-3">
-        <span className="mt-1 font-mono text-[0.625rem] tabular-nums text-muted-2">
+        <span className="mt-0.5 font-mono text-[0.625rem] tabular-nums text-muted-2">
           {String(rank).padStart(2, "0")}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-[0.9375rem] font-semibold leading-snug text-foreground sm:text-base">
+            <h3 className="text-base font-semibold leading-snug text-foreground">
               {prospect.name}
             </h3>
             <span
-              className={`inline-flex shrink-0 items-center justify-center rounded-md border px-2 py-1 font-mono text-sm font-semibold tabular-nums leading-none sm:text-base ${tone.bg} ${tone.border} ${tone.text}`}
+              className={`inline-flex shrink-0 items-center justify-center rounded-lg border px-2 py-1 font-mono text-sm font-semibold tabular-nums leading-none ${tone.bg} ${tone.border} ${tone.text}`}
             >
               {prospect.score}
             </span>
           </div>
 
-          {/* Primary metadata line */}
-          <p className="mt-1 text-xs leading-relaxed text-muted">
+          {whyItMatters ? (
+            <p className="mt-2.5 text-sm leading-relaxed text-foreground/90">
+              {whyItMatters}
+            </p>
+          ) : null}
+
+          <p className="mt-2 text-xs leading-relaxed text-muted">
             {[category, typeLabel, prospect.location].filter(Boolean).join(" · ")}
           </p>
 
-          {/* Secondary metadata chips */}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {prospect.size ? (
               <MetaChip>{SIZE_LABELS[prospect.size]}</MetaChip>
             ) : null}
@@ -140,60 +143,47 @@ export function ResultRow({
               <MetaChip className="capitalize">{prospect.region.replace(/-/g, " ")}</MetaChip>
             ) : null}
             {prospect.directoryMatch ? <MetaChip>Directory</MetaChip> : null}
-            {prospect.signals.length > 0 ? (
-              <MetaChip>
-                {prospect.signals.length} signal
-                {prospect.signals.length === 1 ? "" : "s"}
-              </MetaChip>
+          </div>
+
+          {signals.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {signals.map((s) => {
+                const st = sourceTone(s.source);
+                return (
+                  <span
+                    key={s.id}
+                    className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[0.625rem] ${st.bg} ${st.border} ${st.text}`}
+                  >
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.dot}`} />
+                    {s.label}
+                  </span>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border pt-3">
+            <span
+              className={`font-mono text-[0.6875rem] tabular-nums ${freshnessTone(freshness)}`}
+            >
+              {formatFreshness(freshness)}
+            </span>
+            <span className="text-muted-2">·</span>
+            <span className="font-mono text-[0.6875rem] text-muted">
+              {evidence} evidence source{evidence === 1 ? "" : "s"}
+            </span>
+            {sources.length > 0 ? (
+              <>
+                <span className="hidden text-muted-2 sm:inline">·</span>
+                <div className="flex flex-wrap gap-1">
+                  {sources.map((src) => (
+                    <SourceBadge key={src} src={src} />
+                  ))}
+                </div>
+              </>
             ) : null}
           </div>
         </div>
-      </div>
-
-      {/* Signals */}
-      {signals.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5 pl-7 sm:pl-8">
-          {signals.map((s) => {
-            const st = sourceTone(s.source);
-            return (
-              <span
-                key={s.id}
-                className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-1.5 py-0.5 font-mono text-[0.625rem] ${st.bg} ${st.border} ${st.text}`}
-              >
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.dot}`} />
-                {s.label}
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {/* Summary */}
-      <p className="mt-3 line-clamp-2 pl-7 text-xs leading-relaxed text-muted/95 sm:pl-8">
-        {summary}
-      </p>
-
-      {/* Footer */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/50 pt-3 pl-7 sm:pl-8">
-        <span
-          className={`font-mono text-[0.6875rem] tabular-nums ${freshnessTone(freshness)}`}
-        >
-          {formatFreshness(freshness)}
-        </span>
-        <span className="text-muted-2/80">·</span>
-        <span className="font-mono text-[0.6875rem] text-muted">
-          {evidence} evidence source{evidence === 1 ? "" : "s"}
-        </span>
-        {sources.length > 0 ? (
-          <>
-            <span className="hidden text-muted-2/80 sm:inline">·</span>
-            <div className="flex flex-wrap gap-1">
-              {sources.map((src) => (
-                <SourceBadge key={src} src={src} />
-              ))}
-            </div>
-          </>
-        ) : null}
       </div>
     </button>
   );

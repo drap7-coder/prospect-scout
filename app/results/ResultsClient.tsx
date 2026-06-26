@@ -37,6 +37,7 @@ import {
   ProviderStatusBar,
 } from "@/app/components/ProviderStatusBar";
 import { ScoutBrand } from "@/app/components/ScoutLogo";
+import { ThemeToggle } from "@/app/components/ThemeToggle";
 
 type FetchPhase = "idle" | "mock-loading" | "ready" | "enriching" | "error";
 
@@ -309,7 +310,7 @@ export function ResultsClient() {
 
   return (
     <div className="min-h-full overflow-x-hidden bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/80 bg-background/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[90rem] items-center justify-between gap-4 px-4 lg:px-8">
           <Link href="/" className="shrink-0">
             <ScoutBrand size={32} />
@@ -321,9 +322,12 @@ export function ResultsClient() {
               compact
             />
           </div>
-          <span className="label-mono hidden text-muted-2 md:inline">
-            Results
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="label-mono hidden text-muted-2 md:inline">
+              Results
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
         <div className="border-t border-border/60 px-4 py-3 sm:hidden">
           <ResultsSearchBar

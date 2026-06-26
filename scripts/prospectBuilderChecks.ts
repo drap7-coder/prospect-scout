@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import {
   builderToSearchState,
+  buildNaturalLanguageSummary,
   EMPTY_BUILDER_STATE,
   type ProspectListBuilderState,
 } from "../lib/search/prospectListBuilder.ts";
@@ -124,6 +125,20 @@ check("healthcare sources are builder-only, not in homepage examples", () => {
   assert.ok(!joined.includes("cms"));
   assert.ok(!joined.includes("fda"));
   assert.ok(!joined.includes("medicare"));
+});
+
+check("natural language summary reads as a sentence", () => {
+  const builder: ProspectListBuilderState = {
+    ...EMPTY_BUILDER_STATE,
+    sector: "manufacturing",
+    state: "OH",
+    builderSignals: ["hiring"],
+  };
+  const summary = buildNaturalLanguageSummary(builder);
+  assert.match(summary, /^We'll search for/i);
+  assert.match(summary, /Ohio/i);
+  assert.match(summary, /hiring/i);
+  assert.ok(summary.endsWith("."));
 });
 
 console.log(`\n${passed} checks passed.`);

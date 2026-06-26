@@ -2,108 +2,90 @@
 
 import { useMemo, useState } from "react";
 import {
-  BUILDER_FEATURED_SECTOR_IDS,
   BUILDER_OWNERSHIP_OPTIONS,
-  BUILDER_SECTOR_HINTS,
+  BUILDER_PRIMARY_CATEGORIES,
   BUILDER_SIGNAL_OPTIONS,
   BUILDER_SIZE_OPTIONS,
   BUILDER_SORT_OPTIONS,
   BUILDER_SOURCE_OPTIONS,
+  buildNaturalLanguageSummary,
   buildSearchQueryFromBuilder,
-  hasBuilderFilters,
   type ProspectListBuilderState,
   EMPTY_BUILDER_STATE,
 } from "@/lib/search/prospectListBuilder";
 import { LOCATIONS, US_STATE_FILTERS } from "@/lib/search/searchState";
 import {
+  getOrganizationType,
   industryLabel,
   organizationTypeLabel,
   sectorLabel,
   TAXONOMY_INDUSTRIES,
-  TAXONOMY_SECTORS,
   organizationTypesForFilters,
 } from "@/lib/taxonomy";
 
-function QuestionBlock({
+type LocationMode = "anywhere" | "nationwide" | "state" | "city";
+
+function StepIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted">
+      {children}
+    </span>
+  );
+}
+
+function StepCard({
   step,
+  icon,
   question,
-  hint,
   children,
 }: {
-  step?: string;
+  step: number;
+  icon: React.ReactNode;
   question: string;
-  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid gap-4 sm:gap-5">
-      <div className="grid gap-1.5 text-left">
-        {step ? (
-          <p className="label-mono text-accent-cyan/80">{step}</p>
-        ) : null}
-        <h3 className="text-[1.0625rem] font-semibold leading-snug tracking-[-0.02em] text-foreground sm:text-lg">
-          {question}
-        </h3>
-        {hint ? (
-          <p className="max-w-xl text-sm leading-relaxed text-muted">{hint}</p>
-        ) : null}
+    <section className="card-float rounded-[1.25rem] p-5 sm:p-6">
+      <div className="mb-5 flex items-start gap-3">
+        {icon}
+        <div className="min-w-0 text-left">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-2">
+            Step {step}
+          </p>
+          <h3 className="mt-1 text-lg font-semibold leading-snug text-foreground">
+            {question}
+          </h3>
+        </div>
       </div>
       {children}
     </section>
   );
 }
 
-function PickCard({
-  title,
-  subtitle,
+function CategoryCard({
+  label,
   selected,
   onClick,
-  compact = false,
 }: {
-  title: string;
-  subtitle?: string;
+  label: string;
   selected: boolean;
   onClick: () => void;
-  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`group flex w-full min-w-0 items-center gap-3 rounded-2xl border-2 px-3.5 py-3.5 text-left transition-[border-color,background-color,box-shadow] duration-200 sm:px-4 sm:py-4 ${
-        compact ? "min-h-[3.75rem]" : "min-h-[4.5rem] sm:min-h-[5rem]"
-      } ${
-        selected
-          ? "border-accent-cyan/50 bg-accent-soft/20 shadow-[0_0_0_4px_rgba(56,224,216,0.08),0_8px_24px_rgba(0,0,0,0.18)]"
-          : "border-border/80 bg-surface/50 hover:border-border-strong hover:bg-surface/70"
+      className={`flex min-h-[3.75rem] w-full items-center rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-semibold transition duration-200 sm:min-h-[4.25rem] sm:text-[0.9375rem] ${
+        selected ? "card-selected" : "border-border bg-surface hover:border-border-strong"
       }`}
     >
-      <span
-        className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-bold uppercase tracking-wide transition-colors duration-200 sm:h-10 sm:w-10 ${
-          selected
-            ? "bg-accent-cyan/20 text-accent-cyan"
-            : "bg-surface-2 text-muted group-hover:text-foreground"
-        }`}
-        aria-hidden
-      >
-        {title.slice(0, 2)}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold leading-snug text-foreground sm:text-[0.9375rem]">
-          {title}
-        </span>
-        {subtitle ? (
-          <span className="mt-0.5 block text-xs leading-relaxed text-muted">
-            {subtitle}
-          </span>
-        ) : null}
-      </span>
+      {label}
     </button>
   );
 }
 
-function PickChip({
+function ChoiceChip({
   label,
   hint,
   selected,
@@ -119,159 +101,65 @@ function PickChip({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`rounded-xl border-2 px-3.5 py-3 text-left transition-[border-color,background-color] duration-200 sm:min-w-[8.5rem] ${
-        selected
-          ? "border-accent-cyan/45 bg-accent-soft/20"
-          : "border-border/70 bg-surface-2/50 hover:border-border-strong hover:bg-surface/70"
+      className={`min-h-[3.25rem] rounded-2xl border-2 px-4 py-3 text-left transition duration-200 ${
+        selected ? "card-selected" : "border-border bg-surface hover:border-border-strong"
       }`}
     >
       <span className="block text-sm font-semibold text-foreground">{label}</span>
       {hint ? (
-        <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-muted">
-          {hint}
-        </span>
+        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
       ) : null}
     </button>
   );
 }
 
-function SelectionPill({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
+function HierarchyStack({ builder }: { builder: ProspectListBuilderState }) {
+  const levels: string[] = [];
+  if (builder.sector) levels.push(sectorLabel(builder.sector));
+  if (builder.industry) levels.push(industryLabel(builder.industry));
+  if (builder.organizationType) {
+    levels.push(organizationTypeLabel(builder.organizationType));
+  }
+  if (levels.length === 0) return null;
+
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface/70 px-3 py-1.5 text-xs font-medium text-foreground">
-      {label}
-      <button
-        type="button"
-        aria-label={`Remove ${label}`}
-        onClick={onRemove}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted transition hover:bg-surface-2 hover:text-foreground"
-      >
-        ×
-      </button>
-    </span>
+    <div className="rounded-xl border border-border bg-surface-2/80 px-4 py-3 text-left">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-2">
+        Your selection
+      </p>
+      <div className="mt-2 flex flex-col gap-1">
+        {levels.map((level, i) => (
+          <div key={`${level}-${i}`} className="flex items-center gap-2">
+            {i > 0 ? (
+              <span className="text-muted-2" aria-hidden>
+                ↓
+              </span>
+            ) : null}
+            <span
+              className={`text-sm font-semibold ${
+                i === levels.length - 1 ? "text-accent-cyan" : "text-foreground"
+              }`}
+            >
+              {level}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function buildSelectionPills(builder: ProspectListBuilderState) {
-  const pills: { id: string; label: string; clear: () => Partial<ProspectListBuilderState> }[] =
-    [];
-
-  if (builder.industry) {
-    pills.push({
-      id: "industry",
-      label: industryLabel(builder.industry),
-      clear: () => ({ industry: null, organizationType: null, sector: null }),
-    });
-  } else if (builder.sector) {
-    pills.push({
-      id: "sector",
-      label: sectorLabel(builder.sector),
-      clear: () => ({ sector: null, industry: null, organizationType: null }),
-    });
-  }
-
-  if (builder.organizationType) {
-    pills.push({
-      id: "org",
-      label: organizationTypeLabel(builder.organizationType),
-      clear: () => ({ organizationType: null }),
-    });
-  }
-
-  if (builder.ownership) {
-    const opt = BUILDER_OWNERSHIP_OPTIONS.find((o) => o.id === builder.ownership);
-    pills.push({
-      id: "ownership",
-      label: opt?.label ?? builder.ownership,
-      clear: () => ({ ownership: null }),
-    });
-  }
-
-  if (builder.companySize) {
-    pills.push({
-      id: "size",
-      label: builder.companySize,
-      clear: () => ({ companySize: null }),
-    });
-  }
-
-  if (builder.location && builder.location !== "nationwide") {
-    const loc = LOCATIONS.find((l) => l.id === builder.location);
-    pills.push({
-      id: "location",
-      label: loc?.label ?? builder.location,
-      clear: () => ({ location: null }),
-    });
-  }
-
-  if (builder.state) {
-    const st = US_STATE_FILTERS.find((s) => s.id === builder.state);
-    pills.push({
-      id: "state",
-      label: st?.label ?? builder.state,
-      clear: () => ({ state: null }),
-    });
-  }
-
-  if (builder.metro?.trim()) {
-    pills.push({
-      id: "metro",
-      label: builder.metro.trim(),
-      clear: () => ({ metro: null }),
-    });
-  }
-
-  for (const code of builder.operatingStates) {
-    pills.push({
-      id: `op-${code}`,
-      label: `Operates in ${code}`,
-      clear: () => ({
-        operatingStates: builder.operatingStates.filter((s) => s !== code),
-      }),
-    });
-  }
-
-  for (const sigId of builder.builderSignals) {
-    const sig = BUILDER_SIGNAL_OPTIONS.find((s) => s.id === sigId);
-    if (sig) {
-      pills.push({
-        id: `sig-${sigId}`,
-        label: sig.label,
-        clear: () => ({
-          builderSignals: builder.builderSignals.filter((s) => s !== sigId),
-        }),
-      });
-    }
-  }
-
-  for (const srcId of builder.builderSources) {
-    const src = BUILDER_SOURCE_OPTIONS.find((s) => s.id === srcId);
-    if (src) {
-      pills.push({
-        id: `src-${srcId}`,
-        label: src.label,
-        clear: () => ({
-          builderSources: builder.builderSources.filter((s) => s !== srcId),
-        }),
-      });
-    }
-  }
-
-  if (builder.sort && builder.sort !== "score") {
-    const sort = BUILDER_SORT_OPTIONS.find((s) => s.id === builder.sort);
-    pills.push({
-      id: "sort",
-      label: sort?.label ?? builder.sort,
-      clear: () => ({ sort: "score" }),
-    });
-  }
-
-  return pills;
+function orgTypeMatchesSelection(
+  orgTypeId: string | null,
+  sectorId: string | null,
+  industryId: string | null,
+): boolean {
+  if (!orgTypeId) return true;
+  const org = getOrganizationType(orgTypeId);
+  if (!org) return false;
+  if (industryId) return org.industryId === industryId;
+  if (sectorId) return org.sectorId === sectorId;
+  return true;
 }
 
 export function ProspectListBuilder({
@@ -284,39 +172,17 @@ export function ProspectListBuilder({
   const [builder, setBuilder] = useState<ProspectListBuilderState>(
     EMPTY_BUILDER_STATE,
   );
-  const [showAllSectors, setShowAllSectors] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showAllIndustries, setShowAllIndustries] = useState(false);
-  const [showLocationDetails, setShowLocationDetails] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAllOrgTypes, setShowAllOrgTypes] = useState(false);
+  const [locationMode, setLocationMode] = useState<LocationMode>("anywhere");
+  const [showLocationAdvanced, setShowLocationAdvanced] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [editQuery, setEditQuery] = useState(false);
 
   const orgTypes = useMemo(
-    () =>
-      organizationTypesForFilters(builder.sector, builder.industry).slice(0, 48),
+    () => organizationTypesForFilters(builder.sector, builder.industry),
     [builder.sector, builder.industry],
-  );
-
-  const generatedQuery = useMemo(
-    () => buildSearchQueryFromBuilder(builder),
-    [builder],
-  );
-
-  const selectionPills = useMemo(() => buildSelectionPills(builder), [builder]);
-
-  const featuredSectors = useMemo(
-    () =>
-      TAXONOMY_SECTORS.filter((s) =>
-        (BUILDER_FEATURED_SECTOR_IDS as readonly string[]).includes(s.id),
-      ),
-    [],
-  );
-
-  const otherSectors = useMemo(
-    () =>
-      TAXONOMY_SECTORS.filter(
-        (s) => !(BUILDER_FEATURED_SECTOR_IDS as readonly string[]).includes(s.id),
-      ),
-    [],
   );
 
   const industriesForSector = useMemo(() => {
@@ -327,31 +193,86 @@ export function ProspectListBuilder({
   const visibleIndustries = showAllIndustries
     ? industriesForSector
     : industriesForSector.slice(0, 6);
+  const visibleOrgTypes = showAllOrgTypes ? orgTypes : orgTypes.slice(0, 8);
+
+  const generatedQuery = useMemo(
+    () => buildSearchQueryFromBuilder(builder),
+    [builder],
+  );
+  const summary = useMemo(
+    () => buildNaturalLanguageSummary(builder),
+    [builder],
+  );
 
   function patch(partial: Partial<ProspectListBuilderState>) {
     setBuilder((prev) => ({ ...prev, ...partial }));
   }
 
-  function pickSector(sectorId: string) {
-    const selected = builder.sector === sectorId && !builder.industry;
+  function pickCategory(
+    cardId: string,
+    sectorId: string,
+    presetIndustry?: string,
+  ) {
+    if (activeCategory === cardId && !builder.industry && !builder.organizationType) {
+      setActiveCategory(null);
+      patch({ sector: null, industry: null, organizationType: null });
+      return;
+    }
+    setActiveCategory(cardId);
     patch({
-      sector: selected ? null : sectorId,
-      industry: null,
+      sector: sectorId,
+      industry: presetIndustry ?? null,
       organizationType: null,
     });
     setShowAllIndustries(false);
+    setShowAllOrgTypes(false);
   }
 
   function pickIndustry(industryId: string) {
     const ind = TAXONOMY_INDUSTRIES.find((i) => i.id === industryId);
+    const deselect = builder.industry === industryId;
+    const nextIndustry = deselect ? null : industryId;
     patch({
-      industry: builder.industry === industryId ? null : industryId,
+      industry: nextIndustry,
       sector: ind?.sectorId ?? builder.sector,
-      organizationType: null,
+      organizationType: orgTypeMatchesSelection(
+        builder.organizationType,
+        ind?.sectorId ?? builder.sector,
+        nextIndustry,
+      )
+        ? builder.organizationType
+        : null,
     });
   }
 
-  function toggleBuilderSignal(id: string) {
+  function pickOrganizationType(orgId: string) {
+    const org = getOrganizationType(orgId);
+    if (!org) return;
+    if (builder.organizationType === orgId) {
+      patch({ organizationType: null });
+      return;
+    }
+    patch({
+      organizationType: orgId,
+      sector: org.sectorId,
+      industry: org.industryId ?? builder.industry,
+    });
+  }
+
+  function setMode(mode: LocationMode) {
+    setLocationMode(mode);
+    if (mode === "anywhere") {
+      patch({ location: null, state: null, metro: null });
+    } else if (mode === "nationwide") {
+      patch({ location: "nationwide", state: null, metro: null });
+    } else if (mode === "state") {
+      patch({ location: null, metro: null });
+    } else if (mode === "city") {
+      patch({ location: null, state: null });
+    }
+  }
+
+  function toggleSignal(id: string) {
     setBuilder((prev) => ({
       ...prev,
       builderSignals: prev.builderSignals.includes(id)
@@ -360,7 +281,7 @@ export function ProspectListBuilder({
     }));
   }
 
-  function toggleBuilderSource(id: string) {
+  function toggleSource(id: string) {
     setBuilder((prev) => ({
       ...prev,
       builderSources: prev.builderSources.includes(id)
@@ -379,98 +300,63 @@ export function ProspectListBuilder({
   }
 
   function handleSubmit() {
-    onSubmit({
-      ...builder,
-      query: builder.query.trim() || generatedQuery,
-    });
-  }
-
-  function clearAll() {
-    setBuilder(EMPTY_BUILDER_STATE);
-    setShowAllSectors(false);
-    setShowAllIndustries(false);
-    setShowLocationDetails(false);
-    setShowAdvanced(false);
-    setEditQuery(false);
+    onSubmit({ ...builder, query: builder.query.trim() || generatedQuery });
   }
 
   if (!open) return null;
 
-  const effectiveQuery = builder.query.trim() || generatedQuery;
-
   return (
-    <div className="mt-8 w-full text-left">
-      <div className="rounded-2xl border border-border/70 bg-surface/40 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.14)] sm:p-7">
-        <header className="mb-8 grid gap-2 text-center sm:mb-10">
-          <p className="label-mono text-accent-cyan/75">Guided builder</p>
-          <h2 className="font-display text-balance text-[1.375rem] font-normal leading-tight tracking-[-0.03em] text-foreground sm:text-[1.625rem]">
-            Let&apos;s build your prospect list
-          </h2>
-          <p className="mx-auto max-w-md text-sm leading-relaxed text-muted">
-            Answer a few quick questions. You can skip anything — we&apos;ll
-            search with whatever you pick.
-          </p>
-        </header>
+    <div className="mt-8 space-y-5 text-left sm:mt-10">
+      <StepCard
+        step={1}
+        icon={
+          <StepIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 20V9l8-5 8 5v11H4Z"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </StepIcon>
+        }
+        question="What kind of organizations are you looking for?"
+      >
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {BUILDER_PRIMARY_CATEGORIES.map((cat) => (
+            <CategoryCard
+              key={cat.cardId}
+              label={cat.label}
+              selected={activeCategory === cat.cardId}
+              onClick={() =>
+                pickCategory(
+                  cat.cardId,
+                  cat.sectorId,
+                  "presetIndustry" in cat ? cat.presetIndustry : undefined,
+                )
+              }
+            />
+          ))}
+        </div>
 
-        <div className="grid gap-10 sm:gap-12">
-          <QuestionBlock
-            step="Step 1"
-            question="What kind of organizations?"
-            hint="Pick a broad category, then narrow to a specific industry if you want."
-          >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {featuredSectors.map((sector) => (
-                <PickCard
-                  key={sector.id}
-                  title={sector.label}
-                  subtitle={BUILDER_SECTOR_HINTS[sector.id]}
-                  selected={
-                    builder.sector === sector.id && !builder.industry
-                  }
-                  onClick={() => pickSector(sector.id)}
-                />
-              ))}
-            </div>
+        {builder.sector ? (
+          <div className="mt-5 space-y-4">
+            <HierarchyStack builder={builder} />
 
-            {showAllSectors ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {otherSectors.map((sector) => (
-                  <PickCard
-                    key={sector.id}
-                    title={sector.label}
-                    subtitle={BUILDER_SECTOR_HINTS[sector.id]}
-                    selected={
-                      builder.sector === sector.id && !builder.industry
-                    }
-                    onClick={() => pickSector(sector.id)}
-                    compact
-                  />
-                ))}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowAllSectors(true)}
-                className="text-sm font-semibold text-accent-cyan transition hover:text-accent-cyan/80"
-              >
-                Browse all categories
-              </button>
-            )}
-
-            {builder.sector && industriesForSector.length > 0 ? (
-              <div className="grid gap-3 rounded-2xl border border-border/60 bg-surface-2/30 p-4 sm:p-5">
-                <p className="text-sm font-semibold text-foreground">
-                  Narrow to a specific industry{" "}
-                  <span className="font-normal text-muted">(optional)</span>
+            {industriesForSector.length > 0 ? (
+              <div>
+                <p className="mb-2.5 text-sm font-medium text-muted">
+                  Industry{" "}
+                  <span className="font-normal text-muted-2">(optional)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {visibleIndustries.map((ind) => (
-                    <PickCard
+                    <CategoryCard
                       key={ind.id}
-                      title={ind.label}
+                      label={ind.label}
                       selected={builder.industry === ind.id}
                       onClick={() => pickIndustry(ind.id)}
-                      compact
                     />
                   ))}
                 </div>
@@ -478,338 +364,354 @@ export function ProspectListBuilder({
                   <button
                     type="button"
                     onClick={() => setShowAllIndustries((v) => !v)}
-                    className="text-sm font-semibold text-muted transition hover:text-foreground"
+                    className="mt-2 text-sm font-semibold text-accent-cyan"
                   >
-                    {showAllIndustries
-                      ? "Show fewer industries"
-                      : `Show all ${industriesForSector.length} industries`}
+                    {showAllIndustries ? "Show fewer" : "Show all industries"}
                   </button>
                 ) : null}
               </div>
             ) : null}
-          </QuestionBlock>
 
-          <QuestionBlock
-            step="Step 2"
-            question="Who are you looking for?"
-            hint="Optional — leave blank to include every ownership type and size."
-          >
-            <div className="grid gap-4">
-              <div className="flex flex-wrap gap-2">
-                {BUILDER_OWNERSHIP_OPTIONS.map((o) => (
-                  <PickChip
-                    key={o.id}
-                    label={o.label}
-                    hint={o.hint}
-                    selected={builder.ownership === o.id}
-                    onClick={() =>
-                      patch({
-                        ownership: builder.ownership === o.id ? null : o.id,
-                      })
-                    }
-                  />
-                ))}
-              </div>
+            {orgTypes.length > 0 ? (
               <div>
-                <p className="mb-2.5 text-xs font-medium uppercase tracking-wide text-muted-2">
-                  Company size
+                <p className="mb-2.5 text-sm font-medium text-muted">
+                  Organization type{" "}
+                  <span className="font-normal text-muted-2">(optional)</span>
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {BUILDER_SIZE_OPTIONS.map((s) => (
-                    <PickChip
-                      key={s.id}
-                      label={s.label}
-                      hint={s.hint}
-                      selected={builder.companySize === s.id}
-                      onClick={() =>
-                        patch({
-                          companySize:
-                            builder.companySize === s.id ? null : s.id,
-                        })
-                      }
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {visibleOrgTypes.map((org) => (
+                    <CategoryCard
+                      key={org.id}
+                      label={org.label}
+                      selected={builder.organizationType === org.id}
+                      onClick={() => pickOrganizationType(org.id)}
                     />
                   ))}
                 </div>
+                {orgTypes.length > 8 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllOrgTypes((v) => !v)}
+                    className="mt-2 text-sm font-semibold text-accent-cyan"
+                  >
+                    {showAllOrgTypes ? "Show fewer" : "Show all types"}
+                  </button>
+                ) : null}
               </div>
-            </div>
-          </QuestionBlock>
+            ) : null}
+          </div>
+        ) : null}
+      </StepCard>
 
-          <QuestionBlock
-            step="Step 3"
-            question="Where should they be based?"
-            hint="Start broad — add city or state details only if you need them."
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <PickCard
-                title="Anywhere"
-                subtitle="No location filter"
-                selected={!builder.location && !builder.state && !builder.metro}
-                onClick={() =>
-                  patch({ location: null, state: null, metro: null })
-                }
-                compact
+      <StepCard
+        step={2}
+        icon={
+          <StepIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 21s7-4.5 7-10a7 7 0 1 0-14 0c0 5.5 7 10 7 10Z"
+                stroke="currentColor"
+                strokeWidth="1.75"
               />
-              {LOCATIONS.filter((l) => l.id !== "nationwide").map((loc) => (
-                <PickCard
-                  key={loc.id}
-                  title={loc.label}
-                  selected={builder.location === loc.id}
-                  onClick={() =>
-                    patch({
-                      location: builder.location === loc.id ? null : loc.id,
-                    })
-                  }
-                  compact
-                />
-              ))}
-            </div>
-
-            {!showLocationDetails ? (
-              <button
-                type="button"
-                onClick={() => setShowLocationDetails(true)}
-                className="text-sm font-semibold text-muted transition hover:text-foreground"
-              >
-                Add a city, state, or operating area
-              </button>
-            ) : (
-              <div className="grid gap-4 rounded-2xl border border-border/60 bg-surface-2/30 p-4 sm:p-5">
-                <p className="text-sm font-semibold text-foreground">
-                  Location details
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted">
-                      Headquarters state
-                    </span>
-                    <select
-                      value={builder.state ?? ""}
-                      onChange={(e) =>
-                        patch({ state: e.target.value || null })
-                      }
-                      className="w-full rounded-xl border border-border/80 bg-surface/80 px-3.5 py-3 text-sm text-foreground outline-none transition-colors focus:border-border-strong"
-                    >
-                      <option value="">Any state</option>
-                      {US_STATE_FILTERS.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-1.5 sm:col-span-2">
-                    <span className="text-xs font-medium text-muted">
-                      City or metro area
-                    </span>
-                    <input
-                      type="text"
-                      value={builder.metro ?? ""}
-                      onChange={(e) =>
-                        patch({ metro: e.target.value || null })
-                      }
-                      placeholder="e.g. Columbus, Austin, Dallas–Fort Worth"
-                      className="w-full rounded-xl border border-border/80 bg-surface/80 px-3.5 py-3 text-sm outline-none transition-colors focus:border-border-strong"
-                    />
-                  </label>
-                </div>
-                <div>
-                  <p className="mb-2 text-xs font-medium text-muted">
-                    Also operating in these states
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {US_STATE_FILTERS.map((st) => (
-                      <button
-                        key={st.id}
-                        type="button"
-                        aria-pressed={builder.operatingStates.includes(st.id)}
-                        onClick={() => toggleOperatingState(st.id)}
-                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
-                          builder.operatingStates.includes(st.id)
-                            ? "border-accent-cyan/45 bg-accent-soft/20 text-foreground"
-                            : "border-border/70 text-muted hover:border-border-strong"
-                        }`}
-                      >
-                        {st.id}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </QuestionBlock>
-
-          <QuestionBlock
-            step="Step 4"
-            question="What should they be doing right now?"
-            hint="Pick any signals you care about — we'll prioritize organizations showing that activity."
-          >
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {BUILDER_SIGNAL_OPTIONS.map((sig) => (
-                <PickChip
-                  key={sig.id}
-                  label={sig.label}
-                  hint={sig.hint}
-                  selected={builder.builderSignals.includes(sig.id)}
-                  onClick={() => toggleBuilderSignal(sig.id)}
-                />
-              ))}
-            </div>
-          </QuestionBlock>
-
-          {!showAdvanced ? (
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(true)}
-              className="justify-self-start text-sm font-semibold text-muted transition hover:text-foreground"
-            >
-              Fine-tune data sources, sort order, and organization type →
-            </button>
-          ) : (
-            <div className="grid gap-8 rounded-2xl border border-border/60 bg-surface-2/20 p-5 sm:p-6">
-              <QuestionBlock
-                question="Which public data sources?"
-                hint="Optional — we'll search broadly unless you limit sources."
-              >
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {BUILDER_SOURCE_OPTIONS.map((src) => (
-                    <PickChip
-                      key={src.id}
-                      label={src.label}
-                      hint={src.hint}
-                      selected={builder.builderSources.includes(src.id)}
-                      onClick={() => toggleBuilderSource(src.id)}
-                    />
-                  ))}
-                </div>
-              </QuestionBlock>
-
-              {orgTypes.length > 0 ? (
-                <QuestionBlock
-                  question="Specific organization type?"
-                  hint="For power users — most searches work without this."
-                >
-                  <div className="flex flex-wrap gap-2">
-                    {orgTypes.slice(0, 12).map((org) => (
-                      <button
-                        key={org.id}
-                        type="button"
-                        aria-pressed={builder.organizationType === org.id}
-                        onClick={() =>
-                          patch({
-                            organizationType:
-                              builder.organizationType === org.id
-                                ? null
-                                : org.id,
-                          })
-                        }
-                        className={`rounded-full border px-3.5 py-2 text-xs font-medium transition ${
-                          builder.organizationType === org.id
-                            ? "border-accent-cyan/45 bg-accent-soft/20 text-foreground"
-                            : "border-border/70 text-muted hover:border-border-strong"
-                        }`}
-                      >
-                        {org.label}
-                      </button>
-                    ))}
-                  </div>
-                </QuestionBlock>
-              ) : null}
-
-              <QuestionBlock
-                question="How should results be ordered?"
-                hint="Default is best overall match."
-              >
-                <div className="flex flex-wrap gap-2">
-                  {BUILDER_SORT_OPTIONS.map((opt) => (
-                    <PickChip
-                      key={opt.id}
-                      label={opt.label}
-                      hint={opt.hint}
-                      selected={(builder.sort ?? "score") === opt.id}
-                      onClick={() => patch({ sort: opt.id })}
-                    />
-                  ))}
-                </div>
-              </QuestionBlock>
-
-              {!editQuery ? (
-                <button
-                  type="button"
-                  onClick={() => setEditQuery(true)}
-                  className="text-sm font-semibold text-muted transition hover:text-foreground"
-                >
-                  Edit the search phrase directly
-                </button>
-              ) : (
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    Search phrase
-                  </span>
-                  <input
-                    type="text"
-                    value={builder.query || generatedQuery}
-                    onChange={(e) => patch({ query: e.target.value })}
-                    className="w-full rounded-xl border border-border/80 bg-surface/80 px-4 py-3 text-sm outline-none focus:border-border-strong"
-                  />
-                  <span className="text-xs text-muted-2">
-                    We generate this from your picks — edit if you want different
-                    wording.
-                  </span>
-                </label>
-              )}
-            </div>
-          )}
+              <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+            </svg>
+          </StepIcon>
+        }
+        question="Where should we look?"
+      >
+        <div className="grid grid-cols-2 gap-2.5">
+          {(
+            [
+              ["anywhere", "Anywhere"],
+              ["nationwide", "Nationwide"],
+              ["state", "State"],
+              ["city", "City"],
+            ] as const
+          ).map(([mode, label]) => (
+            <ChoiceChip
+              key={mode}
+              label={label}
+              selected={locationMode === mode}
+              onClick={() => setMode(mode)}
+            />
+          ))}
         </div>
 
-        <footer className="mt-10 grid gap-5 border-t border-border/60 pt-8">
-          {selectionPills.length > 0 ? (
-            <div className="grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-2">
-                  Your picks
-                </p>
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="text-xs font-semibold text-muted transition hover:text-foreground"
-                >
-                  Clear all
-                </button>
+        {locationMode === "state" ? (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-medium text-muted">
+              Select state
+            </span>
+            <select
+              value={builder.state ?? ""}
+              onChange={(e) => patch({ state: e.target.value || null })}
+              className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/15"
+            >
+              <option value="">Choose a state…</option>
+              {US_STATE_FILTERS.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {locationMode === "city" ? (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-medium text-muted">
+              City or metro area
+            </span>
+            <input
+              type="text"
+              value={builder.metro ?? ""}
+              onChange={(e) => patch({ metro: e.target.value || null })}
+              placeholder="e.g. Columbus, Austin, Dallas"
+              className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/15"
+            />
+          </label>
+        ) : null}
+
+        {!showLocationAdvanced ? (
+          <button
+            type="button"
+            onClick={() => setShowLocationAdvanced(true)}
+            className="mt-3 text-sm font-semibold text-muted hover:text-foreground"
+          >
+            Advanced location options
+          </button>
+        ) : (
+          <div className="mt-4 space-y-4 rounded-xl border border-border bg-surface-2/60 p-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-muted">
+                Region
+              </span>
+              <select
+                value={builder.location ?? ""}
+                onChange={(e) => patch({ location: e.target.value || null })}
+                className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none"
+              >
+                <option value="">Any region</option>
+                {LOCATIONS.filter((l) => l.id !== "nationwide").map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div>
+              <p className="mb-2 text-sm font-medium text-muted">
+                Operating states
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {US_STATE_FILTERS.map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    aria-pressed={builder.operatingStates.includes(st.id)}
+                    onClick={() => toggleOperatingState(st.id)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                      builder.operatingStates.includes(st.id)
+                        ? "card-selected"
+                        : "border-border text-muted hover:border-border-strong"
+                    }`}
+                  >
+                    {st.id}
+                  </button>
+                ))}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {selectionPills.map((pill) => (
-                  <SelectionPill
-                    key={pill.id}
-                    label={pill.label}
-                    onRemove={() => patch(pill.clear())}
+            </div>
+          </div>
+        )}
+      </StepCard>
+
+      <StepCard
+        step={3}
+        icon={
+          <StepIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 18V6l8 4 8-4v12l-8 4-8-4Z"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </StepIcon>
+        }
+        question="What should we look for?"
+      >
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {BUILDER_SIGNAL_OPTIONS.map((sig) => (
+            <ChoiceChip
+              key={sig.id}
+              label={sig.label}
+              hint={sig.hint}
+              selected={builder.builderSignals.includes(sig.id)}
+              onClick={() => toggleSignal(sig.id)}
+            />
+          ))}
+        </div>
+      </StepCard>
+
+      <StepCard
+        step={4}
+        icon={
+          <StepIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect
+                x="4"
+                y="8"
+                width="16"
+                height="12"
+                rx="2"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              />
+              <path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.75" />
+            </svg>
+          </StepIcon>
+        }
+        question="Company size"
+      >
+        <div className="grid grid-cols-2 gap-2.5">
+          {BUILDER_SIZE_OPTIONS.map((size) => (
+            <ChoiceChip
+              key={size.id}
+              label={size.label}
+              hint={size.hint}
+              selected={builder.companySize === size.id}
+              onClick={() =>
+                patch({
+                  companySize:
+                    builder.companySize === size.id ? null : size.id,
+                })
+              }
+            />
+          ))}
+        </div>
+        <div className="mt-5">
+          <p className="mb-2.5 text-sm font-medium text-muted">
+            Ownership{" "}
+            <span className="font-normal text-muted-2">(optional)</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {BUILDER_OWNERSHIP_OPTIONS.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                aria-pressed={builder.ownership === o.id}
+                onClick={() =>
+                  patch({
+                    ownership: builder.ownership === o.id ? null : o.id,
+                  })
+                }
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition duration-200 ${
+                  builder.ownership === o.id
+                    ? "card-selected"
+                    : "border-border text-muted hover:border-border-strong"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </StepCard>
+
+      {!showMoreFilters ? (
+        <button
+          type="button"
+          onClick={() => setShowMoreFilters(true)}
+          className="text-sm font-semibold text-muted hover:text-foreground"
+        >
+          More filters
+        </button>
+      ) : (
+        <StepCard
+          step={5}
+          icon={
+            <StepIcon>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 6h16M7 12h10M10 18h4"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </StepIcon>
+          }
+          question="More filters"
+        >
+          <div className="space-y-5">
+            <div>
+              <p className="mb-2.5 text-sm font-medium text-muted">Data sources</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {BUILDER_SOURCE_OPTIONS.map((src) => (
+                  <ChoiceChip
+                    key={src.id}
+                    label={src.label}
+                    selected={builder.builderSources.includes(src.id)}
+                    onClick={() => toggleSource(src.id)}
                   />
                 ))}
               </div>
             </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-border/60 bg-surface-2/40 p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-2">
-              Preview
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Searching for{" "}
-              <span className="font-semibold text-foreground">
-                &ldquo;{effectiveQuery}&rdquo;
-              </span>
-            </p>
+            <div>
+              <p className="mb-2.5 text-sm font-medium text-muted">Sort results by</p>
+              <div className="flex flex-wrap gap-2">
+                {BUILDER_SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={(builder.sort ?? "score") === opt.id}
+                    onClick={() => patch({ sort: opt.id })}
+                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                      (builder.sort ?? "score") === opt.id
+                        ? "card-selected"
+                        : "border-border text-muted hover:border-border-strong"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {!editQuery ? (
+              <button
+                type="button"
+                onClick={() => setEditQuery(true)}
+                className="text-sm font-semibold text-muted hover:text-foreground"
+              >
+                Edit search phrase
+              </button>
+            ) : (
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-muted">
+                  Search phrase
+                </span>
+                <input
+                  type="text"
+                  value={builder.query || generatedQuery}
+                  onChange={(e) => patch({ query: e.target.value })}
+                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none"
+                />
+              </label>
+            )}
           </div>
+        </StepCard>
+      )}
 
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-accent-cyan/35 bg-accent-soft/25 px-6 text-sm font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition hover:border-accent-cyan/50 hover:bg-accent-soft/35 sm:w-auto sm:min-w-[14rem]"
-          >
-            {hasBuilderFilters(builder)
-              ? "Find matching prospects"
-              : "Search all organizations"}
-          </button>
-        </footer>
+      <div className="card-float rounded-[1.25rem] p-5 sm:p-6">
+        <p className="text-base leading-relaxed text-foreground">{summary}</p>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="mt-5 inline-flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-accent-cyan px-6 py-3.5 text-sm font-semibold text-white transition duration-200 hover:opacity-90 sm:w-auto sm:min-w-[15rem]"
+        >
+          Find Matching Prospects
+        </button>
       </div>
     </div>
   );
