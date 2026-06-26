@@ -40,6 +40,12 @@ export interface SearchState {
   ownership: string | null;
   /** US state postal code filter, e.g. OH. */
   state: string | null;
+  /** City or metro area (builder / query hint). */
+  metro: string | null;
+  /** Additional operating states from builder. */
+  operatingStates: string[];
+  /** Results sort preference from builder. */
+  sort: string | null;
 }
 
 export const EMPTY_SEARCH_STATE: SearchState = {
@@ -55,6 +61,9 @@ export const EMPTY_SEARCH_STATE: SearchState = {
   sellerContext: null,
   ownership: null,
   state: null,
+  metro: null,
+  operatingStates: [],
+  sort: null,
 };
 
 export { EXAMPLE_SEARCHES, FRESHNESS_FILTERS };
@@ -157,6 +166,9 @@ export function parseSearchStateFromParams(
     sellerContext: params.get("seller"),
     ownership: params.get("ownership"),
     state: params.get("state"),
+    metro: params.get("metro"),
+    operatingStates: parseList(params.get("opStates")),
+    sort: params.get("sort"),
   };
 }
 
@@ -164,7 +176,7 @@ export function parseSearchStateFromParams(
 export function searchStateToParams(state: SearchState): URLSearchParams {
   const p = new URLSearchParams();
   if (state.query.trim()) p.set("q", state.query.trim());
-  if (state.sector) p.set("sector", state.sector);
+  if (state.sector && !state.industry) p.set("sector", state.sector);
   if (state.industry) p.set("industry", state.industry);
   if (state.organizationType) p.set("org", state.organizationType);
   if (state.location) p.set("location", state.location);
@@ -175,6 +187,9 @@ export function searchStateToParams(state: SearchState): URLSearchParams {
   if (state.sellerContext?.trim()) p.set("seller", state.sellerContext.trim());
   if (state.ownership) p.set("ownership", state.ownership);
   if (state.state) p.set("state", state.state);
+  if (state.metro?.trim()) p.set("metro", state.metro.trim());
+  if (state.operatingStates.length) p.set("opStates", state.operatingStates.join(","));
+  if (state.sort && state.sort !== "score") p.set("sort", state.sort);
   return p;
 }
 
@@ -248,6 +263,9 @@ export function resolveSearchState(state: SearchState): SearchState {
     sources: state.sources.length ? state.sources : (inferred.sources ?? []),
     ownership: state.ownership ?? inferred.ownership ?? null,
     state: state.state ?? inferred.state ?? null,
+    metro: state.metro ?? null,
+    operatingStates: state.operatingStates.length ? state.operatingStates : [],
+    sort: state.sort ?? null,
   };
 }
 

@@ -30,6 +30,9 @@ function buildInput(
     sellerContext?: string;
     ownership?: string;
     state?: string;
+    metro?: string;
+    opStates?: string;
+    sort?: string;
   },
 ): RawSearchInput | NextResponse {
   const query =
@@ -63,7 +66,9 @@ function buildInput(
     body.signals?.length ||
     body.sources?.length ||
     body.ownership ||
-    body.state
+    body.state ||
+    body.metro ||
+    body.opStates
   ) {
     return searchStateToRawInput({
       query: query.trim() || sells.trim(),
@@ -78,6 +83,11 @@ function buildInput(
       sellerContext: body.sellerContext ?? (sells || null),
       ownership: body.ownership ?? null,
       state: body.state ?? null,
+      metro: body.metro ?? null,
+      operatingStates: body.opStates
+        ? body.opStates.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+      sort: body.sort ?? null,
     });
   }
 

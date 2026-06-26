@@ -2,7 +2,13 @@ import { HomeSearchHero } from "./components/HomeSearchHero";
 import { ScoutBrand } from "./components/ScoutLogo";
 import { ScoutMeridian } from "./components/ScoutMeridian";
 
-const SOURCES = ["CMS", "SEC EDGAR", "openFDA", "Public Web", "Press feeds"];
+const SOURCES = [
+  "SEC EDGAR",
+  "News / RSS",
+  "Public Web",
+  "Directories",
+  "Government data",
+];
 
 export default function Home() {
   return (
@@ -26,7 +32,7 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-[88rem] px-6 lg:px-10">
-        <section className="relative flex min-h-[calc(100dvh-3.75rem)] flex-col items-center justify-center py-8 sm:py-10 lg:py-12">
+        <section className="relative flex flex-col items-center justify-center py-10 sm:py-12 lg:py-14">
           {/* Meridian backdrop */}
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.3] lg:opacity-40"
@@ -55,7 +61,7 @@ export default function Home() {
             Prospect Scout · {new Date().getFullYear()}
           </p>
           <p className="max-w-md text-xs leading-relaxed text-muted-2">
-            Ranked by signal strength, freshness, and organizational fit.
+            Ranked by signal strength, freshness, and organizational relevance.
           </p>
         </footer>
       </main>

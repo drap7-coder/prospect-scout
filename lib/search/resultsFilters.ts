@@ -18,7 +18,8 @@ export type ResultsSortKey =
   | "score"
   | "freshness"
   | "evidence"
-  | "name";
+  | "name"
+  | "size";
 
 const SIZE_MAP: Record<string, string[]> = {
   Small: ["small"],
@@ -169,11 +170,34 @@ function matchesOwnership(
   prospect: Prospect,
   ownership: string,
 ): boolean {
-  if (prospect.publicCompany === undefined) return true;
   if (ownership === "public") return prospect.publicCompany === true;
-  if (ownership === "private") return prospect.publicCompany === false;
+  if (ownership === "private") {
+    return prospect.publicCompany === false && prospect.sectorId !== "public-sector";
+  }
+  if (ownership === "nonprofit") {
+    return (
+      prospect.sectorId === "nonprofit" ||
+      prospect.industryId === "nonprofit"
+    );
+  }
+  if (ownership === "government") {
+    return (
+      prospect.sectorId === "public-sector" ||
+      prospect.buyerPack === "public-sector"
+    );
+  }
+  if (ownership === "education") {
+    return prospect.sectorId === "education";
+  }
   return true;
 }
+
+const SIZE_TIER_ORDER: Record<string, number> = {
+  enterprise: 4,
+  large: 3,
+  mid: 2,
+  small: 1,
+};
 
 export function applyResultsFilters(
   prospects: Prospect[],
@@ -271,6 +295,13 @@ export function sortResults(
       );
     case "name":
       return copy.sort((a, b) => a.name.localeCompare(b.name));
+    case "size":
+      return copy.sort(
+        (a, b) =>
+          (SIZE_TIER_ORDER[b.size ?? "small"] ?? 0) -
+            (SIZE_TIER_ORDER[a.size ?? "small"] ?? 0) ||
+          b.score - a.score,
+      );
     default:
       return copy;
   }

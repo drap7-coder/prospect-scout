@@ -66,11 +66,19 @@ interface ProviderPhaseResponse {
 }
 
 const SORT_OPTIONS: { key: ResultsSortKey; label: string }[] = [
-  { key: "score", label: "Opportunity Score" },
-  { key: "freshness", label: "Freshness" },
-  { key: "evidence", label: "Evidence Count" },
-  { key: "name", label: "Organization Name" },
+  { key: "score", label: "Most relevant" },
+  { key: "freshness", label: "Most recent signal" },
+  { key: "evidence", label: "Most signals" },
+  { key: "size", label: "Largest organizations" },
+  { key: "name", label: "Alphabetical" },
 ];
+
+function parseSortParam(value: string | null): ResultsSortKey {
+  if (value && SORT_OPTIONS.some((o) => o.key === value)) {
+    return value as ResultsSortKey;
+  }
+  return "score";
+}
 
 export function ResultsClient() {
   const router = useRouter();
@@ -83,7 +91,9 @@ export function ResultsClient() {
   );
 
   const [searchState, setSearchState] = useState<SearchState>(urlState);
-  const [sort, setSort] = useState<ResultsSortKey>("score");
+  const [sort, setSort] = useState<ResultsSortKey>(() =>
+    parseSortParam(searchParams.get("sort")),
+  );
   const [allProspects, setAllProspects] = useState<Prospect[]>([]);
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +253,8 @@ export function ResultsClient() {
 
   useEffect(() => {
     setSearchState(urlState);
-  }, [urlState]);
+    setSort(parseSortParam(searchParams.get("sort")));
+  }, [urlState, searchParams]);
 
   useEffect(() => {
     if (urlState.query.trim()) {
@@ -275,6 +286,16 @@ export function ResultsClient() {
     if (partial.sellerContext !== undefined && searchState.query.trim()) {
       fetchProgressive(next);
     }
+  }
+
+  function handleSortChange(key: ResultsSortKey) {
+    setSort(key);
+    const next: SearchState = {
+      ...searchState,
+      sort: key === "score" ? null : key,
+    };
+    setSearchState(next);
+    syncUrl(next);
   }
 
   const summary = describeSearch(searchState);
@@ -347,7 +368,7 @@ export function ResultsClient() {
                 <span className="label-mono shrink-0">Sort</span>
                 <select
                   value={sort}
-                  onChange={(e) => setSort(e.target.value as ResultsSortKey)}
+                  onChange={(e) => handleSortChange(e.target.value as ResultsSortKey)}
                   className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent sm:flex-none"
                   aria-label="Sort results"
                 >

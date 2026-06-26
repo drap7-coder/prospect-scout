@@ -24,20 +24,23 @@ export const FRESHNESS_FILTERS = [
 ] as const;
 
 export const EXAMPLE_SEARCHES = [
-  "Regional health plans in Pennsylvania",
-  "Humana Medicare Advantage",
-  "PepsiCo",
-  "Food manufacturers in Ohio",
-  "Hospitals with merger activity",
-  "Municipalities in the Mid-Atlantic",
-  "Universities with workforce growth",
-  "Banks in the Northeast",
+  "Manufacturers in Ohio",
+  "Nonprofits in Pennsylvania",
+  "Public companies with recent SEC filings",
+  "Restaurants expanding in Texas",
+  "Software companies hiring sales leaders",
+  "Construction firms in the Midwest",
+  "Universities with research activity",
+  "Government contractors in Virginia",
 ] as const;
 
-/** Ownership filter options for results rail. */
+/** Ownership filter options for results and builder. */
 export const OWNERSHIP_FILTERS = [
   { id: "public", label: "Public company" },
   { id: "private", label: "Private company" },
+  { id: "nonprofit", label: "Nonprofit" },
+  { id: "government", label: "Government" },
+  { id: "education", label: "Education" },
 ] as const;
 
 /** US state options for location filtering. */
@@ -45,11 +48,16 @@ export const US_STATE_FILTERS = [
   { id: "OH", label: "Ohio" },
   { id: "PA", label: "Pennsylvania" },
   { id: "NY", label: "New York" },
-  { id: "MI", label: "Michigan" },
-  { id: "IL", label: "Illinois" },
-  { id: "CA", label: "California" },
+  { id: "VA", label: "Virginia" },
   { id: "TX", label: "Texas" },
   { id: "FL", label: "Florida" },
+  { id: "CA", label: "California" },
+  { id: "IL", label: "Illinois" },
+  { id: "MI", label: "Michigan" },
+  { id: "GA", label: "Georgia" },
+  { id: "NC", label: "North Carolina" },
   { id: "NJ", label: "New Jersey" },
   { id: "MA", label: "Massachusetts" },
+  { id: "WA", label: "Washington" },
+  { id: "CO", label: "Colorado" },
 ] as const;
