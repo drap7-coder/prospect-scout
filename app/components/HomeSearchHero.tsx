@@ -8,6 +8,7 @@ import {
 } from "@/lib/search/prospectListBuilder";
 import { searchStateToParams } from "@/lib/search/searchState";
 import { ProspectListBuilder } from "./ProspectListBuilder";
+import { ScoutLogo } from "./ScoutLogo";
 
 const HOME_EXAMPLES = [
   { emoji: "🏭", label: "Manufacturers in Ohio", query: "Manufacturers in Ohio" },
@@ -57,7 +58,12 @@ export function HomeSearchHero() {
 
   return (
     <div className="mx-auto w-full max-w-2xl text-center">
-      <h1 className="font-display text-[2rem] font-normal leading-tight tracking-[-0.03em] text-foreground sm:text-[2.5rem]">
+      <ScoutLogo
+        size={72}
+        priority
+        className="mx-auto shadow-[0_1px_3px_rgba(28,34,43,0.08)] ring-1 ring-border"
+      />
+      <h1 className="font-display mt-3 text-[2rem] font-normal leading-tight tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.5rem]">
         Prospect Scout
       </h1>
       <p className="mx-auto mt-3 max-w-md text-lg leading-relaxed text-muted">
