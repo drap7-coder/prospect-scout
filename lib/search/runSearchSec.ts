@@ -21,35 +21,62 @@ import {
   type CompanyMatch,
   type SecSubmissions,
 } from "@/lib/providers/secEdgar";
+import {
+  CMS_UNAVAILABLE_EVIDENCE,
+  fetchCmsProspectData,
+  looksLikeHealthPlanReference,
+  type CmsFetchResult,
+} from "@/lib/providers/cms";
 
 /**
- * SEC-aware search pipeline.
+ * Provider-aware search pipeline.
  *
- * Runs the existing mock pipeline first (always), then — when the buyer pack
- * is SEC-eligible and the query appears to reference a public company or
- * ticker — augments the results with REAL SEC EDGAR signals.
+ * Runs the existing mock pipeline first (always), then augments results with
+ * real provider signals when eligible:
+ *   - SEC EDGAR for public-company references (non public-sector packs)
+ *   - CMS for health-plan org references (health-plans pack only)
  *
  * Guarantees:
- *   - SEC is best-effort. Any failure is caught and the mock results are
- *     returned unchanged except for a single "SEC unavailable" source-trail
- *     note, so the UI never breaks and no raw JSON is exposed.
+ *   - Every real provider is best-effort. Failures are caught and mock results
+ *     are returned with a source-trail note — the UI never breaks.
  *   - Mock data always remains as the fallback.
  */
 export async function runSearchWithProviders(
   input: RawSearchInput,
 ): Promise<SearchResponse> {
-  const base = runSearch(input);
+  let result = runSearch(input);
+  const plan = planSources(result.query);
+
+  if (plan.providers.includes("sec-edgar")) {
+    result = await trySecProvider(result);
+  }
+
+  if (plan.providers.includes("cms")) {
+    result = await tryCmsProvider(result);
+  }
+
+  return result;
+}
+
+/** Derives an org/company hint from the (original) free-text input. */
+function orgHint(query: SearchQuery): string {
+  return [query.raw.targets, query.raw.sells]
+    .filter((s): s is string => Boolean(s && s.trim()))
+    .join(" ")
+    .trim();
+}
+
+// ---------------------------------------------------------------------------
+// SEC EDGAR
+// ---------------------------------------------------------------------------
+
+async function trySecProvider(base: SearchResponse): Promise<SearchResponse> {
   const { query } = base;
-  const plan = planSources(query);
-
-  if (!plan.providers.includes("sec-edgar")) return base;
-
-  const hint = companyHint(query);
+  const hint = orgHint(query);
   if (!hint || !looksLikeCompanyReference(hint)) return base;
 
   try {
     const match = await searchCompany(hint);
-    // For all packs, SEC only contributes when a real company is resolved.
     if (!match) return base;
 
     const submissions = await fetchSubmissions(match.cik);
@@ -68,15 +95,6 @@ export async function runSearchWithProviders(
   }
 }
 
-/** Derives a company/ticker hint from the (original) free-text input. */
-function companyHint(query: SearchQuery): string {
-  return [query.raw.targets, query.raw.sells]
-    .filter((s): s is string => Boolean(s && s.trim()))
-    .join(" ")
-    .trim();
-}
-
-/** Builds a render-ready prospect from an SEC company + its signals. */
 function buildSecProspect(
   match: CompanyMatch,
   submissions: SecSubmissions,
@@ -112,10 +130,6 @@ function buildSecProspect(
   };
 }
 
-/**
- * Returns the base results with a non-intrusive note on the top result's
- * source trail indicating SEC was attempted but unavailable.
- */
 function withSecUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
@@ -127,6 +141,84 @@ function withSecUnavailableNote(base: SearchResponse): SearchResponse {
         source: "SEC",
         evidenceText: "EDGAR unavailable — showing mock signals",
       },
+    ],
+  };
+  return { query: base.query, prospects: [noted, ...rest] };
+}
+
+// ---------------------------------------------------------------------------
+// CMS (Health Plans)
+// ---------------------------------------------------------------------------
+
+async function tryCmsProvider(base: SearchResponse): Promise<SearchResponse> {
+  const { query } = base;
+  if (query.profile.targetBuyer !== "health-plans") return base;
+
+  const hint = orgHint(query);
+  if (!hint || !looksLikeHealthPlanReference(hint)) return base;
+
+  try {
+    const cmsData = await fetchCmsProspectData(
+      hint,
+      query.profile.region,
+    );
+    if (!cmsData) return base;
+
+    const cmsProspect = buildCmsProspect(cmsData, query);
+    const prospects = [cmsProspect, ...base.prospects].sort(
+      (a, b) => b.score - a.score,
+    );
+    return { query, prospects };
+  } catch (err) {
+    console.warn("[cms] provider unavailable, falling back to mock:", err);
+    return withCmsUnavailableNote(base);
+  }
+}
+
+function buildCmsProspect(
+  cmsData: CmsFetchResult,
+  query: SearchQuery,
+): Prospect {
+  const pack = getBuyerPack(query.profile.targetBuyer);
+  const { match, signals, location, enrollmentTrend } = cmsData;
+
+  const raw: RawProspect = {
+    id: match.org.id,
+    name: match.org.organizationName,
+    location: location.displayLocation,
+    region: location.region,
+    buyerPack: "health-plans",
+    size: match.org.contracts.length >= 5 ? "enterprise" : "large",
+    signals: [],
+    fitKeywords: ["medicare", "advantage", "part d", "pharmacy", "pbm"],
+  };
+
+  const breakdown = scoreProspect(raw, signals, query);
+  const prospect = synthesizeProspect(raw, signals, query, pack, breakdown);
+
+  const trail = [...prospect.sourceTrail];
+  if (enrollmentTrend) {
+    trail.push({
+      source: "CMS",
+      evidenceText: "Medicare Monthly Enrollment · data.cms.gov",
+    });
+  }
+  trail.push({
+    source: "CMS",
+    evidenceText: "Contract registry · CMS CPSC / Star Ratings",
+  });
+
+  return { ...prospect, sourceTrail: trail };
+}
+
+function withCmsUnavailableNote(base: SearchResponse): SearchResponse {
+  if (base.prospects.length === 0) return base;
+  const [first, ...rest] = base.prospects;
+  const noted: Prospect = {
+    ...first,
+    sourceTrail: [
+      ...first.sourceTrail,
+      { source: "CMS", evidenceText: CMS_UNAVAILABLE_EVIDENCE },
     ],
   };
   return { query: base.query, prospects: [noted, ...rest] };

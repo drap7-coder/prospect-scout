@@ -31,6 +31,12 @@ export function planSources(query: SearchQuery): SourcePlan {
     providers.push("sec-edgar");
   }
 
+  // CMS is the second real provider — Medicare Advantage / Part D signals for
+  // the Health Plans pack only. Failures fall back to mock data.
+  if (pack === "health-plans") {
+    providers.push("cms");
+  }
+
   return {
     query,
     buyerPacks: [pack],

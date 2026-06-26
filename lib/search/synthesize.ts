@@ -57,6 +57,12 @@ const SIGNAL_WHY: Record<string, string> = {
     "Employee benefits pressure pushes procurement to act",
   "procurement-timing": "Procurement timing favors early, informed engagement",
   "regulatory-requirements": "Regulatory requirements mandate compliant solutions",
+  "cms-ma-enrollment-growth": "Growing MA enrollment raises pharmacy and bid-season stakes",
+  "cms-star-ratings-pressure": "Star Ratings pressure drives investment in outcomes",
+  "cms-part-d-exposure": "Part D exposure amplifies formulary and trend risk",
+  "cms-regional-plan-presence": "Multi-state footprint multiplies coordination needs",
+  "cms-contract-concentration": "Multiple contracts create enterprise program leverage",
+  "cms-parent-org-relationship": "Parent org oversight drives enterprise vendor decisions",
 };
 
 function capitalize(text: string): string {
