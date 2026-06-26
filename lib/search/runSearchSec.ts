@@ -67,30 +67,15 @@ import {
 export async function runSearchWithProviders(
   input: RawSearchInput,
 ): Promise<SearchResponse> {
-  let result = runSearch(input);
-  const plan = planSources(result.query);
+  const base = runSearchMockOnly(input);
+  const plan = planSources(base.query);
+  const { enrichWithLiveProviders } = await import("./providerPhase");
+  return enrichWithLiveProviders(base, plan);
+}
 
-  if (plan.providers.includes("sec-edgar")) {
-    result = await trySecProvider(result);
-  }
-
-  if (plan.providers.includes("cms")) {
-    result = await tryCmsProvider(result);
-  }
-
-  if (plan.providers.includes("news-rss")) {
-    result = await tryRssProvider(result);
-  }
-
-  if (plan.providers.includes("fda")) {
-    result = await tryFdaProvider(result);
-  }
-
-  if (plan.providers.includes("company-site")) {
-    result = await tryPublicWebProvider(result);
-  }
-
-  return result;
+/** Fast local/mock phase — no live provider network calls. */
+export function runSearchMockOnly(input: RawSearchInput): SearchResponse {
+  return runSearch(input);
 }
 
 /** Derives an org/company hint from the (original) free-text input. */
@@ -105,7 +90,7 @@ function orgHint(query: SearchQuery): string {
 // SEC EDGAR
 // ---------------------------------------------------------------------------
 
-async function trySecProvider(base: SearchResponse): Promise<SearchResponse> {
+export async function trySecProvider(base: SearchResponse): Promise<SearchResponse> {
   const { query } = base;
   const hint = orgHint(query);
   if (!hint || !looksLikeCompanyReference(hint)) return base;
@@ -165,7 +150,7 @@ function buildSecProspect(
   };
 }
 
-function withSecUnavailableNote(base: SearchResponse): SearchResponse {
+export function withSecUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
   const noted: Prospect = {
@@ -185,7 +170,7 @@ function withSecUnavailableNote(base: SearchResponse): SearchResponse {
 // CMS (Health Plans)
 // ---------------------------------------------------------------------------
 
-async function tryCmsProvider(base: SearchResponse): Promise<SearchResponse> {
+export async function tryCmsProvider(base: SearchResponse): Promise<SearchResponse> {
   const { query } = base;
   if (query.profile.targetBuyer !== "health-plans") return base;
 
@@ -262,7 +247,7 @@ function buildCmsProspect(
   return { ...prospect, sourceTrail: trail };
 }
 
-function withCmsUnavailableNote(base: SearchResponse): SearchResponse {
+export function withCmsUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
   const noted: Prospect = {
@@ -286,7 +271,7 @@ const RSS_ELIGIBLE_PACKS = new Set([
   "employers",
 ]);
 
-async function tryRssProvider(base: SearchResponse): Promise<SearchResponse> {
+export async function tryRssProvider(base: SearchResponse): Promise<SearchResponse> {
   const { query } = base;
   if (!RSS_ELIGIBLE_PACKS.has(query.profile.targetBuyer)) return base;
 
@@ -344,7 +329,7 @@ function buildRssProspect(
   return { ...prospect, sourceTrail: trail };
 }
 
-function withRssUnavailableNote(base: SearchResponse): SearchResponse {
+export function withRssUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
   const noted: Prospect = {
@@ -361,7 +346,7 @@ function withRssUnavailableNote(base: SearchResponse): SearchResponse {
 // FDA / openFDA
 // ---------------------------------------------------------------------------
 
-async function tryFdaProvider(base: SearchResponse): Promise<SearchResponse> {
+export async function tryFdaProvider(base: SearchResponse): Promise<SearchResponse> {
   const { query } = base;
   const hint = orgHint(query);
   const sells = query.raw.sells?.trim() ?? "";
@@ -430,7 +415,7 @@ function buildFdaProspect(
   return { ...prospect, sourceTrail: trail };
 }
 
-function withFdaUnavailableNote(base: SearchResponse): SearchResponse {
+export function withFdaUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
   const noted: Prospect = {
@@ -465,7 +450,7 @@ function hasStrongSecOrCmsMatch(prospects: Prospect[]): boolean {
   return false;
 }
 
-async function tryPublicWebProvider(
+export async function tryPublicWebProvider(
   base: SearchResponse,
 ): Promise<SearchResponse> {
   const { query } = base;
@@ -554,7 +539,7 @@ function buildPublicWebProspect(
   return { ...prospect, sourceTrail: trail };
 }
 
-function withPublicWebUnavailableNote(base: SearchResponse): SearchResponse {
+export function withPublicWebUnavailableNote(base: SearchResponse): SearchResponse {
   if (base.prospects.length === 0) return base;
   const [first, ...rest] = base.prospects;
   const noted: Prospect = {

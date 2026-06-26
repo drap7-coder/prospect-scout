@@ -1,8 +1,9 @@
-export function ResultsLoadingState() {
+export function ResultsLoadingState({ compact = false }: { compact?: boolean }) {
+  const rows = compact ? 2 : 5;
   return (
     <div className="space-y-0 overflow-hidden rounded-xl border border-border bg-surface/30" aria-busy="true" aria-live="polite">
       <span className="sr-only">Scanning intelligence sources…</span>
-      {[0, 1, 2, 3, 4].map((i) => (
+      {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
           className="relative border-b border-border/50 px-4 py-4 last:border-b-0"
