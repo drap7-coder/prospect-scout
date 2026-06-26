@@ -22,6 +22,7 @@ import {
   TAXONOMY_INDUSTRIES,
   organizationTypesForFilters,
 } from "@/lib/taxonomy";
+import { useInteractionFeedback } from "./InteractionProvider";
 
 type LocationMode = "anywhere" | "nationwide" | "state" | "city";
 
@@ -71,13 +72,18 @@ function CategoryCard({
   selected: boolean;
   onClick: () => void;
 }) {
+  const { feedback } = useInteractionFeedback();
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        feedback(selected ? "tap" : "select");
+        onClick();
+      }}
       aria-pressed={selected}
-      className={`flex min-h-[3.75rem] w-full items-center rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-semibold transition duration-200 sm:min-h-[4.25rem] sm:text-[0.9375rem] ${
-        selected ? "card-selected" : "border-border bg-surface hover:border-border-strong"
+      className={`interactive-press interactive-choice flex min-h-[3.75rem] w-full items-center rounded-2xl px-4 py-3.5 text-left text-sm font-semibold sm:min-h-[4.25rem] sm:text-[0.9375rem] ${
+        selected ? "card-selected" : ""
       }`}
     >
       {label}
@@ -96,13 +102,18 @@ function ChoiceChip({
   selected: boolean;
   onClick: () => void;
 }) {
+  const { feedback } = useInteractionFeedback();
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        feedback(selected ? "tap" : "select");
+        onClick();
+      }}
       aria-pressed={selected}
-      className={`min-h-[3.25rem] rounded-2xl border-2 px-4 py-3 text-left transition duration-200 ${
-        selected ? "card-selected" : "border-border bg-surface hover:border-border-strong"
+      className={`interactive-press interactive-choice min-h-[3.25rem] rounded-2xl px-4 py-3 text-left ${
+        selected ? "card-selected" : ""
       }`}
     >
       <span className="block text-sm font-semibold text-foreground">{label}</span>
@@ -179,6 +190,7 @@ export function ProspectListBuilder({
   const [showLocationAdvanced, setShowLocationAdvanced] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [editQuery, setEditQuery] = useState(false);
+  const { feedback } = useInteractionFeedback();
 
   const orgTypes = useMemo(
     () => organizationTypesForFilters(builder.sector, builder.industry),
@@ -300,6 +312,7 @@ export function ProspectListBuilder({
   }
 
   function handleSubmit() {
+    feedback("confirm");
     onSubmit({ ...builder, query: builder.query.trim() || generatedQuery });
   }
 
@@ -601,15 +614,15 @@ export function ProspectListBuilder({
                 key={o.id}
                 type="button"
                 aria-pressed={builder.ownership === o.id}
-                onClick={() =>
-                  patch({
-                    ownership: builder.ownership === o.id ? null : o.id,
-                  })
-                }
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition duration-200 ${
+                onClick={() => {
+                  const next = builder.ownership === o.id ? null : o.id;
+                  feedback(next ? "select" : "tap");
+                  patch({ ownership: next });
+                }}
+                className={`interactive-press rounded-full border px-4 py-2.5 text-sm font-medium ${
                   builder.ownership === o.id
                     ? "card-selected"
-                    : "border-border text-muted hover:border-border-strong"
+                    : "interactive-choice border-border text-muted"
                 }`}
               >
                 {o.label}
@@ -708,7 +721,7 @@ export function ProspectListBuilder({
         <button
           type="button"
           onClick={handleSubmit}
-          className="mt-5 inline-flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-accent-cyan px-6 py-3.5 text-sm font-semibold text-white transition duration-200 hover:opacity-90 sm:w-auto sm:min-w-[15rem]"
+          className="interactive-press interactive-primary mt-5 inline-flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-accent-cyan px-6 py-3.5 text-sm font-semibold text-white sm:w-auto sm:min-w-[15rem]"
         >
           Find Matching Prospects
         </button>

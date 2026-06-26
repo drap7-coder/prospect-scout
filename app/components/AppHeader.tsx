@@ -1,4 +1,5 @@
 import { ScoutBrand } from "./ScoutLogo";
+import { SoundToggle } from "./SoundToggle";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppHeader({ minimal = false }: { minimal?: boolean }) {
@@ -12,6 +13,7 @@ export function AppHeader({ minimal = false }: { minimal?: boolean }) {
               Organization discovery
             </p>
           ) : null}
+          <SoundToggle />
           <ThemeToggle />
         </div>
       </div>

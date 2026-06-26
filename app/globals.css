@@ -122,6 +122,98 @@ body {
     var(--shadow-card);
 }
 
+/* ------------------------------------------------------------------ */
+/* Touch + hover interaction layer                                      */
+/* ------------------------------------------------------------------ */
+
+.interactive-press {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 150ms ease,
+    color 200ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactive-choice:not(.card-selected):hover {
+    border-color: color-mix(in srgb, var(--accent-cyan) 38%, var(--border));
+    background: color-mix(in srgb, var(--accent-cyan) 5%, var(--surface));
+    box-shadow: var(--shadow-card-hover);
+    color: var(--foreground);
+  }
+
+  .card-float.interactive-press:hover {
+    border-color: color-mix(in srgb, var(--accent-cyan) 28%, var(--border));
+    background: color-mix(in srgb, var(--accent-cyan) 3%, var(--surface));
+  }
+
+  .interactive-primary:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+  }
+
+  .interactive-icon-btn:hover {
+    border-color: color-mix(in srgb, var(--accent-cyan) 35%, var(--border));
+    background: color-mix(in srgb, var(--accent-cyan) 6%, var(--surface));
+    color: var(--foreground);
+  }
+}
+
+.interactive-press:active {
+  transform: scale(0.985);
+}
+
+.interactive-choice:active:not(.card-selected) {
+  background: color-mix(in srgb, var(--accent-cyan) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent-cyan) 50%, var(--border));
+}
+
+.interactive-primary:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+
+.interactive-icon-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    color 200ms ease,
+    transform 150ms ease;
+}
+
+.interactive-icon-btn:active {
+  transform: scale(0.94);
+}
+
+.interactive-primary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 150ms ease,
+    filter 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.interactive-choice {
+  border: 2px solid var(--border);
+  background: var(--surface);
+}
+
 ::selection {
   background: var(--accent-soft);
   color: var(--foreground);

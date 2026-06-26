@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Serif, Inter, JetBrains_Mono } from "next/font/google";
 import { getSiteUrl } from "@/lib/site";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -66,7 +67,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

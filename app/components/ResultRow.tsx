@@ -18,6 +18,7 @@ import {
   organizationTypeLabel,
   sectorLabel,
 } from "@/lib/taxonomy";
+import { useInteractionFeedback } from "./InteractionProvider";
 
 const SIZE_LABELS: Record<SizeTier, string> = {
   small: "Small",
@@ -90,16 +91,21 @@ export function ResultRow({
       ? prospect.whyNow
       : (prospect.whyItMatters[0] ?? prospect.whyNow);
 
+  const { feedback } = useInteractionFeedback();
+
   const cardSurface = selected
     ? "border-accent-cyan/45 border-l-[3px] border-l-accent-cyan bg-surface shadow-[var(--shadow-card)]"
-    : "border-border bg-surface shadow-[var(--shadow-card)] hover:border-border-strong hover:shadow-[var(--shadow-card-hover)]";
+    : "interactive-press interactive-choice border-border bg-surface shadow-[var(--shadow-card)]";
 
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={() => {
+        feedback(selected ? "tap" : "select");
+        onSelect();
+      }}
       aria-pressed={selected}
-      className={`group w-full cursor-pointer touch-manipulation rounded-2xl border px-4 py-4 text-left outline-none transition duration-200 ease-out sm:px-5 sm:py-5 ${cardSurface}`}
+      className={`group w-full cursor-pointer rounded-2xl border px-4 py-4 text-left outline-none transition duration-200 ease-out sm:px-5 sm:py-5 ${cardSurface} ${selected ? "card-selected" : ""}`}
     >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 font-mono text-[0.625rem] tabular-nums text-muted-2">

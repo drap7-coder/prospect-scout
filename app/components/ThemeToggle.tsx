@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useInteractionFeedback } from "./InteractionProvider";
 
 const STORAGE_KEY = "prospect-scout-theme";
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(false);
   const [ready, setReady] = useState(false);
+  const { feedback } = useInteractionFeedback();
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -19,6 +21,7 @@ export function ThemeToggle() {
   }, []);
 
   function toggle() {
+    feedback("select");
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
@@ -39,7 +42,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-muted transition hover:border-border-strong hover:text-foreground"
+      className="interactive-icon-btn"
     >
       {dark ? (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

@@ -37,6 +37,7 @@ import {
   ProviderStatusBar,
 } from "@/app/components/ProviderStatusBar";
 import { ScoutBrand } from "@/app/components/ScoutLogo";
+import { SoundToggle } from "@/app/components/SoundToggle";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 
 type FetchPhase = "idle" | "mock-loading" | "ready" | "enriching" | "error";
@@ -326,6 +327,7 @@ export function ResultsClient() {
             <span className="label-mono hidden text-muted-2 md:inline">
               Results
             </span>
+            <SoundToggle />
             <ThemeToggle />
           </div>
         </div>

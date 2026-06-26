@@ -9,6 +9,7 @@ import {
 import { searchStateToParams } from "@/lib/search/searchState";
 import { ProspectListBuilder } from "./ProspectListBuilder";
 import { ScoutLogo } from "./ScoutLogo";
+import { useInteractionFeedback } from "./InteractionProvider";
 
 const HOME_EXAMPLES = [
   { emoji: "🏭", label: "Manufacturers in Ohio", query: "Manufacturers in Ohio" },
@@ -38,10 +39,12 @@ export function HomeSearchHero() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [builderOpen, setBuilderOpen] = useState(false);
+  const { feedback } = useInteractionFeedback();
 
-  function goSearch(q: string) {
+  function goSearch(q: string, withConfirm = true) {
     const trimmed = q.trim();
     if (!trimmed) return;
+    if (withConfirm) feedback("confirm");
     router.push(`/results?q=${encodeURIComponent(trimmed)}`);
   }
 
@@ -73,7 +76,7 @@ export function HomeSearchHero() {
       </p>
 
       <form onSubmit={handleSubmit} className="mx-auto mt-8 sm:mt-10">
-        <div className="card-float flex overflow-hidden rounded-[1.125rem] focus-within:ring-2 focus-within:ring-accent-cyan/25">
+        <div className="card-float interactive-press flex overflow-hidden rounded-[1.125rem] focus-within:border-accent-cyan/35 focus-within:ring-2 focus-within:ring-accent-cyan/20">
           <input
             type="search"
             value={query}
@@ -84,7 +87,7 @@ export function HomeSearchHero() {
           />
           <button
             type="submit"
-            className="shrink-0 border-l border-border bg-surface-2 px-5 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-surface sm:px-6"
+            className="interactive-press shrink-0 border-l border-border bg-surface-2 px-5 py-4 text-sm font-semibold text-foreground hover:bg-accent-soft/40 hover:text-accent-cyan sm:px-6"
           >
             Search
           </button>
@@ -100,8 +103,11 @@ export function HomeSearchHero() {
             <li key={ex.query}>
               <button
                 type="button"
-                onClick={() => goSearch(ex.query)}
-                className="card-float flex w-full min-h-[3rem] items-center gap-3 rounded-2xl px-4 py-3 text-left transition hover:border-border-strong sm:px-5"
+                onClick={() => {
+                  feedback("select");
+                  goSearch(ex.query, false);
+                }}
+                className="card-float interactive-press interactive-choice flex w-full min-h-[3rem] items-center gap-3 rounded-2xl px-4 py-3 text-left sm:px-5"
               >
                 <span className="text-lg" aria-hidden>
                   {ex.emoji}
@@ -119,12 +125,15 @@ export function HomeSearchHero() {
         <p className="text-sm font-medium text-muted">Need help?</p>
         <button
           type="button"
-          onClick={() => setBuilderOpen((v) => !v)}
+          onClick={() => {
+            feedback(builderOpen ? "tap" : "select");
+            setBuilderOpen((v) => !v);
+          }}
           aria-expanded={builderOpen}
-          className={`mt-3 inline-flex min-h-[3rem] items-center justify-center rounded-2xl border px-6 py-3 text-sm font-semibold transition duration-200 ${
+          className={`interactive-press mt-3 inline-flex min-h-[3rem] items-center justify-center rounded-2xl border px-6 py-3 text-sm font-semibold ${
             builderOpen
               ? "card-selected text-foreground"
-              : "card-float text-foreground hover:border-border-strong"
+              : "card-float interactive-choice text-foreground"
           }`}
         >
           {builderOpen ? "Close builder" : "Build a Prospect List"}
