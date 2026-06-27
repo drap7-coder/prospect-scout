@@ -439,10 +439,17 @@ export function ResultsClient() {
     phase === "mock-loading" && allProspects.length === 0;
 
   return (
-    <div className="min-h-full overflow-x-hidden bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md">
+    <div className="relative min-h-full overflow-x-hidden bg-[linear-gradient(180deg,#020b16_0%,#052335_18rem,#0b4a53_24rem,#f7f8fa_35rem)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_50%_0%,rgba(45,212,191,0.18),transparent_32%),radial-gradient(circle_at_82%_8%,rgba(37,99,235,0.18),transparent_24%)]"
+      />
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#020b16]/78 text-white backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[90rem] items-center justify-between gap-4 px-4 lg:px-8">
-          <Link href="/" className="shrink-0">
+          <Link
+            href="/"
+            className="shrink-0 [&_span:first-child]:text-white"
+          >
             <ScoutBrand size={32} />
           </Link>
           <div className="hidden flex-1 justify-center sm:flex">
@@ -453,14 +460,14 @@ export function ResultsClient() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <span className="label-mono hidden text-muted-2 md:inline">
+            <span className="label-mono hidden text-white/55 md:inline">
               Results
             </span>
             <SoundToggle />
             <ThemeToggle />
           </div>
         </div>
-        <div className="border-t border-border/60 px-4 py-3 sm:hidden">
+        <div className="border-t border-white/10 px-4 py-3 sm:hidden">
           <ResultsSearchBar
             value={searchState.query}
             onSubmit={handleSearchSubmit}
@@ -468,23 +475,23 @@ export function ResultsClient() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[90rem] px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
+      <div className="relative z-10 mx-auto max-w-[90rem] px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
         {!hasQuery ? (
           <ResultsEmptyState variant="no-query" />
         ) : (
           <>
-            <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#06141f]/82 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between sm:gap-4 sm:p-5">
               <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-muted">{summary}</p>
+                <p className="text-sm leading-snug text-white/80">{summary}</p>
                 {showResults || phase === "ready" ? (
-                  <p className="mt-1 font-mono text-xs text-muted-2">
+                  <p className="mt-1 font-mono text-xs text-white/50">
                     {sourceSummary}
                     {coverageSummary}
                     {filtered.length !== allProspects.length ? (
                       <>
                         {" "}
                         ·{" "}
-                        <span className="text-muted">
+                        <span className="text-white/70">
                           {filtered.length} after filters
                         </span>
                       </>
@@ -504,7 +511,7 @@ export function ResultsClient() {
                 <ResultViewToggle value={view} onChange={setView} />
                 <ResultDensityToggle value={density} onChange={handleDensityChange} />
                 <div className="flex items-center gap-2">
-                <span className="label-mono shrink-0">Sort</span>
+                <span className="label-mono shrink-0 text-white/55">Sort</span>
                 <select
                   value={sort}
                   onChange={(e) => handleSortChange(e.target.value as ResultsSortKey)}
