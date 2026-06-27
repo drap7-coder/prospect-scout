@@ -8,7 +8,6 @@ import {
 } from "@/lib/search/prospectListBuilder";
 import { searchStateToParams } from "@/lib/search/searchState";
 import { ProspectListBuilder } from "./ProspectListBuilder";
-import { ScoutLogo } from "./ScoutLogo";
 import { useInteractionFeedback } from "./InteractionProvider";
 
 const HOME_EXAMPLES = [
@@ -74,34 +73,30 @@ export function HomeSearchHero() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl text-center">
-      <ScoutLogo
-        size={72}
-        priority
-        className="mx-auto shadow-[0_1px_3px_rgba(28,34,43,0.08)] ring-1 ring-border"
-      />
-      <h1 className="font-display mt-3 text-[2rem] font-normal leading-tight tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.5rem]">
+    <div className="mx-auto w-full max-w-5xl text-center">
+      <p className="mx-auto mb-4 inline-flex rounded-full border border-cyan-200/20 bg-cyan-100/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100/90 shadow-[0_10px_34px_rgba(34,211,238,0.08)] backdrop-blur">
+        Opportunity intelligence
+      </p>
+      <h1 className="font-display text-[3rem] font-normal leading-[0.95] tracking-[-0.04em] text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.5)] sm:text-[4.4rem] lg:text-[5.6rem]">
         Prospect Scout
       </h1>
-      <p className="mx-auto mt-3 max-w-md text-lg leading-relaxed text-muted">
-        Search organizations.
-        <br />
-        Find the signal.
+      <p className="mx-auto mt-4 max-w-2xl text-balance text-lg leading-relaxed text-white/84 sm:text-xl">
+        Find the right organizations. Surface real opportunities.
       </p>
 
-      <form onSubmit={handleSubmit} className="mx-auto mt-8 sm:mt-10">
-        <div className="card-float interactive-press flex overflow-hidden rounded-[1.125rem] focus-within:border-accent-cyan/35 focus-within:ring-2 focus-within:ring-accent-cyan/20">
+      <form onSubmit={handleSubmit} className="mx-auto mt-7 max-w-3xl sm:mt-8">
+        <div className="interactive-press flex overflow-hidden rounded-full border border-white/45 bg-white/96 shadow-[0_20px_70px_rgba(0,0,0,0.32)] backdrop-blur-md focus-within:border-cyan-200 focus-within:ring-4 focus-within:ring-cyan-300/30">
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search companies, organizations, industries, or locations…"
-            className="min-w-0 flex-1 bg-transparent px-4 py-4 text-base text-foreground placeholder:text-muted-2 outline-none sm:px-5 sm:py-[1.125rem]"
+            className="min-w-0 flex-1 bg-transparent px-5 py-4 text-base text-slate-950 placeholder:text-slate-500 outline-none sm:px-7 sm:py-5"
             aria-label="Search organizations"
           />
           <button
             type="submit"
-            className="interactive-press shrink-0 border-l border-border bg-surface-2 px-5 py-4 text-sm font-semibold text-foreground hover:bg-accent-soft/40 hover:text-accent-cyan sm:px-6"
+            className="interactive-press m-1.5 shrink-0 rounded-full bg-[#087f86] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_26px_rgba(8,127,134,0.38)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:px-8"
           >
             Search
           </button>
@@ -115,10 +110,10 @@ export function HomeSearchHero() {
           setBuilderOpen((v) => !v);
         }}
         aria-expanded={builderOpen}
-        className={`interactive-press mt-5 inline-flex min-h-[3rem] items-center justify-center rounded-2xl border px-6 py-3 text-sm font-semibold ${
+        className={`interactive-press mt-5 inline-flex min-h-[3rem] items-center justify-center rounded-full border px-6 py-3 text-sm font-semibold backdrop-blur ${
           builderOpen
             ? "card-selected"
-            : "card-float interactive-choice text-foreground"
+            : "border-white/22 bg-white/8 text-white shadow-[0_10px_36px_rgba(0,0,0,0.18)] hover:border-white/40 hover:bg-white/12"
         }`}
       >
         {builderOpen ? "Close builder" : "Build a Prospect List"}
@@ -126,11 +121,11 @@ export function HomeSearchHero() {
 
       <ProspectListBuilder open={builderOpen} onSubmit={goBuilderSearch} />
 
-      <div className="mt-8 text-left sm:mt-10">
-        <p className="text-center text-sm font-medium text-muted">
-          Example searches
+      <div className="mx-auto mt-8 max-w-5xl text-left sm:mt-9">
+        <p className="text-center text-sm font-medium text-white/78">
+          Try an example search
         </p>
-        <ul className="mt-3 grid gap-2">
+        <ul className="mt-4 flex flex-wrap justify-center gap-2.5">
           {HOME_EXAMPLES.map((ex) => (
             <li key={ex.query}>
               <button
@@ -139,18 +134,34 @@ export function HomeSearchHero() {
                   feedback("select");
                   goSearch(ex.query, false);
                 }}
-                className="card-float interactive-press interactive-choice flex w-full min-h-[3rem] items-center gap-3 rounded-2xl px-4 py-3 text-left sm:px-5"
+                className="interactive-press flex min-h-[3rem] items-center gap-2.5 rounded-full border border-white/18 bg-[#041523]/58 px-4 py-2.5 text-left shadow-[0_8px_26px_rgba(0,0,0,0.18)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:bg-white/10 motion-reduce:hover:translate-y-0 sm:px-5"
               >
                 <span className="text-lg" aria-hidden>
                   {ex.emoji}
                 </span>
-                <span className="text-sm font-medium text-foreground">
+                <span className="text-sm font-medium text-white">
                   {ex.label}
                 </span>
               </button>
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="mx-auto mt-9 hidden max-w-5xl gap-3 text-left text-white/78 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          "Comprehensive data from trusted sources",
+          "Real-time signals and intelligence",
+          "Advanced search and filtering",
+          "Build lists and track opportunities",
+        ].map((item) => (
+          <div
+            key={item}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-snug backdrop-blur"
+          >
+            {item}
+          </div>
+        ))}
       </div>
     </div>
   );
