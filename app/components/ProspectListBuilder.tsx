@@ -116,9 +116,21 @@ function ChoiceChip({
         selected ? "card-selected" : ""
       }`}
     >
-      <span className="block text-sm font-semibold text-foreground">{label}</span>
+      <span
+        className={`block text-sm font-semibold ${
+          selected ? "text-white" : "text-foreground"
+        }`}
+      >
+        {label}
+      </span>
       {hint ? (
-        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+        <span
+          className={`mt-0.5 block text-xs ${
+            selected ? "text-white/80" : "text-muted"
+          }`}
+        >
+          {hint}
+        </span>
       ) : null}
     </button>
   );

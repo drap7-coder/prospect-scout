@@ -126,11 +126,10 @@ body {
 }
 
 .card-selected {
-  border-color: color-mix(in srgb, var(--accent-cyan) 45%, transparent);
-  background: var(--accent-soft);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent-cyan) 12%, transparent),
-    var(--shadow-card);
+  border-color: var(--accent-cyan);
+  background: var(--accent-cyan);
+  color: #ffffff;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-cyan) 40%, transparent);
 }
 
 /* ------------------------------------------------------------------ */

@@ -98,6 +98,24 @@ export function HomeSearchHero() {
         </div>
       </form>
 
+      <button
+        type="button"
+        onClick={() => {
+          feedback(builderOpen ? "tap" : "select");
+          setBuilderOpen((v) => !v);
+        }}
+        aria-expanded={builderOpen}
+        className={`interactive-press mt-5 inline-flex min-h-[3rem] items-center justify-center rounded-2xl border px-6 py-3 text-sm font-semibold ${
+          builderOpen
+            ? "card-selected"
+            : "card-float interactive-choice text-foreground"
+        }`}
+      >
+        {builderOpen ? "Close builder" : "Build a Prospect List"}
+      </button>
+
+      <ProspectListBuilder open={builderOpen} onSubmit={goBuilderSearch} />
+
       <div className="mt-8 text-left sm:mt-10">
         <p className="text-center text-sm font-medium text-muted">
           Example searches
@@ -124,27 +142,6 @@ export function HomeSearchHero() {
           ))}
         </ul>
       </div>
-
-      <div className="mt-10 border-t border-border pt-8">
-        <p className="text-sm font-medium text-muted">Need help?</p>
-        <button
-          type="button"
-          onClick={() => {
-            feedback(builderOpen ? "tap" : "select");
-            setBuilderOpen((v) => !v);
-          }}
-          aria-expanded={builderOpen}
-          className={`interactive-press mt-3 inline-flex min-h-[3rem] items-center justify-center rounded-2xl border px-6 py-3 text-sm font-semibold ${
-            builderOpen
-              ? "card-selected text-foreground"
-              : "card-float interactive-choice text-foreground"
-          }`}
-        >
-          {builderOpen ? "Close builder" : "Build a Prospect List"}
-        </button>
-      </div>
-
-      <ProspectListBuilder open={builderOpen} onSubmit={goBuilderSearch} />
     </div>
   );
 }
