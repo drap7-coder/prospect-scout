@@ -5,6 +5,9 @@
  */
 import assert from "node:assert/strict";
 import {
+  BUILDER_PRIMARY_CATEGORIES,
+  BUILDER_SIGNAL_OPTIONS,
+  BUILDER_SOURCE_OPTIONS,
   builderToSearchState,
   buildNaturalLanguageSummary,
   EMPTY_BUILDER_STATE,
@@ -25,6 +28,20 @@ function check(name: string, fn: () => void) {
 }
 
 console.log("Prospect builder checks\n");
+
+function starterState(cardId: string) {
+  const starter = BUILDER_PRIMARY_CATEGORIES.find((c) => c.cardId === cardId);
+  assert.ok(starter, `missing starter ${cardId}`);
+  return builderToSearchState({
+    ...EMPTY_BUILDER_STATE,
+    sector: starter.sectorId,
+    industry: starter.industry ?? null,
+    organizationType: starter.organizationType ?? null,
+    ownership: starter.ownership ?? null,
+    builderSources: [...(starter.builderSources ?? [])],
+    builderSignals: [...(starter.builderSignals ?? [])],
+  });
+}
 
 check("empty builder omits noisy URL params", () => {
   const state = builderToSearchState(EMPTY_BUILDER_STATE);
@@ -57,7 +74,7 @@ check("full builder maps all fields to URL params", () => {
     metro: "Columbus",
     operatingStates: ["PA", "MI"],
     builderSignals: ["sec-filings", "hiring"],
-    builderSources: ["SEC", "DIR"],
+    builderSources: ["SEC", "WEB"],
     sort: "freshness",
     query: "",
   };
@@ -74,8 +91,87 @@ check("full builder maps all fields to URL params", () => {
   assert.equal(params.get("metro"), "Columbus");
   assert.equal(params.get("opStates"), "PA,MI");
   assert.equal(params.get("signals"), "sec-filing,hiring");
-  assert.equal(params.get("sources"), "SEC,Directory");
+  assert.equal(params.get("sources"), "SEC,Public Web");
   assert.equal(params.get("sort"), "freshness");
+});
+
+check("starter chips map to expected search state", () => {
+  assert.equal(starterState("health-plans").organizationType, "health-plan");
+  assert.equal(starterState("health-plans").industry, "payers");
+
+  assert.equal(
+    starterState("hospitals").organizationType,
+    "hospital-health-system",
+  );
+  assert.equal(starterState("hospitals").industry, "providers");
+
+  assert.equal(starterState("manufacturers").organizationType, "manufacturer");
+  assert.equal(starterState("banks").industry, "banks");
+  assert.equal(starterState("universities").organizationType, "university");
+});
+
+check("public companies starter carries public ownership and SEC intent", () => {
+  const state = starterState("public-companies");
+  assert.equal(state.ownership, "public");
+  assert.ok(state.sources.includes("SEC"));
+  assert.ok(state.signals.includes("sec-filing"));
+});
+
+check("nonprofits starter maps to canonical nonprofit", () => {
+  const state = starterState("nonprofits");
+  assert.equal(state.organizationType, "nonprofit");
+  assert.equal(state.sector, "nonprofit");
+  assert.equal(state.ownership, "nonprofit");
+});
+
+check("source chips map only to real source filters", () => {
+  const sourceIds = BUILDER_SOURCE_OPTIONS.map((o) => o.id);
+  assert.deepEqual(sourceIds, ["SEC", "CMS", "FDA", "WEB", "RSS"]);
+  assert.ok(!sourceIds.includes("IRS"));
+  assert.ok(!sourceIds.includes("SAM"));
+
+  for (const source of BUILDER_SOURCE_OPTIONS) {
+    const state = builderToSearchState({
+      ...EMPTY_BUILDER_STATE,
+      builderSources: [source.id],
+    });
+    assert.ok(
+      state.sources.includes(source.filterId),
+      `${source.id} should map to ${source.filterId}`,
+    );
+  }
+});
+
+check("misleading signal chips are not exposed", () => {
+  const signalIds = BUILDER_SIGNAL_OPTIONS.map((o) => o.id);
+  assert.ok(!signalIds.includes("website-changes"));
+  assert.ok(!signalIds.includes("government-contracts"));
+  assert.ok(!signalIds.includes("new-products"));
+});
+
+check("signal chips map to supported filters or source evidence", () => {
+  for (const signal of BUILDER_SIGNAL_OPTIONS) {
+    const state = builderToSearchState({
+      ...EMPTY_BUILDER_STATE,
+      builderSignals: [signal.id],
+    });
+    assert.ok(
+      state.signals.length > 0 || state.sources.length > 0,
+      `${signal.id} should affect signals or sources`,
+    );
+  }
+});
+
+check("location builder state maps to state, metro, and operating states", () => {
+  const state = builderToSearchState({
+    ...EMPTY_BUILDER_STATE,
+    state: "TX",
+    metro: "Dallas",
+    operatingStates: ["PA", "OH"],
+  });
+  assert.equal(state.state, "TX");
+  assert.equal(state.metro, "Dallas");
+  assert.deepEqual(state.operatingStates, ["PA", "OH"]);
 });
 
 check("default sort score is omitted from URL", () => {
@@ -120,11 +216,19 @@ check("example searches produce valid results URLs", () => {
   }
 });
 
-check("healthcare sources are builder-only, not in homepage examples", () => {
+check("home examples are benchmark-style discovery queries", () => {
   const joined = EXAMPLE_SEARCHES.join(" ").toLowerCase();
-  assert.ok(!joined.includes("cms"));
-  assert.ok(!joined.includes("fda"));
-  assert.ok(!joined.includes("medicare"));
+  for (const expected of [
+    "health plans in texas",
+    "hospitals near philadelphia",
+    "manufacturers in ohio",
+    "universities in california",
+    "nonprofits in pennsylvania",
+    "public companies with recent sec filings",
+    "banks in texas",
+  ]) {
+    assert.ok(joined.includes(expected), `missing example: ${expected}`);
+  }
 });
 
 check("natural language summary reads as a sentence", () => {

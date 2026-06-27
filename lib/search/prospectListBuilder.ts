@@ -1,6 +1,10 @@
 import type { SearchState } from "./searchState";
 import { locationLabel } from "./searchState";
 import {
+  canonicalOrgTypeLabel,
+  isCanonicalOrgTypeId,
+} from "@/lib/discovery/canonicalOrgType";
+import {
   industryLabel,
   organizationTypeLabel,
   sectorLabel,
@@ -21,22 +25,77 @@ export const BUILDER_SIZE_OPTIONS = [
   { id: "Enterprise", label: "Global", hint: "Multinational scale" },
 ] as const;
 
-/** Primary category cards shown in Step 1 of the guided builder. */
-export const BUILDER_PRIMARY_CATEGORIES = [
-  { cardId: "manufacturing", sectorId: "manufacturing", label: "Manufacturing" },
-  { cardId: "technology", sectorId: "technology", label: "Technology" },
-  { cardId: "healthcare", sectorId: "healthcare", label: "Healthcare" },
-  { cardId: "public-sector", sectorId: "public-sector", label: "Government" },
-  { cardId: "education", sectorId: "education", label: "Education" },
-  { cardId: "financial-services", sectorId: "financial-services", label: "Financial Services" },
-  { cardId: "construction", sectorId: "real-estate-construction", label: "Construction" },
-  { cardId: "retail", sectorId: "retail-consumer", label: "Retail" },
-  { cardId: "logistics", sectorId: "transportation-logistics", label: "Logistics" },
+interface BuilderStarterCategory {
+  cardId: string;
+  label: string;
+  sectorId: string;
+  industry?: string | null;
+  organizationType?: string | null;
+  ownership?: string | null;
+  builderSources?: string[];
+  builderSignals?: string[];
+}
+
+/** Primary starter searches shown in Step 1 of the guided builder. */
+export const BUILDER_PRIMARY_CATEGORIES: BuilderStarterCategory[] = [
   {
-    cardId: "agriculture",
+    cardId: "health-plans",
+    label: "Health Plans",
+    sectorId: "healthcare",
+    industry: "payers",
+    organizationType: "health-plan",
+  },
+  {
+    cardId: "hospitals",
+    label: "Hospitals",
+    sectorId: "healthcare",
+    industry: "providers",
+    organizationType: "hospital-health-system",
+  },
+  {
+    cardId: "manufacturers",
+    label: "Manufacturers",
     sectorId: "manufacturing",
-    label: "Agriculture",
-    presetIndustry: "food-beverage",
+    industry: "industrial-products",
+    organizationType: "manufacturer",
+  },
+  {
+    cardId: "banks",
+    label: "Banks",
+    sectorId: "financial-services",
+    industry: "banks",
+  },
+  {
+    cardId: "universities",
+    label: "Universities",
+    sectorId: "education",
+    industry: "universities",
+    organizationType: "university",
+  },
+  {
+    cardId: "nonprofits",
+    label: "Nonprofits",
+    sectorId: "nonprofit",
+    industry: "nonprofit",
+    organizationType: "nonprofit",
+    ownership: "nonprofit",
+  },
+  {
+    cardId: "government-agencies",
+    label: "Government Agencies",
+    sectorId: "public-sector",
+    industry: "state-agencies",
+    organizationType: "government",
+    ownership: "government",
+  },
+  {
+    cardId: "public-companies",
+    label: "Public Companies",
+    sectorId: "technology",
+    organizationType: "employer",
+    ownership: "public",
+    builderSources: ["SEC"],
+    builderSignals: ["sec-filings"],
   },
 ] as const;
 
@@ -61,30 +120,86 @@ export const BUILDER_SECTOR_HINTS: Record<string, string> = {
   nonprofit: "Foundations and charities",
 };
 
-/** Homepage signal options — map to results filter signal ids where supported. */
+/** Secondary sector cards for users who want a broader taxonomy entry point. */
+export const BUILDER_SECONDARY_CATEGORIES = [
+  { cardId: "healthcare", sectorId: "healthcare", label: "Healthcare" },
+  { cardId: "technology", sectorId: "technology", label: "Technology" },
+  { cardId: "financial-services", sectorId: "financial-services", label: "Financial Services" },
+  { cardId: "public-sector", sectorId: "public-sector", label: "Public Sector" },
+  { cardId: "education", sectorId: "education", label: "Education" },
+  { cardId: "construction", sectorId: "real-estate-construction", label: "Construction" },
+  { cardId: "retail", sectorId: "retail-consumer", label: "Retail" },
+  { cardId: "logistics", sectorId: "transportation-logistics", label: "Logistics" },
+  {
+    cardId: "food-beverage",
+    sectorId: "manufacturing",
+    label: "Food & Beverage",
+    industry: "food-beverage",
+  },
+] as const;
+
+/** Featured org-type refinements shown before industry chips. */
+export const BUILDER_ORG_TYPE_REFINEMENTS: Record<
+  string,
+  { id: string; label: string; sectorId: string; industry?: string | null }[]
+> = {
+  healthcare: [
+    { id: "health-plan", label: "Health Plans", sectorId: "healthcare", industry: "payers" },
+    { id: "pbm", label: "PBMs", sectorId: "healthcare", industry: "payers" },
+    { id: "hospital-health-system", label: "Hospitals", sectorId: "healthcare", industry: "providers" },
+    { id: "provider-group", label: "Provider Groups", sectorId: "healthcare", industry: "providers" },
+    { id: "pharma-manufacturer", label: "Pharma", sectorId: "healthcare", industry: "life-sciences" },
+    { id: "medical-device", label: "Medical Device", sectorId: "healthcare", industry: "life-sciences" },
+  ],
+  manufacturing: [
+    { id: "manufacturer", label: "Manufacturers", sectorId: "manufacturing", industry: "industrial-products" },
+    { id: "food-beverage-company", label: "Food & Beverage", sectorId: "manufacturing", industry: "food-beverage" },
+    { id: "chemical-company", label: "Chemicals", sectorId: "manufacturing", industry: "chemicals" },
+    { id: "packaging-company", label: "Packaging", sectorId: "manufacturing", industry: "packaging" },
+    { id: "automotive-manufacturer", label: "Automotive", sectorId: "manufacturing", industry: "automotive" },
+    { id: "manufacturer", label: "Industrial", sectorId: "manufacturing", industry: "industrial-products" },
+  ],
+  "financial-services": [
+    { id: "bank", label: "Banks", sectorId: "financial-services", industry: "banks" },
+    { id: "credit-union", label: "Credit Unions", sectorId: "financial-services", industry: "credit-unions" },
+    { id: "insurance-carrier", label: "Insurance Carriers", sectorId: "financial-services", industry: "insurance-carriers" },
+    { id: "asset-manager", label: "Asset Managers", sectorId: "financial-services", industry: "asset-managers" },
+    { id: "fintech-company", label: "Fintech", sectorId: "financial-services", industry: "fintech" },
+  ],
+  education: [
+    { id: "university", label: "Universities", sectorId: "education", industry: "universities" },
+    { id: "community-college", label: "Community Colleges", sectorId: "education", industry: "community-colleges" },
+    { id: "school-district", label: "School Districts", sectorId: "education", industry: "school-districts" },
+    { id: "private-school", label: "Private Schools", sectorId: "education", industry: "private-schools" },
+  ],
+  "public-sector": [
+    { id: "government", label: "Government Agencies", sectorId: "public-sector", industry: "state-agencies" },
+    { id: "municipality", label: "Municipalities", sectorId: "public-sector", industry: "municipalities" },
+    { id: "transit-authority", label: "Transit Authorities", sectorId: "public-sector", industry: "transit-authorities" },
+  ],
+  nonprofit: [
+    { id: "nonprofit", label: "Nonprofits", sectorId: "nonprofit", industry: "nonprofit" },
+  ],
+};
+
+/** Homepage signal options — map only to supported signal/source filters. */
 export const BUILDER_SIGNAL_OPTIONS = [
   { id: "hiring", label: "Hiring", hint: "Open roles and growth", signalId: "hiring" },
-  { id: "recent-news", label: "In the news", hint: "Recent headlines", signalId: "growth-expansion" },
-  { id: "expansion", label: "Expanding", hint: "New locations or markets", signalId: "growth-expansion" },
-  { id: "funding", label: "Funding", hint: "Investment and M&A", signalId: "partnership-acquisition" },
-  { id: "government-contracts", label: "Government contracts", hint: "Federal and state awards", signalId: "growth-expansion" },
+  { id: "recent-news", label: "Recent news", hint: "Headlines and press", sourceId: "RSS" },
+  { id: "expansion", label: "Growth / expansion", hint: "New locations or markets", signalId: "growth-expansion" },
+  { id: "funding", label: "Funding / awards", hint: "Investment and awards", signalId: "partnership-acquisition" },
   { id: "sec-filings", label: "SEC filings", hint: "Public disclosures", signalId: "sec-filing" },
-  { id: "website-changes", label: "Website updates", hint: "Recent site changes", signalId: "hiring" },
   { id: "regulatory", label: "Regulatory activity", hint: "Compliance and enforcement", signalId: "regulatory-pressure" },
-  { id: "new-products", label: "New products", hint: "Launches and announcements", signalId: "growth-expansion" },
-  { id: "growth", label: "Growth", hint: "Footprint and revenue signals", signalId: "growth-expansion" },
+  { id: "leadership", label: "Leadership changes", hint: "Executive movement", signalId: "leadership-change" },
 ] as const;
 
 /** Homepage source options — map to client-side source filter ids. */
 export const BUILDER_SOURCE_OPTIONS = [
   { id: "SEC", label: "SEC filings", hint: "Public company records", filterId: "SEC" },
-  { id: "CMS", label: "Medicare & Medicaid", hint: "CMS public data", filterId: "CMS" },
+  { id: "CMS", label: "CMS data", hint: "Medicare & Medicaid", filterId: "CMS" },
   { id: "FDA", label: "FDA records", hint: "Recalls & enforcement", filterId: "FDA" },
-  { id: "IRS", label: "Nonprofit filings", hint: "IRS 990 data", filterId: "Directory" },
-  { id: "SAM", label: "Government contracts", hint: "SAM.gov & awards", filterId: "Public Web" },
-  { id: "RSS", label: "News feeds", hint: "Headlines & press", filterId: "RSS" },
-  { id: "WEB", label: "Websites", hint: "Public web pages", filterId: "Public Web" },
-  { id: "DIR", label: "Directories", hint: "Industry & registry lists", filterId: "Directory" },
+  { id: "WEB", label: "Public web", hint: "Public web pages", filterId: "Public Web" },
+  { id: "RSS", label: "News", hint: "Headlines & press", filterId: "RSS" },
 ] as const;
 
 export const BUILDER_SORT_OPTIONS = [
@@ -163,6 +278,12 @@ function stateLabel(code: string): string {
   return US_STATE_FILTERS.find((s) => s.id === code)?.label ?? code;
 }
 
+function orgTypeDisplayLabel(id: string | null): string {
+  if (!id) return "";
+  if (isCanonicalOrgTypeId(id)) return canonicalOrgTypeLabel(id);
+  return organizationTypeLabel(id);
+}
+
 /** Converts builder selections into a natural-language search query. */
 export function buildSearchQueryFromBuilder(
   state: ProspectListBuilderState,
@@ -172,7 +293,7 @@ export function buildSearchQueryFromBuilder(
   if (state.ownership && OWNERSHIP_PHRASES[state.ownership]) {
     chunks.push(OWNERSHIP_PHRASES[state.ownership]);
   } else if (state.organizationType) {
-    chunks.push(organizationTypeLabel(state.organizationType).toLowerCase());
+    chunks.push(orgTypeDisplayLabel(state.organizationType).toLowerCase());
   } else if (state.industry) {
     chunks.push(industryLabel(state.industry).toLowerCase());
   } else if (state.sector) {
@@ -213,10 +334,14 @@ export function builderToSearchState(
   const signalIds = new Set<string>();
   for (const id of builder.builderSignals) {
     const opt = BUILDER_SIGNAL_OPTIONS.find((o) => o.id === id);
-    if (opt?.signalId) signalIds.add(opt.signalId);
+    if (opt && "signalId" in opt && opt.signalId) signalIds.add(opt.signalId);
   }
 
   const sourceIds = new Set<string>();
+  for (const id of builder.builderSignals) {
+    const opt = BUILDER_SIGNAL_OPTIONS.find((o) => o.id === id);
+    if (opt && "sourceId" in opt && opt.sourceId) sourceIds.add(opt.sourceId);
+  }
   for (const id of builder.builderSources) {
     const opt = BUILDER_SOURCE_OPTIONS.find((o) => o.id === id);
     if (opt?.filterId) sourceIds.add(opt.filterId);
@@ -275,7 +400,7 @@ export function buildNaturalLanguageSummary(
   let subject = "organizations";
 
   if (state.organizationType) {
-    subject = organizationTypeLabel(state.organizationType).toLowerCase();
+    subject = orgTypeDisplayLabel(state.organizationType).toLowerCase();
   } else if (state.industry) {
     subject = `${industryLabel(state.industry).toLowerCase()} companies`;
   } else if (state.sector) {

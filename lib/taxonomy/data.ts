@@ -24,14 +24,14 @@ export const FRESHNESS_FILTERS = [
 ] as const;
 
 export const EXAMPLE_SEARCHES = [
+  "Health plans in Texas",
+  "Hospitals near Philadelphia",
   "Manufacturers in Ohio",
+  "Universities in California",
   "Nonprofits in Pennsylvania",
   "Public companies with recent SEC filings",
-  "Restaurants expanding in Texas",
-  "Software companies hiring sales leaders",
-  "Construction firms in the Midwest",
-  "Universities with research activity",
-  "Government contractors in Virginia",
+  "Banks in Texas",
+  "Medical device companies",
 ] as const;
 
 /** Ownership filter options for results and builder. */

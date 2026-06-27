@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import {
   BUILDER_OWNERSHIP_OPTIONS,
+  BUILDER_ORG_TYPE_REFINEMENTS,
   BUILDER_PRIMARY_CATEGORIES,
+  BUILDER_SECONDARY_CATEGORIES,
   BUILDER_SIGNAL_OPTIONS,
   BUILDER_SIZE_OPTIONS,
   BUILDER_SORT_OPTIONS,
@@ -22,9 +24,21 @@ import {
   TAXONOMY_INDUSTRIES,
   organizationTypesForFilters,
 } from "@/lib/taxonomy";
+import {
+  canonicalOrgTypeLabel,
+  isCanonicalOrgTypeId,
+} from "@/lib/discovery/canonicalOrgType";
 import { useInteractionFeedback } from "./InteractionProvider";
 
 type LocationMode = "anywhere" | "nationwide" | "state" | "city";
+
+type OrgTypeChoice = {
+  id: string;
+  label: string;
+  sectorId: string;
+  industry?: string | null;
+  industryId?: string | null;
+};
 
 function StepIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -141,7 +155,11 @@ function HierarchyStack({ builder }: { builder: ProspectListBuilderState }) {
   if (builder.sector) levels.push(sectorLabel(builder.sector));
   if (builder.industry) levels.push(industryLabel(builder.industry));
   if (builder.organizationType) {
-    levels.push(organizationTypeLabel(builder.organizationType));
+    levels.push(
+      isCanonicalOrgTypeId(builder.organizationType)
+        ? canonicalOrgTypeLabel(builder.organizationType)
+        : organizationTypeLabel(builder.organizationType),
+    );
   }
   if (levels.length === 0) return null;
 
@@ -178,11 +196,16 @@ function orgTypeMatchesSelection(
   industryId: string | null,
 ): boolean {
   if (!orgTypeId) return true;
+  if (isCanonicalOrgTypeId(orgTypeId)) return true;
   const org = getOrganizationType(orgTypeId);
   if (!org) return false;
   if (industryId) return org.industryId === industryId;
   if (sectorId) return org.sectorId === sectorId;
   return true;
+}
+
+function orgChoiceIndustry(choice: OrgTypeChoice): string | null {
+  return choice.industry ?? choice.industryId ?? null;
 }
 
 export function ProspectListBuilder({
@@ -209,6 +232,11 @@ export function ProspectListBuilder({
     [builder.sector, builder.industry],
   );
 
+  const featuredOrgTypes = useMemo(() => {
+    if (!builder.sector) return [];
+    return BUILDER_ORG_TYPE_REFINEMENTS[builder.sector] ?? [];
+  }, [builder.sector]);
+
   const industriesForSector = useMemo(() => {
     if (!builder.sector) return [];
     return TAXONOMY_INDUSTRIES.filter((i) => i.sectorId === builder.sector);
@@ -218,6 +246,8 @@ export function ProspectListBuilder({
     ? industriesForSector
     : industriesForSector.slice(0, 6);
   const visibleOrgTypes = showAllOrgTypes ? orgTypes : orgTypes.slice(0, 8);
+  const visibleOrgTypeChoices: OrgTypeChoice[] =
+    featuredOrgTypes.length > 0 ? featuredOrgTypes : visibleOrgTypes;
 
   const generatedQuery = useMemo(
     () => buildSearchQueryFromBuilder(builder),
@@ -232,21 +262,36 @@ export function ProspectListBuilder({
     setBuilder((prev) => ({ ...prev, ...partial }));
   }
 
-  function pickCategory(
-    cardId: string,
-    sectorId: string,
-    presetIndustry?: string,
-  ) {
+  function pickCategory(category: {
+    cardId: string;
+    sectorId: string;
+    industry?: string | null;
+    organizationType?: string | null;
+    ownership?: string | null;
+    builderSources?: string[];
+    builderSignals?: string[];
+  }) {
+    const { cardId } = category;
     if (activeCategory === cardId && !builder.industry && !builder.organizationType) {
       setActiveCategory(null);
-      patch({ sector: null, industry: null, organizationType: null });
+      patch({
+        sector: null,
+        industry: null,
+        organizationType: null,
+        ownership: null,
+        builderSources: [],
+        builderSignals: [],
+      });
       return;
     }
     setActiveCategory(cardId);
     patch({
-      sector: sectorId,
-      industry: presetIndustry ?? null,
-      organizationType: null,
+      sector: category.sectorId,
+      industry: category.industry ?? null,
+      organizationType: category.organizationType ?? null,
+      ownership: category.ownership ?? builder.ownership,
+      builderSources: category.builderSources ?? builder.builderSources,
+      builderSignals: category.builderSignals ?? builder.builderSignals,
     });
     setShowAllIndustries(false);
     setShowAllOrgTypes(false);
@@ -269,17 +314,21 @@ export function ProspectListBuilder({
     });
   }
 
-  function pickOrganizationType(orgId: string) {
+  function pickOrganizationType(
+    orgId: string,
+    sectorId?: string | null,
+    industryId?: string | null,
+  ) {
     const org = getOrganizationType(orgId);
-    if (!org) return;
+    if (!org && !isCanonicalOrgTypeId(orgId)) return;
     if (builder.organizationType === orgId) {
       patch({ organizationType: null });
       return;
     }
     patch({
       organizationType: orgId,
-      sector: org.sectorId,
-      industry: org.industryId ?? builder.industry,
+      sector: sectorId ?? org?.sectorId ?? builder.sector,
+      industry: industryId ?? org?.industryId ?? builder.industry,
     });
   }
 
@@ -346,34 +395,97 @@ export function ProspectListBuilder({
             </svg>
           </StepIcon>
         }
-        question="What kind of organizations are you looking for?"
+        question="Search criteria: who should we find?"
       >
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {BUILDER_PRIMARY_CATEGORIES.map((cat) => (
-            <CategoryCard
-              key={cat.cardId}
-              label={cat.label}
-              selected={activeCategory === cat.cardId}
-              onClick={() =>
-                pickCategory(
-                  cat.cardId,
-                  cat.sectorId,
-                  "presetIndustry" in cat ? cat.presetIndustry : undefined,
-                )
-              }
-            />
-          ))}
-        </div>
+        <fieldset>
+          <legend className="mb-2.5 text-sm font-medium text-muted">
+            Prospect list starters
+          </legend>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {BUILDER_PRIMARY_CATEGORIES.map((cat) => (
+              <CategoryCard
+                key={cat.cardId}
+                label={cat.label}
+                selected={activeCategory === cat.cardId}
+                onClick={() => pickCategory(cat)}
+              />
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="mt-5">
+          <legend className="mb-2.5 text-sm font-medium text-muted">
+            Broader sectors{" "}
+            <span className="font-normal text-muted-2">(optional)</span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {BUILDER_SECONDARY_CATEGORIES.map((cat) => (
+              <button
+                key={cat.cardId}
+                type="button"
+                aria-pressed={activeCategory === cat.cardId}
+                onClick={() => pickCategory(cat)}
+                className={`interactive-press rounded-full border px-4 py-2.5 text-sm font-medium ${
+                  activeCategory === cat.cardId
+                    ? "card-selected"
+                    : "interactive-choice border-border text-muted"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         {builder.sector ? (
           <div className="mt-5 space-y-4">
             <HierarchyStack builder={builder} />
 
+            {visibleOrgTypeChoices.length > 0 ? (
+              <fieldset>
+                <legend className="mb-2.5 text-sm font-medium text-muted">
+                  Organization type{" "}
+                  <span className="font-normal text-muted-2">(recommended)</span>
+                </legend>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {visibleOrgTypeChoices.map((org) => (
+                    <CategoryCard
+                      key={`${org.id}-${orgChoiceIndustry(org) ?? "any"}`}
+                      label={org.label}
+                      selected={
+                        builder.organizationType === org.id &&
+                        (!orgChoiceIndustry(org) ||
+                          builder.industry === orgChoiceIndustry(org))
+                      }
+                      onClick={() =>
+                        pickOrganizationType(
+                          org.id,
+                          org.sectorId,
+                          orgChoiceIndustry(org),
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+                {featuredOrgTypes.length === 0 && orgTypes.length > 8 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllOrgTypes((v) => !v)}
+                    className="mt-2 text-sm font-semibold text-accent-cyan"
+                  >
+                    {showAllOrgTypes ? "Show fewer" : "Show all types"}
+                  </button>
+                ) : null}
+              </fieldset>
+            ) : null}
+
             {industriesForSector.length > 0 ? (
-              <div>
+              <fieldset>
                 <p className="mb-2.5 text-sm font-medium text-muted">
                   Industry{" "}
-                  <span className="font-normal text-muted-2">(optional)</span>
+                  <span className="font-normal text-muted-2">
+                    (advanced refinement)
+                  </span>
                 </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {visibleIndustries.map((ind) => (
@@ -394,35 +506,7 @@ export function ProspectListBuilder({
                     {showAllIndustries ? "Show fewer" : "Show all industries"}
                   </button>
                 ) : null}
-              </div>
-            ) : null}
-
-            {orgTypes.length > 0 ? (
-              <div>
-                <p className="mb-2.5 text-sm font-medium text-muted">
-                  Organization type{" "}
-                  <span className="font-normal text-muted-2">(optional)</span>
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {visibleOrgTypes.map((org) => (
-                    <CategoryCard
-                      key={org.id}
-                      label={org.label}
-                      selected={builder.organizationType === org.id}
-                      onClick={() => pickOrganizationType(org.id)}
-                    />
-                  ))}
-                </div>
-                {orgTypes.length > 8 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllOrgTypes((v) => !v)}
-                    className="mt-2 text-sm font-semibold text-accent-cyan"
-                  >
-                    {showAllOrgTypes ? "Show fewer" : "Show all types"}
-                  </button>
-                ) : null}
-              </div>
+              </fieldset>
             ) : null}
           </div>
         ) : null}
@@ -442,15 +526,17 @@ export function ProspectListBuilder({
             </svg>
           </StepIcon>
         }
-        question="Where should we look?"
+        question="Search criteria: where should we look?"
       >
-        <div className="grid grid-cols-2 gap-2.5">
+        <fieldset>
+          <legend className="sr-only">Location mode</legend>
+          <div className="grid grid-cols-2 gap-2.5">
           {(
             [
-              ["anywhere", "Anywhere"],
+              ["anywhere", "Any location"],
               ["nationwide", "Nationwide"],
-              ["state", "State"],
-              ["city", "City"],
+              ["state", "Headquartered in state"],
+              ["city", "Near city/metro"],
             ] as const
           ).map(([mode, label]) => (
             <ChoiceChip
@@ -460,7 +546,8 @@ export function ProspectListBuilder({
               onClick={() => setMode(mode)}
             />
           ))}
-        </div>
+          </div>
+        </fieldset>
 
         {locationMode === "state" ? (
           <label className="mt-4 block">
@@ -526,7 +613,7 @@ export function ProspectListBuilder({
             </label>
             <div>
               <p className="mb-2 text-sm font-medium text-muted">
-                Operating states
+                Operates in states
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {US_STATE_FILTERS.map((st) => (
@@ -564,19 +651,22 @@ export function ProspectListBuilder({
             </svg>
           </StepIcon>
         }
-        question="What should we look for?"
+        question="Narrow results: which signals matter?"
       >
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {BUILDER_SIGNAL_OPTIONS.map((sig) => (
-            <ChoiceChip
-              key={sig.id}
-              label={sig.label}
-              hint={sig.hint}
-              selected={builder.builderSignals.includes(sig.id)}
-              onClick={() => toggleSignal(sig.id)}
-            />
-          ))}
-        </div>
+        <fieldset>
+          <legend className="sr-only">Signal filters</legend>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {BUILDER_SIGNAL_OPTIONS.map((sig) => (
+              <ChoiceChip
+                key={sig.id}
+                label={sig.label}
+                hint={sig.hint}
+                selected={builder.builderSignals.includes(sig.id)}
+                onClick={() => toggleSignal(sig.id)}
+              />
+            ))}
+          </div>
+        </fieldset>
       </StepCard>
 
       <StepCard
@@ -597,29 +687,35 @@ export function ProspectListBuilder({
             </svg>
           </StepIcon>
         }
-        question="Company size"
+        question="Narrow results: size and ownership"
       >
-        <div className="grid grid-cols-2 gap-2.5">
-          {BUILDER_SIZE_OPTIONS.map((size) => (
-            <ChoiceChip
-              key={size.id}
-              label={size.label}
-              hint={size.hint}
-              selected={builder.companySize === size.id}
-              onClick={() =>
-                patch({
-                  companySize:
-                    builder.companySize === size.id ? null : size.id,
-                })
-              }
-            />
-          ))}
-        </div>
+        <fieldset>
+          <legend className="mb-2.5 text-sm font-medium text-muted">
+            Company size
+          </legend>
+          <div className="grid grid-cols-2 gap-2.5">
+            {BUILDER_SIZE_OPTIONS.map((size) => (
+              <ChoiceChip
+                key={size.id}
+                label={size.label}
+                hint={size.hint}
+                selected={builder.companySize === size.id}
+                onClick={() =>
+                  patch({
+                    companySize:
+                      builder.companySize === size.id ? null : size.id,
+                  })
+                }
+              />
+            ))}
+          </div>
+        </fieldset>
         <div className="mt-5">
-          <p className="mb-2.5 text-sm font-medium text-muted">
+          <fieldset>
+          <legend className="mb-2.5 text-sm font-medium text-muted">
             Ownership{" "}
             <span className="font-normal text-muted-2">(optional)</span>
-          </p>
+          </legend>
           <div className="flex flex-wrap gap-2">
             {BUILDER_OWNERSHIP_OPTIONS.map((o) => (
               <button
@@ -641,6 +737,7 @@ export function ProspectListBuilder({
               </button>
             ))}
           </div>
+          </fieldset>
         </div>
       </StepCard>
 
@@ -667,11 +764,13 @@ export function ProspectListBuilder({
               </svg>
             </StepIcon>
           }
-          question="More filters"
+          question="Source/evidence and sort"
         >
           <div className="space-y-5">
-            <div>
-              <p className="mb-2.5 text-sm font-medium text-muted">Data sources</p>
+            <fieldset>
+              <legend className="mb-2.5 text-sm font-medium text-muted">
+                Source/evidence
+              </legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {BUILDER_SOURCE_OPTIONS.map((src) => (
                   <ChoiceChip
@@ -682,9 +781,11 @@ export function ProspectListBuilder({
                   />
                 ))}
               </div>
-            </div>
-            <div>
-              <p className="mb-2.5 text-sm font-medium text-muted">Sort results by</p>
+            </fieldset>
+            <fieldset>
+              <legend className="mb-2.5 text-sm font-medium text-muted">
+                Sort results by
+              </legend>
               <div className="flex flex-wrap gap-2">
                 {BUILDER_SORT_OPTIONS.map((opt) => (
                   <button
@@ -702,7 +803,7 @@ export function ProspectListBuilder({
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
             {!editQuery ? (
               <button
                 type="button"

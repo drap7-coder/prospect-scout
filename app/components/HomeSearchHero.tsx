@@ -14,8 +14,13 @@ import { useInteractionFeedback } from "./InteractionProvider";
 const HOME_EXAMPLES = [
   {
     emoji: "🏥",
-    label: "Health plans in PA",
-    query: "Health plans in Pennsylvania",
+    label: "Health plans in Texas",
+    query: "Health plans in Texas",
+  },
+  {
+    emoji: "🏨",
+    label: "Hospitals near Philadelphia",
+    query: "Hospitals near Philadelphia",
   },
   {
     emoji: "🏭",
@@ -23,19 +28,24 @@ const HOME_EXAMPLES = [
     query: "Manufacturers in Ohio",
   },
   {
-    emoji: "🩺",
-    label: "Health systems in Texas",
-    query: "Health systems in Texas",
+    emoji: "🎓",
+    label: "Universities in California",
+    query: "Universities in California",
   },
   {
-    emoji: "🍱",
-    label: "Food manufacturers in the Midwest",
-    query: "Food and beverage manufacturers in the Midwest",
+    emoji: "🤝",
+    label: "Nonprofits in Pennsylvania",
+    query: "Nonprofits in Pennsylvania",
   },
   {
-    emoji: "🏛",
-    label: "Government agencies in California",
-    query: "Government agencies in California",
+    emoji: "📈",
+    label: "Public companies with SEC filings",
+    query: "Public companies with SEC filings",
+  },
+  {
+    emoji: "🏦",
+    label: "Banks in Texas",
+    query: "Banks in Texas",
   },
 ] as const;
 
