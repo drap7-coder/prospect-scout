@@ -18,7 +18,7 @@ export function ScoutLogo({
       width={size}
       height={size}
       priority={priority}
-      className={`shrink-0 rounded-full object-cover ${className}`}
+      className={`shrink-0 rounded-full object-cover ring-1 ring-black/10 ${className}`}
       aria-hidden
     />
   );

@@ -26,16 +26,20 @@ const siteDescription =
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Prospect Scout — Search organizations. Find the signal.",
+    default: "Prospect Scout — Find your next best opportunity.",
     template: "%s · Prospect Scout",
   },
   description: siteDescription,
   icons: {
-    icon: "/prospect-scout-logo.png",
-    apple: "/prospect-scout-logo.png",
+    icon: [
+      { url: "/prospect-scout-logo.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/prospect-scout-logo.png", type: "image/png" },
+    ],
   },
   openGraph: {
-    title: "Prospect Scout — Search organizations. Find the signal.",
+    title: "Prospect Scout — Find your next best opportunity.",
     description: siteDescription,
     siteName: "Prospect Scout",
     type: "website",
@@ -45,13 +49,19 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Prospect Scout — organization discovery and signal intelligence",
+        alt: "Prospect Scout — AI-powered organization discovery",
+      },
+      {
+        url: "/prospect-scout-logo.png",
+        width: 512,
+        height: 512,
+        alt: "Prospect Scout logo",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prospect Scout — Search organizations. Find the signal.",
+    title: "Prospect Scout — Find your next best opportunity.",
     description: siteDescription,
     images: ["/opengraph-image"],
   },

@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export const runtime = "nodejs";
 export const alt =
-  "Prospect Scout — search organizations across sectors and public evidence sources";
+  "Prospect Scout — find your next best opportunity with AI-powered organization discovery";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,13 +23,15 @@ export default async function OpenGraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(160deg, #050608 0%, #0a1218 45%, #101419 100%)",
+          background:
+            "radial-gradient(circle at 50% 18%, rgba(45,212,191,0.18), transparent 42%), linear-gradient(180deg, #071422 0%, #020b16 55%, #01070f 100%)",
           padding: "48px 64px",
         }}
       >
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             gap: 28,
           }}
@@ -37,49 +39,59 @@ export default async function OpenGraphImage() {
           <img
             src={logoSrc}
             alt=""
-            width={112}
-            height={112}
+            width={128}
+            height={128}
             style={{
               borderRadius: 9999,
-              border: "2px solid rgba(56, 224, 216, 0.35)",
+              border: "3px solid rgba(56, 224, 216, 0.35)",
+              boxShadow: "0 18px 48px rgba(0,0,0,0.45)",
             }}
           />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
             <div
               style={{
-                fontSize: 52,
-                fontWeight: 600,
+                fontSize: 54,
+                fontWeight: 700,
                 letterSpacing: "-0.03em",
-                color: "#eef1f6",
+                color: "#ffffff",
                 lineHeight: 1.05,
+                textAlign: "center",
               }}
             >
-              Prospect Scout
+              Find your next best opportunity.
             </div>
             <div
               style={{
-                fontSize: 28,
-                color: "#8a939f",
-                lineHeight: 1.25,
-                maxWidth: 720,
+                fontSize: 26,
+                color: "rgba(255,255,255,0.78)",
+                lineHeight: 1.35,
+                textAlign: "center",
+                maxWidth: 820,
               }}
             >
-              Search organizations. Find the signal.
+              AI-powered prospecting across health plans, hospitals,
+              manufacturers, and more.
             </div>
           </div>
-        </div>
-        <div
-          style={{
-            marginTop: 36,
-            fontSize: 22,
-            color: "#565f6d",
-            textAlign: "center",
-            maxWidth: 880,
-            lineHeight: 1.45,
-          }}
-        >
-          Discover companies, agencies, and institutions by sector, location, and
-          evidence from CMS, SEC, FDA, RSS, and public web sources.
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#5eead4",
+            }}
+          >
+            Prospect Scout
+          </div>
         </div>
       </div>
     ),

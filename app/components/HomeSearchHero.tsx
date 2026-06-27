@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import {
-  FormEvent,
   ReactNode,
   useCallback,
   useEffect,
@@ -19,16 +18,6 @@ import {
 import { searchStateToParams } from "@/lib/search/searchState";
 import { ProspectListBuilder } from "./ProspectListBuilder";
 import { useInteractionFeedback } from "./InteractionProvider";
-
-const HOME_EXAMPLES = [
-  { label: "Health plans in Texas", query: "Health plans in Texas" },
-  { label: "Hospitals in Florida", query: "Hospitals in Florida" },
-  {
-    label: "PBMs with Medicare business",
-    query: "PBMs with Medicare business",
-  },
-  { label: "Manufacturers in Ohio", query: "Manufacturers in Ohio" },
-] as const;
 
 function prefersReducedMotion(): boolean {
   return (
@@ -169,10 +158,10 @@ function IndustryCard({
       type="button"
       onClick={() => onPick(selector)}
       aria-pressed={selected}
-      className={`interactive-press flex h-full w-full flex-col items-center gap-2.5 rounded-2xl border p-4 text-center backdrop-blur transition hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-5 ${
+      className={`interactive-press flex h-full w-full flex-col items-center gap-2.5 rounded-2xl border p-4 text-center text-white transition hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-5 ${
         selected
-          ? "border-cyan-300/70 bg-cyan-300/12 ring-1 ring-cyan-200/50"
-          : "border-white/12 bg-[#06141f]/65 hover:border-cyan-200/45 hover:bg-white/[0.07]"
+          ? "border-cyan-300/70 bg-[#06141f]/95 ring-1 ring-cyan-200/50 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+          : "border-white/20 bg-[#06141f]/92 shadow-[0_8px_32px_rgba(0,0,0,0.28)] hover:border-cyan-200/45 hover:bg-[#06141f]"
       }`}
     >
       <span
@@ -183,10 +172,10 @@ function IndustryCard({
           {visual?.icon}
         </svg>
       </span>
-      <span className="text-sm font-semibold leading-tight text-white">
+      <span className="text-sm font-semibold leading-tight text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.75)]">
         {selector.label}
       </span>
-      <span className="text-xs leading-snug text-white/60">
+      <span className="text-xs leading-snug text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.65)]">
         {selector.description}
       </span>
     </button>
@@ -263,7 +252,7 @@ function IndustryCarousel({
         onClick={() => scrollByPage(-1)}
         aria-label="Scroll industries left"
         disabled={!layoutReady || !canLeft}
-        className="interactive-press absolute -left-3 top-[calc(50%-0.75rem)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:flex lg:-left-5"
+        className="interactive-press absolute -left-1 top-[calc(50%-0.75rem)] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:-left-3 sm:h-9 sm:w-9 lg:-left-5"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="m15 6-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -273,12 +262,12 @@ function IndustryCarousel({
       <div className="relative">
         <div
           ref={scrollerRef}
-          className="grid grid-cols-1 gap-3 sm:flex sm:snap-x sm:snap-mandatory sm:gap-4 sm:overflow-x-auto sm:scroll-smooth sm:pb-1 sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden"
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4"
         >
           {HOMEPAGE_INDUSTRY_SELECTORS.map((selector) => (
             <div
               key={selector.id}
-              className="sm:w-[208px] sm:shrink-0 sm:snap-start"
+              className="w-[min(78vw,17.5rem)] shrink-0 snap-center sm:w-[208px] sm:snap-start"
             >
               <IndustryCard
                 selector={selector}
@@ -289,16 +278,16 @@ function IndustryCarousel({
           ))}
         </div>
 
-        {/* Edge fades hint that more cards are scrollable (desktop only). */}
+        {/* Edge fades hint that more cards are scrollable. */}
         <div
           aria-hidden
-          className={`pointer-events-none absolute inset-y-0 left-0 hidden w-14 rounded-l-2xl bg-gradient-to-r from-[#020b16] to-transparent transition-opacity duration-200 sm:block ${
+          className={`pointer-events-none absolute inset-y-0 left-0 w-10 rounded-l-2xl bg-gradient-to-r from-[#020b16] to-transparent transition-opacity duration-200 sm:w-14 ${
             layoutReady && canLeft ? "opacity-90" : "opacity-0"
           }`}
         />
         <div
           aria-hidden
-          className={`pointer-events-none absolute inset-y-0 right-0 hidden w-14 rounded-r-2xl bg-gradient-to-l from-[#020b16] to-transparent transition-opacity duration-200 sm:block ${
+          className={`pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-2xl bg-gradient-to-l from-[#020b16] to-transparent transition-opacity duration-200 sm:w-14 ${
             layoutReady && canRight ? "opacity-90" : "opacity-0"
           }`}
         />
@@ -309,7 +298,7 @@ function IndustryCarousel({
         onClick={() => scrollByPage(1)}
         aria-label="Scroll industries right"
         disabled={!layoutReady || !canRight}
-        className="interactive-press absolute -right-3 top-[calc(50%-0.75rem)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:flex lg:-right-5"
+        className="interactive-press absolute -right-1 top-[calc(50%-0.75rem)] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:-right-3 sm:h-9 sm:w-9 lg:-right-5"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="m9 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -317,7 +306,7 @@ function IndustryCarousel({
       </button>
 
       {layoutReady && pageCount > 1 ? (
-        <div className="mt-4 hidden items-center justify-center gap-2 sm:flex">
+        <div className="mt-4 flex items-center justify-center gap-2">
           {Array.from({ length: pageCount }).map((_, i) => (
             <button
               key={i}
@@ -338,7 +327,6 @@ function IndustryCarousel({
 
 export function HomeSearchHero() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
   const [builderOpen, setBuilderOpen] = useState(false);
   const [selectedIndustryId, setSelectedIndustryId] = useState<string | null>(
     null,
@@ -350,22 +338,10 @@ export function HomeSearchHero() {
   const builderRef = useRef<HTMLDivElement>(null);
   const { feedback } = useInteractionFeedback();
 
-  function goSearch(q: string, withConfirm = true) {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    if (withConfirm) feedback("confirm");
-    router.push(`/results?q=${encodeURIComponent(trimmed)}`);
-  }
-
   function goBuilderSearch(builder: ProspectListBuilderState) {
     const state = builderToSearchState(builder);
     if (!state.query.trim()) return;
     router.push(`/results?${searchStateToParams(state).toString()}`);
-  }
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    goSearch(query);
   }
 
   function revealBuilder() {
@@ -433,56 +409,8 @@ export function HomeSearchHero() {
         </p>
 
         <IndustryCarousel selectedId={selectedIndustryId} onPick={pickIndustry} />
-      </section>
 
-      {/* Secondary entry point: free-text search */}
-      <section className="mx-auto mt-11 max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/90">
-          Or search directly
-        </p>
-        <form onSubmit={handleSubmit} className="mx-auto mt-3">
-          <div className="interactive-press flex items-center gap-2 rounded-2xl border border-white/15 bg-[#06141f]/75 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-md focus-within:border-cyan-300/60 focus-within:ring-2 focus-within:ring-cyan-300/25">
-            <span className="pl-3 text-white/45" aria-hidden>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.75" />
-                <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by organization, industry, or keyword…"
-              className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-base text-white placeholder:text-white/45 outline-none sm:py-3"
-              aria-label="Search organizations"
-            />
-            <button
-              type="submit"
-              className="interactive-press shrink-0 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(37,99,235,0.38)] transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:px-7"
-            >
-              Search
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
-          <span className="text-sm text-white/60">Try an example:</span>
-          {HOME_EXAMPLES.map((ex) => (
-            <button
-              key={ex.query}
-              type="button"
-              onClick={() => {
-                feedback("select");
-                goSearch(ex.query, false);
-              }}
-              className="interactive-press rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-1.5 text-sm font-medium text-white/85 transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:bg-white/10 motion-reduce:hover:translate-y-0"
-            >
-              {ex.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-6 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
             onClick={toggleManualBuilder}
