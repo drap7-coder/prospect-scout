@@ -44,6 +44,8 @@ export interface Organization {
   regions: string[];
   ownership: "public" | "private" | "nonprofit" | "government" | null;
   employeeRange: string | null;
+  /** Estimated covered lives / members (payers) — distinct from headcount. */
+  memberEstimate?: number | null;
   revenueRange: string | null;
   description: string | null;
   sources: OrganizationSource[];
@@ -174,6 +176,7 @@ export function directoryRecordToOrganization(
       : normalized.memberEstimate
         ? String(normalized.memberEstimate)
         : null,
+    memberEstimate: normalized.memberEstimate ?? null,
     revenueRange: null,
     description: normalized.parentOrganization
       ? `Part of ${normalized.parentOrganization}`
@@ -247,6 +250,7 @@ export function mergeOrganizations(
     regions: unionUnique(base.regions, other.regions),
     ownership: base.ownership ?? other.ownership,
     employeeRange: base.employeeRange ?? other.employeeRange,
+    memberEstimate: base.memberEstimate ?? other.memberEstimate,
     revenueRange: base.revenueRange ?? other.revenueRange,
     description: base.description ?? other.description,
     sources: mergedSources,
@@ -254,8 +258,37 @@ export function mergeOrganizations(
     relevance: Math.max(base.relevance ?? 0, other.relevance ?? 0),
     confidence: Math.max(base.confidence ?? 0, other.confidence ?? 0),
     canonicalOrganizationType: base.canonicalOrganizationType,
-    healthPlanType: base.healthPlanType ?? other.healthPlanType,
+    healthPlanType: resolveMergedHealthPlanType(base, other, mergedSources),
   });
+}
+
+/** Connectors whose records authoritatively define a single health-plan subtype. */
+const SUBTYPE_AUTHORITATIVE_CONNECTORS = new Set<string>(["aca-marketplace"]);
+
+/**
+ * Resolve a health-plan subtype across a merge.
+ *
+ * A subtype is only asserted for pure-play seed issuers — i.e. orgs whose every
+ * source comes from a subtype-authoritative connector (e.g. the ACA Marketplace
+ * seed). When a seed record merges into a multi-line carrier that is also known
+ * from a general connector (directory / SEC / CMS), we drop the subtype rather
+ * than mislabel the whole carrier (which would, e.g., wrongly exclude a national
+ * carrier from Medicare Advantage results).
+ */
+function resolveMergedHealthPlanType(
+  base: Organization,
+  other: Organization,
+  mergedSources: OrganizationSource[],
+): HealthPlanType | undefined {
+  const a = base.healthPlanType;
+  const b = other.healthPlanType;
+  if (a && b && a !== b) return undefined;
+  const subtype = a ?? b;
+  if (!subtype) return undefined;
+  const authoritativeOnly =
+    mergedSources.length > 0 &&
+    mergedSources.every((s) => SUBTYPE_AUTHORITATIVE_CONNECTORS.has(s.connector));
+  return authoritativeOnly ? subtype : undefined;
 }
 
 /** Deduplicate a list of organizations by domain then normalized name. */

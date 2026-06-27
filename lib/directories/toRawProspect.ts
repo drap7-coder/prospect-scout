@@ -59,7 +59,9 @@ export function directoryRecordToRawProspect(record: OrganizationRecord): RawPro
     stateCodes: normalized.statesServed,
     publicCompany: normalized.publicCompany,
     website: normalized.website,
-    employeeEstimate: normalized.employeeEstimate ?? normalized.memberEstimate,
+    // Keep covered lives (payers) distinct from headcount — never conflate them.
+    employeeEstimate: normalized.employeeEstimate,
+    coveredLives: normalized.memberEstimate,
     sourceRecords: [
       {
         connector: "directory",

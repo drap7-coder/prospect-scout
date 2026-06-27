@@ -6,10 +6,15 @@ import type {
 import { getBuyerPack } from "@/lib/packs";
 import { searchDirectory } from "@/lib/directories/search";
 import { directoryRecordsToRawProspects } from "@/lib/directories/toRawProspect";
-import { discoverOrganizationsSync } from "@/lib/discovery/discoveryEngine";
+import { discoverOrganizationsStaged } from "@/lib/discovery/discoveryEngine";
 import { getCatalogIndex } from "@/lib/discovery/catalog/catalogIndex";
 import { catalogOrganizations } from "@/lib/discovery/diagnostics";
 import { rankedOrganizationsToRawProspects } from "@/lib/discovery/toRawProspect";
+import {
+  DISCOVERY_THRESHOLD,
+  computeCoverageStatus,
+  type DiscoveryMetadata,
+} from "@/lib/discovery/coverage";
 import { parseIntent } from "./intentParser";
 import { planSources } from "./sourcePlanner";
 import { buildProspectSignals } from "./signalBuilder";
@@ -31,7 +36,7 @@ function hasDiscoveryIntent(input: RawSearchInput, queryText: string): boolean {
       input.industryId ||
       input.organizationTypeId ||
       input.state ||
-      /\b(manufacturer|bank|universit|nonprofit|retail|government|health plan|hospital|food|aerospace|logistics|software)\b/i.test(
+      /\b(manufactur|bank|credit union|universit|college|nonprofit|charit|foundation|retail|grocer|government|municipal|school|health ?plan|health ?system|hospital|clinic|provider|payer|insurer|insurance|mco|medicare|medicaid|aca|obamacare|marketplace|exchange|qhp|pbm|pharmacy benefit|pharma|biotech|device|food|beverage|aerospace|logistics|software|fintech)\b/i.test(
         queryText,
       ) ||
       /\b(in|near)\s+[a-z]/i.test(queryText),
@@ -56,9 +61,11 @@ export function runSearch(input: RawSearchInput): SearchResponse {
   let candidates: RawProspect[] = [];
   let searchedRecords = 0;
   let discoveryMeta: SearchResponse["discovery"];
+  let stagedMetadata: DiscoveryMetadata | undefined;
+  const discoveryIntent = hasDiscoveryIntent(input, queryText);
 
-  if (hasDiscoveryIntent(input, queryText)) {
-    const discovery = discoverOrganizationsSync(queryText, {
+  if (discoveryIntent) {
+    const discovery = discoverOrganizationsStaged(queryText, {
       sectorId: profile.sectorId,
       industryId: profile.industryId,
       organizationTypeId: profile.organizationTypeId,
@@ -66,10 +73,12 @@ export function runSearch(input: RawSearchInput): SearchResponse {
       region: profile.region !== ANY_REGION ? profile.region : null,
     });
     searchedRecords = discovery.totalBeforeDedupe;
+    stagedMetadata = discovery.metadata;
     discoveryMeta = {
       totalAfterRank: discovery.totalAfterRank,
       totalReturned: discovery.totalReturned,
       catalogTotal: getCatalogIndex().orgs.length,
+      metadata: discovery.metadata,
     };
     if (discovery.organizations.length > 0) {
       candidates = rankedOrganizationsToRawProspects(discovery.organizations);
@@ -88,7 +97,9 @@ export function runSearch(input: RawSearchInput): SearchResponse {
     );
   }
 
-  if (candidates.length === 0) {
+  // Mock prospects are illustrative, not real organizations — never surface them
+  // for catalog/discovery-intent searches (graceful fallback must not fabricate).
+  if (candidates.length === 0 && !discoveryIntent) {
     candidates = getMockProspects(plan);
   }
 
@@ -121,6 +132,8 @@ export function runSearch(input: RawSearchInput): SearchResponse {
       ? Math.round((Math.min(0.95, 0.45 + coveragePercent / 200) + Math.min(0.3, prospects.length / 100)) * 100) / 100
       : 0.25;
 
+  const metadata = buildCoverageMetadata(prospects, stagedMetadata, discoveryIntent);
+
   return {
     query,
     prospects,
@@ -130,10 +143,47 @@ export function runSearch(input: RawSearchInput): SearchResponse {
       coveragePercent,
       confidence,
     },
-    discovery: discoveryMeta ?? {
-      totalAfterRank: prospects.length,
-      totalReturned: prospects.length,
-      catalogTotal: totalCatalogRecords,
-    },
+    discovery: discoveryMeta
+      ? { ...discoveryMeta, metadata }
+      : {
+          totalAfterRank: prospects.length,
+          totalReturned: prospects.length,
+          catalogTotal: totalCatalogRecords,
+          metadata,
+        },
+  };
+}
+
+/**
+ * Final coverage metadata reflecting the prospects actually returned (including
+ * any directory fallback), reusing staged-discovery hints where available.
+ */
+function buildCoverageMetadata(
+  prospects: { sourceRecords?: { connector: string }[] }[],
+  staged: DiscoveryMetadata | undefined,
+  discoveryIntent: boolean,
+): DiscoveryMetadata {
+  const resultCount = prospects.length;
+  const sourceSummary: Record<string, number> = {};
+  for (const p of prospects) {
+    const seen = new Set<string>();
+    for (const rec of p.sourceRecords ?? []) {
+      if (seen.has(rec.connector)) continue;
+      seen.add(rec.connector);
+      sourceSummary[rec.connector] = (sourceSummary[rec.connector] ?? 0) + 1;
+    }
+  }
+
+  return {
+    resultCount,
+    threshold: DISCOVERY_THRESHOLD,
+    coverageStatus: computeCoverageStatus(resultCount),
+    stagesRun: staged?.stagesRun ?? [discoveryIntent ? "catalog" : "directory"],
+    expanded: staged?.expanded ?? false,
+    fallbackReason: staged?.fallbackReason ?? null,
+    sourceSummary: Object.keys(sourceSummary).length
+      ? sourceSummary
+      : (staged?.sourceSummary ?? {}),
+    marketBenchmarkAvailable: staged?.marketBenchmarkAvailable ?? false,
   };
 }

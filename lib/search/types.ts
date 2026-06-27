@@ -8,6 +8,7 @@
  */
 
 import type { HealthPlanType } from "@/lib/discovery/healthPlanType";
+import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -220,6 +221,8 @@ export interface RawProspect {
   description?: string;
   /** Estimated employee count when available. */
   employeeEstimate?: number;
+  /** Estimated covered lives / members (payers) when available. */
+  coveredLives?: number;
   /** Machine-readable discovery match codes (from rank.ts). */
   discoveryMatchReasons?: string[];
   /** Discovery confidence (0–1) when from catalog. */
@@ -340,6 +343,8 @@ export interface Prospect {
   description?: string;
   /** Estimated employee count when available. */
   employeeEstimate?: number;
+  /** Estimated covered lives / members (payers) when available. */
+  coveredLives?: number;
   /** Human-readable bullets explaining why this org matched the search. */
   matchReasons: string[];
   /** Discovery confidence (0–1) when from catalog. */
@@ -365,5 +370,7 @@ export interface SearchResponse {
     totalAfterRank: number;
     totalReturned: number;
     catalogTotal: number;
+    /** Staged-discovery coverage metadata (fallback status, sources, benchmark). */
+    metadata?: DiscoveryMetadata;
   };
 }

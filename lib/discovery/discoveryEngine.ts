@@ -18,6 +18,14 @@ import {
   type RankedOrganization,
 } from "./rank";
 import { discoverFromCatalogIndex } from "./catalog/catalogIndex";
+import type { Organization } from "./organization";
+import type { SearchIntent } from "./intent";
+import { ANY_REGION } from "@/lib/search/regions";
+import {
+  DISCOVERY_THRESHOLD,
+  computeCoverageStatus,
+  type DiscoveryMetadata,
+} from "./coverage";
 
 let initialized = false;
 
@@ -113,4 +121,173 @@ export function discoverOrganizationsSync(
   const maxResults = options.maxResults ?? 500;
 
   return runDiscoveryPipeline(intent, connectorIds, maxResults);
+}
+
+export interface StagedDiscoverResult extends DiscoverResult {
+  metadata: DiscoveryMetadata;
+}
+
+const BENCHMARK_SECTORS = new Set([
+  "healthcare",
+  "manufacturing",
+  "financial-services",
+  "education",
+  "public-sector",
+  "nonprofit",
+  "retail-consumer",
+  "technology",
+]);
+const BENCHMARK_INDUSTRIES = new Set([
+  "payers",
+  "providers",
+  "life-sciences",
+  "food-beverage",
+  "packaging",
+  "chemicals",
+  "automotive",
+  "banks",
+  "fintech",
+  "universities",
+  "retail",
+  "software",
+]);
+
+/** Whether a Census market benchmark scope exists for this intent (sync, no network). */
+function marketBenchmarkAvailableForIntent(intent: SearchIntent): boolean {
+  if (intent.industryId && BENCHMARK_INDUSTRIES.has(intent.industryId)) return true;
+  if (intent.sectorId && BENCHMARK_SECTORS.has(intent.sectorId)) return true;
+  return /\b(manufactur|factory|plant|hospital|health system|provider|clinic|health plan|payer|insurer|mco|medicare|medicaid|bank|credit union|financial|universit|college|school|retail|store|grocery)\b/.test(
+    intent.query.toLowerCase(),
+  );
+}
+
+/**
+ * Progressively relaxed intents for fallback expansion. Geography of a selected
+ * state and the organization-type / health-plan-subtype guards are always
+ * preserved so the domain stays pure (e.g. a health-plan search never widens to
+ * hospitals or PBMs).
+ */
+function buildRelaxedIntents(intent: SearchIntent): SearchIntent[] {
+  const out: SearchIntent[] = [];
+  const hasTypeGuard = Boolean(intent.organizationTypeId);
+
+  if (intent.city) {
+    out.push({ ...intent, city: null });
+  }
+  if (intent.industryId || intent.alternateIndustryIds.length > 0) {
+    out.push({
+      ...intent,
+      city: null,
+      industryId: null,
+      alternateIndustryIds: [],
+    });
+  }
+  // Only drop the sector guard when org type still pins the domain.
+  if (hasTypeGuard && (intent.sectorId || intent.industryId)) {
+    out.push({
+      ...intent,
+      city: null,
+      industryId: null,
+      alternateIndustryIds: [],
+      sectorId: null,
+      alternateSectorIds: [],
+    });
+  }
+  // Widen geography only when no specific state was requested.
+  if (intent.region !== ANY_REGION && !intent.state) {
+    const last = out[out.length - 1] ?? intent;
+    out.push({ ...last, region: ANY_REGION });
+  }
+
+  return out;
+}
+
+function uniqueByIdCount(orgs: Organization[]): number {
+  return new Set(orgs.map((o) => o.id)).size;
+}
+
+/**
+ * Staged discovery: catalog first, then domain-safe fallback expansion when the
+ * initial pass is below threshold. Never fabricates organizations and never
+ * blocks on network calls. Returns coverage metadata for the API/UI.
+ */
+export function discoverOrganizationsStaged(
+  query: string,
+  options: DiscoverOptions = {},
+): StagedDiscoverResult {
+  initDiscoveryEngine();
+  getConnectors();
+
+  const intent = parseSearchIntent(query, options);
+  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const maxResults = options.maxResults ?? 500;
+  const started = performance.now();
+
+  const stagesRun: string[] = ["catalog"];
+  let pool = discoverFromCatalogIndex(intent, connectorIds);
+  const catalogCount = uniqueByIdCount(pool);
+
+  let expanded = false;
+  let fallbackReason: string | null = null;
+
+  if (catalogCount < DISCOVERY_THRESHOLD) {
+    fallbackReason = `Catalog returned ${catalogCount} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;
+    for (const relaxed of buildRelaxedIntents(intent)) {
+      const more = discoverFromCatalogIndex(relaxed, connectorIds);
+      if (more.length > 0) pool = pool.concat(more);
+      if (uniqueByIdCount(pool) >= DISCOVERY_THRESHOLD) break;
+    }
+    expanded = uniqueByIdCount(pool) > catalogCount;
+    if (expanded) stagesRun.push("connector-expansion", "merge-rank");
+  }
+
+  const deduped = dedupeOrganizations(pool);
+  const ranked = rankOrganizations(deduped, intent);
+  // Relaxed passes already enforce org-type/state purity; only hard-filter the
+  // unexpanded catalog pass to preserve existing single-stage behavior.
+  const filtered = expanded
+    ? ranked
+    : filterIncompatibleOrganizations(ranked, intent);
+  const limited = limitResults(filtered, maxResults);
+
+  const marketBenchmarkAvailable = marketBenchmarkAvailableForIntent(intent);
+  if (filtered.length === 0 && marketBenchmarkAvailable) {
+    stagesRun.push("market-benchmark");
+  }
+
+  const metadata: DiscoveryMetadata = {
+    resultCount: filtered.length,
+    threshold: DISCOVERY_THRESHOLD,
+    coverageStatus: computeCoverageStatus(filtered.length),
+    stagesRun,
+    expanded,
+    fallbackReason,
+    sourceSummary: summarizeOrganizationSources(limited),
+    marketBenchmarkAvailable,
+  };
+
+  return {
+    intent,
+    organizations: limited,
+    totalBeforeDedupe: pool.length,
+    totalAfterRank: filtered.length,
+    totalReturned: limited.length,
+    latencyMs: Math.round((performance.now() - started) * 100) / 100,
+    metadata,
+  };
+}
+
+function summarizeOrganizationSources(
+  orgs: Organization[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const org of orgs) {
+    const seen = new Set<string>();
+    for (const src of org.sources) {
+      if (seen.has(src.connector)) continue;
+      seen.add(src.connector);
+      counts[src.connector] = (counts[src.connector] ?? 0) + 1;
+    }
+  }
+  return counts;
 }

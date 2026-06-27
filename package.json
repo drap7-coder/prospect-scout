@@ -22,8 +22,10 @@
     "test:census": "node --import tsx scripts/censusChecks.ts",
     "test:propublica": "node --import tsx scripts/propublicaChecks.ts",
     "test:intel": "node --import tsx scripts/synthesizeCardChecks.ts",
+    "test:exec": "node --import tsx scripts/executiveCardChecks.ts",
     "test:discovery-rows": "node --import tsx scripts/discoveryRowsChecks.ts",
     "test:aca": "node --import tsx scripts/acaMarketplaceChecks.ts",
+    "test:fallback": "node --import tsx scripts/fallbackDiscoveryChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
     "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
   },

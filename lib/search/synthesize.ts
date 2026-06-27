@@ -221,6 +221,7 @@ export function synthesizeProspect(
     website: prospect.website,
     description: prospect.description,
     employeeEstimate: prospect.employeeEstimate,
+    coveredLives: prospect.coveredLives,
     matchReasons: buildMatchReasons(prospect, query, breakdown),
     discoveryConfidence: prospect.discoveryConfidence,
     ein: prospect.ein,

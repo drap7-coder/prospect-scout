@@ -35,6 +35,7 @@ import {
   type ResultView,
 } from "@/lib/discovery/discoveryRows";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
+import { DiscoveryCoverageNote } from "@/app/components/DiscoveryCoverageNote";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultViewToggle } from "@/app/components/ResultViewToggle";
 import { DiscoveryView } from "@/app/components/DiscoveryView";
@@ -424,6 +425,7 @@ export function ResultsClient() {
 
   const indexedOrganizations =
     catalogFacets?.scopeTotal ?? matchCatalogSummary?.catalogTotal ?? null;
+  const discoveryMetadata = discoveryTotals?.metadata ?? null;
 
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
@@ -539,15 +541,20 @@ export function ResultsClient() {
                 ) : null}
 
                 {phase === "ready" && filtered.length === 0 && !showMockSkeleton ? (
-                  <ResultsEmptyState
-                    variant={
-                      allProspects.length === 0 ? "no-results" : "filtered-out"
-                    }
-                  />
+                  allProspects.length === 0 && discoveryMetadata ? (
+                    <DiscoveryCoverageNote metadata={discoveryMetadata} emphasis />
+                  ) : (
+                    <ResultsEmptyState
+                      variant={
+                        allProspects.length === 0 ? "no-results" : "filtered-out"
+                      }
+                    />
+                  )
                 ) : null}
 
                 {showResults && filtered.length > 0 ? (
                   <div className="flex flex-col gap-3 sm:gap-4">
+                    <DiscoveryCoverageNote metadata={discoveryMetadata} />
                     {matchCatalogSummary ? (
                       <p className="font-mono text-xs text-muted-2">
                         Showing{" "}

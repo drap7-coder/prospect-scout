@@ -40,6 +40,16 @@ function deriveFitKeywords(org: Organization): string[] {
 
 /** Convert a canonical Organization into a RawProspect for the scoring pipeline. */
 export function organizationToRawProspect(org: Organization): RawProspect {
+  // `employeeRange` folds member counts in when no headcount exists. Recover the
+  // distinction so payers report covered lives, not a mislabeled "employee" count.
+  const memberEstimate =
+    org.memberEstimate != null && org.memberEstimate > 0 ? org.memberEstimate : undefined;
+  const parsedEmployees = parseEmployeeEstimate(org);
+  const employeeEstimate =
+    parsedEmployees != null && memberEstimate != null && parsedEmployees === memberEstimate
+      ? undefined
+      : parsedEmployees;
+
   return {
     id: org.id,
     name: org.canonicalName,
@@ -62,7 +72,8 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     publicCompany: org.ownership === "public",
     website: org.website ?? undefined,
     description: org.description ?? undefined,
-    employeeEstimate: parseEmployeeEstimate(org),
+    employeeEstimate,
+    coveredLives: memberEstimate,
     discoveryConfidence: org.confidence,
     sourceRecords: sourceRecordsFromOrgSources(org.sources),
   };
