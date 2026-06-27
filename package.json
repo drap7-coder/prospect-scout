@@ -19,6 +19,7 @@
     "test:builder": "node --import tsx scripts/prospectBuilderChecks.ts",
     "test:web": "node --import tsx scripts/publicWebChecks.ts",
     "test:discovery": "node --import tsx scripts/discoveryChecks.ts",
+    "test:census": "node --import tsx scripts/censusChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
     "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
   },

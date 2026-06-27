@@ -29,6 +29,7 @@ import {
   type ResultDensity,
 } from "@/lib/intelligence/resultDensity";
 import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
+import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultRow } from "@/app/components/ResultRow";
@@ -115,6 +116,10 @@ export function ResultsClient() {
   const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
     null,
   );
+  const [marketSize, setMarketSize] = useState<MarketSizeResult | null>(null);
+  const [marketCoveragePercent, setMarketCoveragePercent] = useState<
+    number | null
+  >(null);
   const [discoveryTotals, setDiscoveryTotals] = useState<
     SearchResponse["discovery"] | null
   >(null);
@@ -293,6 +298,8 @@ export function ResultsClient() {
   useEffect(() => {
     if (!urlState.query.trim()) {
       setCatalogFacets(null);
+      setMarketSize(null);
+      setMarketCoveragePercent(null);
       return;
     }
     const ac = new AbortController();
@@ -311,6 +318,45 @@ export function ResultsClient() {
       });
     return () => ac.abort();
   }, [searchFetchKey, urlState]);
+
+  useEffect(() => {
+    if (!urlState.query.trim()) return;
+    const ac = new AbortController();
+    fetch("/api/market-size", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(urlState),
+      signal: ac.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { marketSize?: MarketSizeResult } | null) => {
+        if (data?.marketSize) setMarketSize(data.marketSize);
+      })
+      .catch(() => {
+        /* market size is best-effort */
+      });
+    return () => ac.abort();
+  }, [searchFetchKey, urlState]);
+
+  useEffect(() => {
+    if (!catalogFacets || !marketSize?.available) {
+      setMarketCoveragePercent(null);
+      return;
+    }
+    const indexed = catalogFacets.scopeTotal;
+    if (
+      marketSize.estimatedEstablishments == null ||
+      marketSize.estimatedEstablishments <= 0
+    ) {
+      setMarketCoveragePercent(null);
+      return;
+    }
+    setMarketCoveragePercent(
+      Math.round(
+        Math.min((indexed / marketSize.estimatedEstablishments) * 100, 100) * 10,
+      ) / 10,
+    );
+  }, [catalogFacets, marketSize]);
 
   useEffect(() => {
     if (urlState.query.trim()) {
@@ -367,6 +413,9 @@ export function ResultsClient() {
           catalogTotal: catalogFacets.catalogTotal,
         }
       : null);
+
+  const indexedOrganizations =
+    catalogFacets?.scopeTotal ?? matchCatalogSummary?.catalogTotal ?? null;
 
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
@@ -497,9 +546,25 @@ export function ResultsClient() {
                         Showing{" "}
                         {matchCatalogSummary.totalReturned.toLocaleString()} of{" "}
                         {matchCatalogSummary.totalAfterRank.toLocaleString()}{" "}
-                        matches ·{" "}
-                        {matchCatalogSummary.catalogTotal.toLocaleString()}{" "}
-                        indexed
+                        matches
+                        {indexedOrganizations != null ? (
+                          <>
+                            {" "}
+                            · {indexedOrganizations.toLocaleString()} indexed
+                          </>
+                        ) : null}
+                        {marketSize?.available &&
+                        marketSize.estimatedEstablishments != null ? (
+                          <>
+                            {" "}
+                            ·{" "}
+                            {marketSize.estimatedEstablishments.toLocaleString()}{" "}
+                            est. market
+                          </>
+                        ) : null}
+                        {marketCoveragePercent != null ? (
+                          <> · {marketCoveragePercent}% coverage</>
+                        ) : null}
                       </p>
                     ) : null}
                     {filtered.map((prospect, i) => (

@@ -1,10 +1,18 @@
 import { runDiagnostics } from "@/lib/discovery/diagnostics";
 import { canonicalOrgTypeLabel } from "@/lib/discovery/canonicalOrgType";
+import {
+  computeMarketCoveragePercent,
+  getCensusConnectorStatus,
+} from "@/lib/discovery/connectors/census";
+import { computeCatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
+import { parseSearchIntent } from "@/lib/discovery/intent";
 
 export const metadata = {
   title: "Discovery Diagnostics",
   robots: "noindex",
 };
+
+export const dynamic = "force-dynamic";
 
 function StatRow({ label, value }: { label: string; value: string | number }) {
   return (
@@ -30,8 +38,15 @@ function Section({
   );
 }
 
-export default function DiagnosticsPage() {
+export default async function DiagnosticsPage() {
   const report = runDiagnostics();
+  const census = await getCensusConnectorStatus();
+  const sampleIntent = parseSearchIntent("manufacturers in ohio");
+  const sampleFacets = computeCatalogFacetCounts(sampleIntent);
+  const sampleCoverage = computeMarketCoveragePercent(
+    sampleFacets.scopeTotal,
+    census.sampleMarketSize?.estimatedEstablishments ?? null,
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -150,6 +165,58 @@ export default function DiagnosticsPage() {
         <Section title="Catalog Freshness">
           <StatRow label="Last successful ingest" value={report.catalogFreshness.lastIngest.slice(0, 10)} />
           <StatRow label="Manifest generated" value={report.catalogFreshness.generatedAt.slice(0, 10)} />
+        </Section>
+
+        <Section title="Market Analytics (Census CBP)">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Census data is used for market sizing only — establishments are never
+            ingested into the organization catalog.
+          </p>
+          <StatRow
+            label="API key configured"
+            value={census.configured ? "Yes" : "No (set CENSUS_API_KEY)"}
+          />
+          <StatRow label="Cache entries" value={census.cacheEntries} />
+          <StatRow
+            label="Last query"
+            value={
+              census.lastQueryAt
+                ? new Date(census.lastQueryAt).toLocaleString()
+                : "—"
+            }
+          />
+          {census.lastError ? (
+            <StatRow label="Last error" value={census.lastError} />
+          ) : null}
+          {census.sampleMarketSize?.available ? (
+            <>
+              <StatRow
+                label="Sample query"
+                value={`${census.sampleMarketSize.geography.label} · NAICS ${census.sampleMarketSize.naics}`}
+              />
+              <StatRow
+                label="Estimated establishments (CBP)"
+                value={
+                  census.sampleMarketSize.estimatedEstablishments?.toLocaleString() ??
+                  "—"
+                }
+              />
+              <StatRow
+                label="Indexed orgs (same scope)"
+                value={sampleFacets.scopeTotal.toLocaleString()}
+              />
+              <StatRow
+                label="Catalog vs market coverage"
+                value={
+                  sampleCoverage != null ? `${sampleCoverage}%` : "—"
+                }
+              />
+              <StatRow
+                label="Employment (CBP)"
+                value={census.sampleMarketSize.employment?.toLocaleString() ?? "—"}
+              />
+            </>
+          ) : null}
         </Section>
 
         <Section title="Connector Health">
