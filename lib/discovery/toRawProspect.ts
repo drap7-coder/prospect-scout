@@ -2,6 +2,16 @@ import type { RawProspect, SizeTier } from "@/lib/search/types";
 import type { Organization } from "./organization";
 import type { RankedOrganization } from "./rank";
 import { sourceRecordsFromOrgSources } from "@/lib/intelligence/sourceRecords";
+import { normalizeEinDigits } from "@/lib/discovery/connectors/propublica/normalize";
+
+function extractEinFromOrgId(id: string): string | undefined {
+  const match = id.match(/(?:irs-nonprofits-)(\d+)/i);
+  if (match) {
+    const digits = normalizeEinDigits(match[1]);
+    return digits.length === 9 ? digits : undefined;
+  }
+  return undefined;
+}
 
 function estimateSize(org: Organization): SizeTier {
   const emp = org.employeeRange ? Number(org.employeeRange) : 0;
@@ -45,6 +55,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     industryId: org.industries[0],
     organizationTypeId: org.organizationType ?? undefined,
     canonicalOrganizationTypeId: org.canonicalOrganizationType,
+    ein: extractEinFromOrgId(org.id),
     stateCode: org.states[0],
     publicCompany: org.ownership === "public",
     website: org.website ?? undefined,

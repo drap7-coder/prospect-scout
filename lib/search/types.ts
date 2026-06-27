@@ -218,6 +218,8 @@ export interface RawProspect {
   discoveryMatchReasons?: string[];
   /** Discovery confidence (0–1) when from catalog. */
   discoveryConfidence?: number;
+  /** IRS EIN when known (nonprofit catalog records). */
+  ein?: string;
   /** Connector provenance from discovery catalog. */
   sourceRecords?: ProspectSourceRecord[];
 }
@@ -332,6 +334,8 @@ export interface Prospect {
   matchReasons: string[];
   /** Discovery confidence (0–1) when from catalog. */
   discoveryConfidence?: number;
+  /** IRS EIN when known from nonprofit catalog records. */
+  ein?: string;
   /** Connector provenance with metadata for rich source badges. */
   sourceRecords: ProspectSourceRecord[];
 }

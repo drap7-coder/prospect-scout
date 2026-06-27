@@ -22,6 +22,12 @@ import {
 } from "@/lib/taxonomy";
 import { useInteractionFeedback } from "./InteractionProvider";
 import { EnrichmentHint, SourceRecordBadge } from "./SourceRecordPopover";
+import {
+  isNonprofitProspect,
+  NonprofitEnrichmentStrip,
+  extractEinFromProspectId,
+  parseCityFromLocation,
+} from "./NonprofitEnrichmentStrip";
 
 const SIZE_LABELS: Record<SizeTier, string> = {
   small: "Small",
@@ -137,6 +143,10 @@ export function ResultCard({
   const showExpanded = density === "detailed" || expanded;
   const awaitingEnrichment =
     enriching && prospect.signals.length === 0 && prospect.directoryMatch;
+  const showNonprofitEnrichment = isNonprofitProspect(prospect);
+  const nonprofitEin =
+    prospect.ein ?? extractEinFromProspectId(prospect.id) ?? null;
+  const nonprofitCity = parseCityFromLocation(prospect.location);
 
   const summary =
     prospect.description ??
@@ -259,6 +269,15 @@ export function ResultCard({
           {primaryMatchReason(prospect)}
         </p>
       )}
+
+      {showNonprofitEnrichment ? (
+        <NonprofitEnrichmentStrip
+          name={prospect.name}
+          ein={nonprofitEin}
+          city={nonprofitCity}
+          state={prospect.stateCode ?? null}
+        />
+      ) : null}
 
       {/* Signals — comfortable+ when expanded or detailed */}
       {showExpanded && density !== "compact" && signalGroups.length > 0 ? (

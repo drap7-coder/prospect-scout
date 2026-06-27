@@ -4,6 +4,7 @@ import {
   computeMarketCoveragePercent,
   getCensusConnectorStatus,
 } from "@/lib/discovery/connectors/census";
+import { getProPublicaConnectorStatus } from "@/lib/discovery/connectors/propublica";
 import { computeCatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { parseSearchIntent } from "@/lib/discovery/intent";
 
@@ -41,6 +42,7 @@ function Section({
 export default async function DiagnosticsPage() {
   const report = runDiagnostics();
   const census = await getCensusConnectorStatus();
+  const propublica = await getProPublicaConnectorStatus();
   const sampleIntent = parseSearchIntent("manufacturers in ohio");
   const sampleFacets = computeCatalogFacetCounts(sampleIntent);
   const sampleCoverage = computeMarketCoveragePercent(
@@ -216,6 +218,57 @@ export default async function DiagnosticsPage() {
                 value={census.sampleMarketSize.employment?.toLocaleString() ?? "—"}
               />
             </>
+          ) : null}
+        </Section>
+
+        <Section title="Nonprofit Enrichment (ProPublica)">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            ProPublica enriches nonprofit result cards with Form 990 data. It does
+            not add organizations to the catalog index.
+          </p>
+          <StatRow label="Status" value={propublica.configured ? "Available" : "Unavailable"} />
+          <StatRow
+            label="Last request"
+            value={
+              propublica.lastRequestAt
+                ? new Date(propublica.lastRequestAt).toLocaleString()
+                : "—"
+            }
+          />
+          <StatRow label="Cache entries" value={propublica.cacheEntries} />
+          <StatRow label="Cache hit rate" value={`${propublica.cacheHitRate}%`} />
+          <StatRow
+            label="Average latency"
+            value={
+              propublica.averageLatencyMs > 0
+                ? `${propublica.averageLatencyMs} ms`
+                : "—"
+            }
+          />
+          {propublica.lastError ? (
+            <StatRow label="Last error" value={propublica.lastError} />
+          ) : null}
+          {propublica.sampleResult?.enrichment ? (
+            <>
+              <StatRow
+                label="Sample query"
+                value="Pro Publica · NY"
+              />
+              <StatRow
+                label="Sample match confidence"
+                value={`${Math.round(propublica.sampleResult.confidence * 100)}%`}
+              />
+              <StatRow
+                label="Sample legal name"
+                value={propublica.sampleResult.enrichment.legalName}
+              />
+              <StatRow
+                label="Sample EIN"
+                value={propublica.sampleResult.enrichment.strein}
+              />
+            </>
+          ) : propublica.sampleResult?.error ? (
+            <StatRow label="Sample error" value={propublica.sampleResult.error} />
           ) : null}
         </Section>
 

@@ -221,6 +221,7 @@ export function synthesizeProspect(
     employeeEstimate: prospect.employeeEstimate,
     matchReasons: buildMatchReasons(prospect, query, breakdown),
     discoveryConfidence: prospect.discoveryConfidence,
+    ein: prospect.ein,
     sourceRecords: prospect.sourceRecords ?? [],
   };
 }

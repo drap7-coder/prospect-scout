@@ -20,6 +20,7 @@
     "test:web": "node --import tsx scripts/publicWebChecks.ts",
     "test:discovery": "node --import tsx scripts/discoveryChecks.ts",
     "test:census": "node --import tsx scripts/censusChecks.ts",
+    "test:propublica": "node --import tsx scripts/propublicaChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
     "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
   },
