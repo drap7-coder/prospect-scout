@@ -101,6 +101,30 @@ function countByField(
 }
 
 /**
+ * Count orgs across a multi-value (array) dimension such as states or regions.
+ * Each org contributes once per distinct value so, e.g., a health plan operating
+ * in 12 states increments all 12 state counts — every state with at least one
+ * matching org appears in the facet.
+ */
+function countByMultiField(
+  orgs: Organization[],
+  values: (org: Organization) => readonly string[] | null | undefined,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const org of orgs) {
+    const list = values(org);
+    if (!list || list.length === 0) continue;
+    const seen = new Set<string>();
+    for (const raw of list) {
+      if (!raw || seen.has(raw)) continue;
+      seen.add(raw);
+      counts[raw] = (counts[raw] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
  * Compute facet counts from the full canonical catalog index.
  * Each dimension excludes its own filter (standard faceted search).
  */
@@ -133,8 +157,8 @@ export function computeCatalogFacetCounts(intent: SearchIntent): CatalogFacetCou
       canonicalPool,
       (o) => o.canonicalOrganizationType,
     ),
-    state: countByField(statePool, (o) => o.states[0]),
-    region: countByField(regionPool, (o) => o.regions[0]),
+    state: countByMultiField(statePool, (o) => o.states),
+    region: countByMultiField(regionPool, (o) => o.regions),
   };
 }
 

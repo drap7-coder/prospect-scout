@@ -244,6 +244,50 @@ check("health plan facet counts come from full catalog not result cap", () => {
   }
 });
 
+check("national health_plan facet exposes every state with a health plan", () => {
+  initDiscoveryEngine();
+  // No state and no region selected → national scope, scoped to health plans.
+  const intent = parseSearchIntent("", { organizationTypeId: "health-plan" });
+  assert.equal(intent.state, null, "intent must be national (no state)");
+  const facets = computeCatalogFacetCounts(intent);
+
+  const healthPlans = getCatalogOrganizations().filter(
+    (o) => o.canonicalOrganizationType === "health-plan",
+  );
+  assert.ok(healthPlans.length > 0, "catalog must contain health plans");
+
+  // Every distinct state served by a health plan org in CatalogIndex.
+  const expectedStates = new Set<string>();
+  for (const o of healthPlans) {
+    for (const s of o.states) {
+      if (s) expectedStates.add(s);
+    }
+  }
+  assert.ok(
+    expectedStates.size > 0,
+    "health plans must serve at least one state",
+  );
+
+  // Multi-state health plans previously collapsed to states[0]; the facet must
+  // now expose every state that has at least one health_plan org.
+  const facetStates = Object.keys(facets.state).filter(
+    (k) => (facets.state[k] ?? 0) > 0,
+  );
+  assert.equal(
+    facetStates.length,
+    expectedStates.size,
+    "state facet must list exactly the states with health_plan orgs",
+  );
+  for (const s of expectedStates) {
+    const manual = healthPlans.filter((o) => o.states.includes(s)).length;
+    assert.equal(
+      facets.state[s],
+      manual,
+      `state ${s} count must equal the full CatalogIndex tally`,
+    );
+  }
+});
+
 check("discovery ranks full catalog before pagination cap", () => {
   initDiscoveryEngine();
   const result = discoverOrganizationsSync("manufacturers in ohio", {

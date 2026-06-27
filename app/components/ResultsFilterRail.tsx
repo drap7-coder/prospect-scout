@@ -222,7 +222,9 @@ export function ResultsFilterRail({
 
   function stateCount(stateId: string | null): number {
     if (!catalogFacets) return refineCount({ state: stateId });
-    if (!stateId) return sumFacet(catalogFacets.state);
+    // States are multi-valued per org, so summing per-state counts would
+    // over-count. The in-scope org total is the correct "All states" figure.
+    if (!stateId) return catalogFacets.scopeTotal;
     return catalogFacets.state[stateId] ?? 0;
   }
 
@@ -368,7 +370,7 @@ export function ResultsFilterRail({
               {
                 value: "",
                 label: "All states",
-                count: catalogFacets ? sumFacet(catalogFacets.state) : prospects.length,
+                count: catalogFacets ? stateCount(null) : prospects.length,
               },
               ...US_STATE_FILTERS.filter((st) =>
                 visible(stateCount(st.id), state.state === st.id),
