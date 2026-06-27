@@ -1,6 +1,7 @@
 import type { RawProspect, SizeTier } from "@/lib/search/types";
 import type { Organization } from "./organization";
 import type { RankedOrganization } from "./rank";
+import { sourceRecordsFromOrgSources } from "@/lib/intelligence/sourceRecords";
 
 function estimateSize(org: Organization): SizeTier {
   const emp = org.employeeRange ? Number(org.employeeRange) : 0;
@@ -9,6 +10,12 @@ function estimateSize(org: Organization): SizeTier {
   if (emp >= 500_000) return "mid";
   if (emp >= 5_000) return "mid";
   return "large";
+}
+
+function parseEmployeeEstimate(org: Organization): number | undefined {
+  if (!org.employeeRange) return undefined;
+  const n = Number(org.employeeRange.replace(/[^\d]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 function deriveFitKeywords(org: Organization): string[] {
@@ -39,6 +46,11 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     organizationTypeId: org.organizationType ?? undefined,
     stateCode: org.states[0],
     publicCompany: org.ownership === "public",
+    website: org.website ?? undefined,
+    description: org.description ?? undefined,
+    employeeEstimate: parseEmployeeEstimate(org),
+    discoveryConfidence: org.confidence,
+    sourceRecords: sourceRecordsFromOrgSources(org.sources),
   };
 }
 
@@ -46,5 +58,9 @@ export function organizationToRawProspect(org: Organization): RawProspect {
 export function rankedOrganizationsToRawProspects(
   orgs: RankedOrganization[],
 ): RawProspect[] {
-  return orgs.map(organizationToRawProspect);
+  return orgs.map((org) => ({
+    ...organizationToRawProspect(org),
+    discoveryMatchReasons: org.matchReasons,
+    discoveryConfidence: org.confidence,
+  }));
 }

@@ -206,6 +206,28 @@ export interface RawProspect {
   /** US state code when known from directory. */
   stateCode?: string;
   publicCompany?: boolean;
+  /** Official website when known from catalog or enrichment. */
+  website?: string;
+  /** Short org description from catalog. */
+  description?: string;
+  /** Estimated employee count when available. */
+  employeeEstimate?: number;
+  /** Machine-readable discovery match codes (from rank.ts). */
+  discoveryMatchReasons?: string[];
+  /** Discovery confidence (0–1) when from catalog. */
+  discoveryConfidence?: number;
+  /** Connector provenance from discovery catalog. */
+  sourceRecords?: ProspectSourceRecord[];
+}
+
+/** Provenance record for a data connector backing this organization. */
+export interface ProspectSourceRecord {
+  connector: string;
+  label: string;
+  confidence: number;
+  lastUpdated?: string;
+  sourceUrl?: string;
+  evidenceText?: string;
 }
 
 /** A fully enriched signal ready to score, explain, and display. */
@@ -296,6 +318,18 @@ export interface Prospect {
   publicCompany?: boolean;
   /** True when sourced from master directory without live enrichment. */
   directoryMatch?: boolean;
+  /** Official website when known. */
+  website?: string;
+  /** Short org description from catalog or enrichment. */
+  description?: string;
+  /** Estimated employee count when available. */
+  employeeEstimate?: number;
+  /** Human-readable bullets explaining why this org matched the search. */
+  matchReasons: string[];
+  /** Discovery confidence (0–1) when from catalog. */
+  discoveryConfidence?: number;
+  /** Connector provenance with metadata for rich source badges. */
+  sourceRecords: ProspectSourceRecord[];
 }
 
 /** Response shape returned by `/api/search`. */

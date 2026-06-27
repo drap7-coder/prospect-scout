@@ -48,7 +48,9 @@ export function IntelligencePreview({
   const evidence = buildEvidenceItems(prospect);
   const grouped = groupEvidenceBySource(evidence);
   const listReason =
-    prospect.whyItMatters[0] ?? "Matched your search criteria and signal profile.";
+    prospect.matchReasons[0] ??
+    prospect.whyItMatters[0] ??
+    "Matched your search criteria and signal profile.";
   const freshness = prospectFreshness(prospect);
   const tone = scoreTone(prospect.score);
   const isPanel = variant === "panel";

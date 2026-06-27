@@ -42,6 +42,52 @@ function FilterSection({
   );
 }
 
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; count?: number; dimmed?: boolean }[];
+}) {
+  return (
+    <label className="block px-2 py-1">
+      <span className="label-mono text-[0.625rem] text-muted-2">{label}</span>
+      <div className="relative mt-1.5">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none rounded-lg border border-border bg-surface-2 px-3 py-2 pr-8 font-mono text-xs text-foreground outline-none transition focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20"
+        >
+          {options.map((o) => (
+            <option
+              key={o.value}
+              value={o.value}
+              disabled={o.dimmed && o.count === 0 && o.value !== value}
+            >
+              {o.label}
+              {o.count !== undefined ? ` (${o.count})` : ""}
+            </option>
+          ))}
+        </select>
+        <svg
+          className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden
+        >
+          <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </label>
+  );
+}
+
 function CheckboxRow({
   label,
   checked,
@@ -167,124 +213,143 @@ export function ResultsFilterRail({
 
   const rail = (
     <>
-      <FilterSection title="Sector" action={showAllToggle}>
-        <RadioRow
-          label="All sectors"
-          checked={!state.sector}
-          onChange={() =>
-            onChange({ sector: null, industry: null, organizationType: null })
-          }
-          count={prospects.length}
-        />
-        {SECTORS.filter((sector) =>
-          visible(count({ sector: sector.id, industry: null, organizationType: null }), state.sector === sector.id),
-        ).map((sector) => (
-          <RadioRow
-            key={sector.id}
-            label={sector.label}
-            checked={state.sector === sector.id}
-            onChange={() =>
+      <div className="border-b border-border/60 py-4">
+        <p className="label-mono px-2 text-foreground/80">Search criteria</p>
+        <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
+          Updates the organization search
+        </p>
+        <div className="mt-3 space-y-1">
+          <FilterSelect
+            label="Sector"
+            value={state.sector ?? ""}
+            onChange={(value) =>
               onChange({
-                sector: sector.id,
+                sector: value || null,
                 industry: null,
                 organizationType: null,
               })
             }
-            count={count({ sector: sector.id, industry: null, organizationType: null })}
-            dimmed={count({ sector: sector.id, industry: null, organizationType: null }) === 0}
+            options={[
+              { value: "", label: "All sectors", count: prospects.length },
+              ...SECTORS.filter((sector) =>
+                visible(
+                  count({
+                    sector: sector.id,
+                    industry: null,
+                    organizationType: null,
+                  }),
+                  state.sector === sector.id,
+                ),
+              ).map((sector) => ({
+                value: sector.id,
+                label: sector.label,
+                count: count({
+                  sector: sector.id,
+                  industry: null,
+                  organizationType: null,
+                }),
+                dimmed:
+                  count({
+                    sector: sector.id,
+                    industry: null,
+                    organizationType: null,
+                  }) === 0,
+              })),
+            ]}
           />
-        ))}
-      </FilterSection>
 
-      <FilterSection title="Industry">
-        <RadioRow
-          label="All industries"
-          checked={!state.industry}
-          onChange={() => onChange({ industry: null, organizationType: null })}
-          count={prospects.length}
-        />
-        {industries
-          .filter((ind) =>
-            visible(count({ industry: ind.id, organizationType: null }), state.industry === ind.id),
-          )
-          .map((ind) => (
-            <RadioRow
-              key={ind.id}
-              label={ind.label}
-              checked={state.industry === ind.id}
-              onChange={() =>
-                onChange({ industry: ind.id, organizationType: null })
-              }
-              count={count({ industry: ind.id, organizationType: null })}
-              dimmed={count({ industry: ind.id, organizationType: null }) === 0}
-            />
-          ))}
-      </FilterSection>
-
-      <FilterSection title="Organization type">
-        <RadioRow
-          label="All types"
-          checked={!state.organizationType}
-          onChange={() => onChange({ organizationType: null })}
-          count={prospects.length}
-        />
-        {orgTypes
-          .filter((org) =>
-            visible(count({ organizationType: org.id }), state.organizationType === org.id),
-          )
-          .map((org) => (
-            <RadioRow
-              key={org.id}
-              label={org.label}
-              checked={state.organizationType === org.id}
-              onChange={() => onChange({ organizationType: org.id })}
-              count={count({ organizationType: org.id })}
-              dimmed={count({ organizationType: org.id }) === 0}
-            />
-          ))}
-      </FilterSection>
-
-      <FilterSection title="Region">
-        <RadioRow
-          label="All regions"
-          checked={!state.location}
-          onChange={() => onChange({ location: null })}
-          count={prospects.length}
-        />
-        {LOCATIONS.filter((loc) =>
-          visible(count({ location: loc.id }), state.location === loc.id),
-        ).map((loc) => (
-          <RadioRow
-            key={loc.id}
-            label={loc.label}
-            checked={state.location === loc.id}
-            onChange={() => onChange({ location: loc.id })}
-            count={count({ location: loc.id })}
-            dimmed={count({ location: loc.id }) === 0}
+          <FilterSelect
+            label="Industry"
+            value={state.industry ?? ""}
+            onChange={(value) =>
+              onChange({ industry: value || null, organizationType: null })
+            }
+            options={[
+              { value: "", label: "All industries", count: prospects.length },
+              ...industries
+                .filter((ind) =>
+                  visible(
+                    count({ industry: ind.id, organizationType: null }),
+                    state.industry === ind.id,
+                  ),
+                )
+                .map((ind) => ({
+                  value: ind.id,
+                  label: ind.label,
+                  count: count({ industry: ind.id, organizationType: null }),
+                  dimmed: count({ industry: ind.id, organizationType: null }) === 0,
+                })),
+            ]}
           />
-        ))}
-      </FilterSection>
 
-      <FilterSection title="State">
-        <RadioRow
-          label="All states"
-          checked={!state.state}
-          onChange={() => onChange({ state: null })}
-          count={prospects.length}
-        />
-        {US_STATE_FILTERS.filter((st) =>
-          visible(count({ state: st.id }), state.state === st.id),
-        ).map((st) => (
-          <RadioRow
-            key={st.id}
-            label={st.label}
-            checked={state.state === st.id}
-            onChange={() => onChange({ state: st.id })}
-            count={count({ state: st.id })}
-            dimmed={count({ state: st.id }) === 0}
+          <FilterSelect
+            label="Organization type"
+            value={state.organizationType ?? ""}
+            onChange={(value) => onChange({ organizationType: value || null })}
+            options={[
+              { value: "", label: "All types", count: prospects.length },
+              ...orgTypes
+                .filter((org) =>
+                  visible(
+                    count({ organizationType: org.id }),
+                    state.organizationType === org.id,
+                  ),
+                )
+                .map((org) => ({
+                  value: org.id,
+                  label: org.label,
+                  count: count({ organizationType: org.id }),
+                  dimmed: count({ organizationType: org.id }) === 0,
+                })),
+            ]}
           />
-        ))}
-      </FilterSection>
+
+          <FilterSelect
+            label="Region"
+            value={state.location ?? ""}
+            onChange={(value) => onChange({ location: value || null })}
+            options={[
+              { value: "", label: "All regions", count: prospects.length },
+              ...LOCATIONS.filter((loc) =>
+                visible(count({ location: loc.id }), state.location === loc.id),
+              ).map((loc) => ({
+                value: loc.id,
+                label: loc.label,
+                count: count({ location: loc.id }),
+                dimmed: count({ location: loc.id }) === 0,
+              })),
+            ]}
+          />
+
+          <FilterSelect
+            label="State"
+            value={state.state ?? ""}
+            onChange={(value) => onChange({ state: value || null })}
+            options={[
+              { value: "", label: "All states", count: prospects.length },
+              ...US_STATE_FILTERS.filter((st) =>
+                visible(count({ state: st.id }), state.state === st.id),
+              ).map((st) => ({
+                value: st.id,
+                label: st.label,
+                count: count({ state: st.id }),
+                dimmed: count({ state: st.id }) === 0,
+              })),
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="border-b border-border/60 py-4">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <div>
+            <p className="label-mono text-foreground/80">Narrow results</p>
+            <p className="mt-1 text-[0.6875rem] leading-relaxed text-muted-2">
+              Instant filter on the list below
+            </p>
+          </div>
+          {showAllToggle}
+        </div>
 
       <FilterSection title="Signal type">
         {SIGNAL_FILTERS.filter((sig) =>
@@ -377,6 +442,7 @@ export function ResultsFilterRail({
           />
         ))}
       </FilterSection>
+      </div>
 
       <div className="border-b border-border/60 py-4">
         <button
@@ -466,7 +532,7 @@ export function ResultsFilterRail({
         <div className="max-h-[min(70vh,32rem)] overflow-y-auto rounded-xl border border-border/80 bg-surface/40 px-3 py-2 lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-6rem)]">
           <p className="label-mono px-2 pt-2 text-accent-cyan/90">Filters</p>
           <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
-            Full taxonomy · counts reflect current results
+            Selectors re-run search · checkboxes narrow instantly
           </p>
           {(state.sector || state.industry || state.organizationType) && (
             <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">

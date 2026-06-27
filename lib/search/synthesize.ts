@@ -8,6 +8,7 @@ import type {
   SourceTrailItem,
 } from "@/lib/search/types";
 import { displayOrganizationType, organizationTypeLabel } from "@/lib/taxonomy";
+import { buildMatchReasons } from "@/lib/intelligence/matchReasons";
 import { ANY_REGION, regionLabel } from "./regions";
 
 /**
@@ -214,5 +215,11 @@ export function synthesizeProspect(
     stateCode: prospect.stateCode,
     publicCompany: prospect.publicCompany,
     directoryMatch: prospect.directoryMatch,
+    website: prospect.website,
+    description: prospect.description,
+    employeeEstimate: prospect.employeeEstimate,
+    matchReasons: buildMatchReasons(prospect, query, breakdown),
+    discoveryConfidence: prospect.discoveryConfidence,
+    sourceRecords: prospect.sourceRecords ?? [],
   };
 }

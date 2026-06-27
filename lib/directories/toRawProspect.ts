@@ -57,6 +57,16 @@ export function directoryRecordToRawProspect(record: OrganizationRecord): RawPro
     organizationTypeId: normalized.organizationTypeId,
     stateCode: headquartersState(normalized),
     publicCompany: normalized.publicCompany,
+    website: normalized.website,
+    employeeEstimate: normalized.employeeEstimate ?? normalized.memberEstimate,
+    sourceRecords: [
+      {
+        connector: "directory",
+        label: "Directory",
+        confidence: 0.88,
+        evidenceText: "Master organization directory record",
+      },
+    ],
   };
 }
 

@@ -36,7 +36,33 @@ function mergeProspectPair(a: Prospect, b: Prospect): Prospect {
     organizationTypeId: a.organizationTypeId ?? b.organizationTypeId,
     stateCode: a.stateCode ?? b.stateCode,
     publicCompany: a.publicCompany ?? b.publicCompany,
+    website: a.website ?? b.website,
+    description: a.description ?? b.description,
+    employeeEstimate: a.employeeEstimate ?? b.employeeEstimate,
+    discoveryConfidence: Math.max(
+      a.discoveryConfidence ?? 0,
+      b.discoveryConfidence ?? 0,
+    ),
+    matchReasons:
+      a.matchReasons.length >= b.matchReasons.length
+        ? a.matchReasons
+        : b.matchReasons,
+    sourceRecords: mergeSourceRecords(a.sourceRecords, b.sourceRecords),
   };
+}
+
+function mergeSourceRecords(
+  a: Prospect["sourceRecords"],
+  b: Prospect["sourceRecords"],
+): Prospect["sourceRecords"] {
+  const byKey = new Map<string, Prospect["sourceRecords"][number]>();
+  for (const rec of [...a, ...b]) {
+    const cur = byKey.get(rec.connector);
+    if (!cur || rec.confidence > cur.confidence) {
+      byKey.set(rec.connector, rec);
+    }
+  }
+  return [...byKey.values()];
 }
 
 /** Merges prospect lists by normalized org name — keeps the richer / higher-scoring version. */

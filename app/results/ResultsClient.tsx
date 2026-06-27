@@ -12,6 +12,7 @@ import {
   describeSearch,
   parseSearchStateFromParams,
   resolveSearchState,
+  searchFetchFingerprint,
   searchStateToParams,
   type SearchState,
 } from "@/lib/search/searchState";
@@ -22,9 +23,15 @@ import {
 } from "@/lib/search/resultsFilters";
 import { formatSourceSummary } from "@/lib/search/sourceSummary";
 import { saveWorkspace } from "@/lib/intelligence/session";
+import {
+  loadResultDensity,
+  saveResultDensity,
+  type ResultDensity,
+} from "@/lib/intelligence/resultDensity";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultRow } from "@/app/components/ResultRow";
+import { ResultDensityToggle } from "@/app/components/ResultDensityToggle";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
   ResultsEmptyState,
@@ -102,6 +109,7 @@ export function ResultsClient() {
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [density, setDensity] = useState<ResultDensity>("comfortable");
   const [plannedProviders, setPlannedProviders] = useState<ProviderBadgeKey[]>(
     [],
   );
@@ -259,16 +267,27 @@ export function ResultsClient() {
   }, []);
 
   useEffect(() => {
+    setDensity(loadResultDensity());
+  }, []);
+
+  useEffect(() => {
     setSearchState(urlState);
     setSort(parseSortParam(searchParams.get("sort")));
   }, [urlState, searchParams]);
+
+  const searchFetchKey = useMemo(
+    () => searchFetchFingerprint(urlState),
+    [urlState],
+  );
 
   useEffect(() => {
     if (urlState.query.trim()) {
       fetchProgressive(urlState);
     }
     return () => abortRef.current?.abort();
-  }, [urlState.query, urlState.sellerContext, urlState, fetchProgressive]);
+    // Re-fetch only when search criteria change — not refinement filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- urlState read at fetch-key change
+  }, [searchFetchKey, fetchProgressive]);
 
   const filtered = useMemo(
     () => sortResults(applyResultsFilters(allProspects, searchState), sort),
@@ -290,9 +309,6 @@ export function ResultsClient() {
     const next = resolveSearchState({ ...searchState, ...partial });
     setSearchState(next);
     syncUrl(next);
-    if (partial.sellerContext !== undefined && searchState.query.trim()) {
-      fetchProgressive(next);
-    }
   }
 
   function handleSortChange(key: ResultsSortKey) {
@@ -303,6 +319,11 @@ export function ResultsClient() {
     };
     setSearchState(next);
     syncUrl(next);
+  }
+
+  function handleDensityChange(next: ResultDensity) {
+    setDensity(next);
+    saveResultDensity(next);
   }
 
   const summary = describeSearch(searchState);
@@ -379,7 +400,9 @@ export function ResultsClient() {
                   </div>
                 ) : null}
               </div>
-              <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+              <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <ResultDensityToggle value={density} onChange={handleDensityChange} />
+                <div className="flex items-center gap-2">
                 <span className="label-mono shrink-0">Sort</span>
                 <select
                   value={sort}
@@ -393,6 +416,7 @@ export function ResultsClient() {
                     </option>
                   ))}
                 </select>
+                </div>
               </div>
             </div>
 
@@ -422,12 +446,16 @@ export function ResultsClient() {
                 ) : null}
 
                 {showResults && filtered.length > 0 ? (
-                  <div className="flex flex-col gap-2.5 sm:gap-3">
+                  <div
+                    className={`flex flex-col ${density === "compact" ? "gap-2" : "gap-2.5 sm:gap-3"}`}
+                  >
                     {filtered.map((prospect, i) => (
                       <ResultRow
                         key={prospect.id}
                         prospect={prospect}
                         rank={i + 1}
+                        density={density}
+                        enriching={phase === "enriching"}
                         selected={prospect.id === selectedId}
                         onSelect={() => setSelectedId(prospect.id)}
                       />

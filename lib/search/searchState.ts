@@ -339,6 +339,22 @@ export function mountainWestRegions(): string[] {
   return ["west", "southwest"];
 }
 
+/** Stable key for fields that should trigger a new search request. */
+export function searchFetchFingerprint(state: SearchState): string {
+  const resolved = resolveSearchState(state);
+  return [
+    resolved.query.trim(),
+    resolved.sector ?? "",
+    resolved.industry ?? "",
+    resolved.organizationType ?? "",
+    resolved.location ?? "",
+    resolved.state ?? "",
+    resolved.metro ?? "",
+    resolved.operatingStates.join(","),
+    resolved.sellerContext?.trim() ?? "",
+  ].join("|");
+}
+
 /** Taxonomy targets allowed when filtering by sector/industry (client-side). */
 export function allowedTaxonomyTargets(state: SearchState): BuyerPackId[] | null {
   const resolved = resolveSearchState(state);
