@@ -18,11 +18,8 @@ import {
 } from "@/lib/discovery/canonicalOrgType";
 import { countProspectsForFilter } from "@/lib/search/resultsFilters";
 import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
-import {
-  industriesForSector,
-  industryLabel,
-  sectorLabel,
-} from "@/lib/taxonomy";
+import { formatStructuredSelectionDisplay } from "@/lib/search/prospectListBuilder";
+import { industriesForSector } from "@/lib/taxonomy";
 import { sourceTone } from "@/lib/intelligence/colors";
 
 function FilterSection({
@@ -173,6 +170,7 @@ export function ResultsFilterRail({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showPersonalization, setShowPersonalization] = useState(false);
   const [showAllFilters, setShowAllFilters] = useState(false);
+  const structuredSelectionDisplay = formatStructuredSelectionDisplay(state);
 
   const industries = useMemo(
     () => industriesForSector(state.sector),
@@ -587,12 +585,10 @@ export function ResultsFilterRail({
           ) : null}
           {(state.sector || state.industry || state.organizationType) && (
             <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
-              {[
-                state.sector ? sectorLabel(state.sector) : null,
-                state.industry ? industryLabel(state.industry) : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
+              {structuredSelectionDisplay.primaryLabel}
+              {structuredSelectionDisplay.secondaryLabel
+                ? ` · ${structuredSelectionDisplay.secondaryLabel}`
+                : ""}
             </p>
           )}
           {rail}

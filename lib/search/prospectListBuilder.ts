@@ -393,6 +393,107 @@ function orgTypeDisplayLabel(id: string | null): string {
   return organizationTypeLabel(id);
 }
 
+type StructuredSelectionState = Pick<
+  SearchState,
+  "sector" | "industry" | "organizationType" | "ownership"
+>;
+
+export interface StructuredSelectionDisplay {
+  primaryLabel: string;
+  secondaryLabel: string | null;
+  hiddenDuplicateFields: Array<keyof StructuredSelectionState>;
+}
+
+function normalizeDisplayLabel(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/\b(companies|company|organizations|organization|systems|system)\b/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .replace(/s$/g, "");
+}
+
+function labelsOverlap(a: string, b: string): boolean {
+  const left = normalizeDisplayLabel(a);
+  const right = normalizeDisplayLabel(b);
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+
+function addSecondaryLabel(
+  parts: string[],
+  primaryLabel: string,
+  label: string | null,
+): boolean {
+  if (!label) return false;
+  if (labelsOverlap(primaryLabel, label)) return false;
+  if (parts.some((part) => labelsOverlap(part, label))) return false;
+  parts.push(label);
+  return true;
+}
+
+/**
+ * Formats structured taxonomy selections for humans while preserving the raw
+ * SearchState underneath. This prevents UI-only chains like
+ * "Health Plan / Payers / Healthcare" without changing search semantics.
+ */
+export function formatStructuredSelectionDisplay(
+  state: Partial<StructuredSelectionState>,
+): StructuredSelectionDisplay {
+  const sector = state.sector ? sectorLabel(state.sector) : null;
+  const industry = state.industry ? industryLabel(state.industry) : null;
+  const orgType = state.organizationType
+    ? orgTypeDisplayLabel(state.organizationType)
+    : null;
+  const hiddenDuplicateFields: Array<keyof StructuredSelectionState> = [];
+
+  let primaryLabel = orgType ?? industry ?? sector ?? "Organizations";
+  let forcedSecondary: string | null = null;
+
+  if (state.organizationType === "health-plan") {
+    primaryLabel = "Health Plans";
+  } else if (state.organizationType === "hospital-health-system") {
+    primaryLabel = "Hospitals & Health Systems";
+  } else if (state.organizationType === "pbm") {
+    primaryLabel = "PBMs / Pharmacy";
+    forcedSecondary = "Pharmacy · Benefit Management";
+  } else if (state.organizationType === "manufacturer") {
+    primaryLabel = "Manufacturers";
+  } else if (state.organizationType === "employer") {
+    primaryLabel = state.ownership === "public" ? "Public Companies" : "Employers";
+  } else if (state.organizationType === "nonprofit") {
+    primaryLabel = "Nonprofits";
+  } else if (
+    !state.organizationType &&
+    state.sector === "hospitality-leisure" &&
+    state.industry === "hospitality"
+  ) {
+    primaryLabel = "Restaurants / Hospitality";
+  }
+
+  const secondaryParts: string[] = [];
+  if (forcedSecondary) {
+    secondaryParts.push(forcedSecondary);
+  } else {
+    if (sector && !addSecondaryLabel(secondaryParts, primaryLabel, sector)) {
+      hiddenDuplicateFields.push("sector");
+    }
+    if (industry && !addSecondaryLabel(secondaryParts, primaryLabel, industry)) {
+      hiddenDuplicateFields.push("industry");
+    }
+  }
+
+  if (orgType && labelsOverlap(primaryLabel, orgType)) {
+    hiddenDuplicateFields.push("organizationType");
+  }
+
+  return {
+    primaryLabel,
+    secondaryLabel: secondaryParts.length > 0 ? secondaryParts.join(" · ") : null,
+    hiddenDuplicateFields,
+  };
+}
+
 /** Converts builder selections into a natural-language search query. */
 export function buildSearchQueryFromBuilder(
   state: ProspectListBuilderState,
@@ -506,19 +607,14 @@ function formatSignalList(phrases: string[]): string {
 export function buildNaturalLanguageSummary(
   state: ProspectListBuilderState,
 ): string {
-  let subject = "organizations";
-
-  if (state.organizationType) {
-    subject = orgTypeDisplayLabel(state.organizationType).toLowerCase();
-  } else if (state.industry) {
-    subject = `${industryLabel(state.industry).toLowerCase()} companies`;
-  } else if (state.sector) {
-    subject = `${sectorLabel(state.sector).toLowerCase()} companies`;
-  }
+  const display = formatStructuredSelectionDisplay(state);
+  let subject = display.primaryLabel.toLowerCase();
 
   if (state.ownership) {
     const own = BUILDER_OWNERSHIP_OPTIONS.find((o) => o.id === state.ownership);
-    if (own) subject = `${own.label.toLowerCase()} ${subject}`;
+    if (own && !labelsOverlap(subject, own.label)) {
+      subject = `${own.label.toLowerCase()} ${subject}`;
+    }
   }
 
   if (state.companySize) {

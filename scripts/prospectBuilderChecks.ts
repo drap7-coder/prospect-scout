@@ -11,6 +11,9 @@ import {
   builderToSearchState,
   buildNaturalLanguageSummary,
   EMPTY_BUILDER_STATE,
+  formatStructuredSelectionDisplay,
+  HOMEPAGE_INDUSTRY_SELECTORS,
+  industrySelectorToBuilderState,
   type ProspectListBuilderState,
 } from "../lib/search/prospectListBuilder.ts";
 import {
@@ -108,6 +111,144 @@ check("starter chips map to expected search state", () => {
   assert.equal(starterState("manufacturers").organizationType, "manufacturer");
   assert.equal(starterState("banks").industry, "banks");
   assert.equal(starterState("universities").organizationType, "university");
+});
+
+check("homepage industry starter displays are clean and preserve state", () => {
+  const expected = new Map<
+    string,
+    {
+      primary: string;
+      secondary: string | null;
+      sector: string | null;
+      industry: string | null;
+      organizationType: string | null;
+    }
+  >([
+    [
+      "health-plans",
+      {
+        primary: "Health Plans",
+        secondary: "Healthcare · Payers",
+        sector: "healthcare",
+        industry: "payers",
+        organizationType: "health-plan",
+      },
+    ],
+    [
+      "hospitals",
+      {
+        primary: "Hospitals & Health Systems",
+        secondary: "Healthcare · Providers",
+        sector: "healthcare",
+        industry: "providers",
+        organizationType: "hospital-health-system",
+      },
+    ],
+    [
+      "pbm-pharmacy",
+      {
+        primary: "PBMs / Pharmacy",
+        secondary: "Pharmacy · Benefit Management",
+        sector: "healthcare",
+        industry: "payers",
+        organizationType: "pbm",
+      },
+    ],
+    [
+      "manufacturers",
+      {
+        primary: "Manufacturers",
+        secondary: "Manufacturing · Industrial Products",
+        sector: "manufacturing",
+        industry: "industrial-products",
+        organizationType: "manufacturer",
+      },
+    ],
+    [
+      "employers",
+      {
+        primary: "Employers",
+        secondary: null,
+        sector: null,
+        industry: null,
+        organizationType: "employer",
+      },
+    ],
+    [
+      "nonprofits",
+      {
+        primary: "Nonprofits",
+        secondary: null,
+        sector: "nonprofit",
+        industry: "nonprofit",
+        organizationType: "nonprofit",
+      },
+    ],
+    [
+      "financial-services",
+      {
+        primary: "Financial Services",
+        secondary: null,
+        sector: "financial-services",
+        industry: null,
+        organizationType: null,
+      },
+    ],
+    [
+      "restaurants-hospitality",
+      {
+        primary: "Restaurants / Hospitality",
+        secondary: "Hospitality & Leisure",
+        sector: "hospitality-leisure",
+        industry: "hospitality",
+        organizationType: null,
+      },
+    ],
+  ]);
+
+  for (const selector of HOMEPAGE_INDUSTRY_SELECTORS) {
+    const target = expected.get(selector.id);
+    assert.ok(target, `missing expected display for ${selector.id}`);
+    const builder = industrySelectorToBuilderState(selector);
+    const display = formatStructuredSelectionDisplay(builder);
+    assert.equal(display.primaryLabel, target.primary, selector.id);
+    assert.equal(display.secondaryLabel, target.secondary, selector.id);
+    assert.equal(builder.sector, target.sector, `${selector.id} sector changed`);
+    assert.equal(builder.industry, target.industry, `${selector.id} industry changed`);
+    assert.equal(
+      builder.organizationType,
+      target.organizationType,
+      `${selector.id} org type changed`,
+    );
+  }
+});
+
+check("structured display collapses duplicate taxonomy labels", () => {
+  const healthPlan = formatStructuredSelectionDisplay({
+    sector: "healthcare",
+    industry: "payers",
+    organizationType: "health-plan",
+  });
+  assert.equal(healthPlan.primaryLabel, "Health Plans");
+  assert.equal(healthPlan.secondaryLabel, "Healthcare · Payers");
+  assert.ok(!healthPlan.secondaryLabel.includes("Health Plan"));
+
+  const nonprofit = formatStructuredSelectionDisplay({
+    sector: "nonprofit",
+    industry: "nonprofit",
+    organizationType: "nonprofit",
+    ownership: "nonprofit",
+  });
+  assert.equal(nonprofit.primaryLabel, "Nonprofits");
+  assert.equal(nonprofit.secondaryLabel, null);
+
+  const generic = formatStructuredSelectionDisplay({
+    sector: "manufacturing",
+    industry: "packaging",
+    organizationType: null,
+  });
+  assert.equal(generic.primaryLabel, "Packaging");
+  assert.equal(generic.secondaryLabel, "Manufacturing");
 });
 
 check("public companies starter carries public ownership and SEC intent", () => {
