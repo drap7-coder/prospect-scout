@@ -53,7 +53,12 @@ export interface DiscoverOptions extends ParseSearchIntentOptions {
 export interface DiscoverResult {
   intent: ReturnType<typeof parseSearchIntent>;
   organizations: RankedOrganization[];
+  /** Candidates from catalog index before dedupe. */
   totalBeforeDedupe: number;
+  /** After ranking + quality filter, before pagination cap. */
+  totalAfterRank: number;
+  /** Returned after limitResults (pagination cap). */
+  totalReturned: number;
   latencyMs: number;
 }
 
@@ -75,6 +80,8 @@ function runDiscoveryPipeline(
     intent,
     organizations: limited,
     totalBeforeDedupe,
+    totalAfterRank: filtered.length,
+    totalReturned: limited.length,
     latencyMs: Math.round((performance.now() - started) * 100) / 100,
   };
 }

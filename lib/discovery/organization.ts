@@ -2,6 +2,10 @@ import { getAllDirectoryRecords } from "@/lib/directories/search";
 import type { OrganizationRecord } from "@/lib/directories/types";
 import { normalizeDirectoryRecord } from "@/lib/directories/types";
 import type { BuyerPackId } from "@/lib/search/types";
+import {
+  normalizeCanonicalOrganizationType,
+  normalizeTaxonomyOrganizationType,
+} from "./canonicalOrgType";
 
 /** Provenance for a field or record from a discovery connector. */
 export interface OrganizationSource {
@@ -48,6 +52,8 @@ export interface Organization {
   relevance?: number;
   /** Confidence that this org matches the query intent (0–1). */
   confidence?: number;
+  /** Single canonical organization type for faceting and display. */
+  canonicalOrganizationType: string;
 }
 
 /** Derive a hostname from a full website URL. */
@@ -98,6 +104,21 @@ export function organizationDedupeKey(org: Organization): string {
   return `name:${stripCorporateSuffix(org.canonicalName)}`;
 }
 
+/** Apply canonical type normalization to a catalog organization. */
+export function finalizeOrganization(org: Organization): Organization {
+  const organizationType =
+    normalizeTaxonomyOrganizationType(org.organizationType) ?? org.organizationType;
+  const finalized: Organization = {
+    ...org,
+    organizationType,
+    canonicalOrganizationType: normalizeCanonicalOrganizationType({
+      ...org,
+      organizationType,
+    }),
+  };
+  return finalized;
+}
+
 function inferOwnership(record: OrganizationRecord): Organization["ownership"] {
   if (record.publicCompany) return "public";
   if (record.organizationType === "municipality") return "government";
@@ -123,7 +144,7 @@ export function directoryRecordToOrganization(
   const domain = deriveDomain(normalized.website);
   const hqState = headquartersState(normalized);
 
-  return {
+  const org: Organization = {
     id: normalized.id,
     canonicalName: normalized.name,
     aliases: normalized.aliases,
@@ -163,7 +184,9 @@ export function directoryRecordToOrganization(
       },
     ],
     buyerPack: normalized.buyerPack,
+    canonicalOrganizationType: "other",
   };
+  return finalizeOrganization(org);
 }
 
 /** Load all curated directory records as canonical organizations. */
@@ -199,7 +222,7 @@ export function mergeOrganizations(
     if (!dup) mergedSources.push(src);
   }
 
-  return {
+  return finalizeOrganization({
     id: base.id,
     canonicalName: base.canonicalName || other.canonicalName,
     aliases: unionUnique(
@@ -223,7 +246,8 @@ export function mergeOrganizations(
     buyerPack: base.buyerPack ?? other.buyerPack,
     relevance: Math.max(base.relevance ?? 0, other.relevance ?? 0),
     confidence: Math.max(base.confidence ?? 0, other.confidence ?? 0),
-  };
+    canonicalOrganizationType: base.canonicalOrganizationType,
+  });
 }
 
 /** Deduplicate a list of organizations by domain then normalized name. */

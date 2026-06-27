@@ -203,6 +203,8 @@ export interface RawProspect {
   sectorId?: string;
   industryId?: string;
   organizationTypeId?: string;
+  /** Canonical organization type for catalog-scoped filters. */
+  canonicalOrganizationTypeId?: string;
   /** US state code when known from directory. */
   stateCode?: string;
   publicCompany?: boolean;
@@ -314,6 +316,8 @@ export interface Prospect {
   sectorId?: string;
   industryId?: string;
   organizationTypeId?: string;
+  /** Canonical organization type for catalog-scoped filters. */
+  canonicalOrganizationTypeId?: string;
   stateCode?: string;
   publicCompany?: boolean;
   /** True when sourced from master directory without live enrichment. */
@@ -341,5 +345,11 @@ export interface SearchResponse {
     searchedRecords: number;
     coveragePercent: number;
     confidence: number;
+  };
+  /** Discovery pipeline totals when search uses the catalog index. */
+  discovery?: {
+    totalAfterRank: number;
+    totalReturned: number;
+    catalogTotal: number;
   };
 }

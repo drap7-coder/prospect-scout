@@ -1,4 +1,5 @@
 import { runDiagnostics } from "@/lib/discovery/diagnostics";
+import { canonicalOrgTypeLabel } from "@/lib/discovery/canonicalOrgType";
 
 export const metadata = {
   title: "Discovery Diagnostics",
@@ -71,6 +72,70 @@ export default function DiagnosticsPage() {
               value={`${s.latencyMs} ms · ${s.resultCount} results`}
             />
           ))}
+        </Section>
+
+        <Section title="Catalog Index">
+          <StatRow
+            label="Source records (raw ingested)"
+            value={report.catalogIndex.sourceRecordCount.toLocaleString()}
+          />
+          <StatRow
+            label="Normalized (pre-dedupe)"
+            value={report.catalogIndex.normalizedCount.toLocaleString()}
+          />
+          <StatRow
+            label="Excluded during normalization"
+            value={report.catalogIndex.excludedCount.toLocaleString()}
+          />
+          <StatRow
+            label="Organizations merged (dedupe)"
+            value={report.catalogIndex.mergedCount.toLocaleString()}
+          />
+          <StatRow
+            label="Canonical organizations indexed"
+            value={report.catalogIndex.canonicalTotal.toLocaleString()}
+          />
+          <StatRow
+            label="Missing taxonomy org type"
+            value={report.catalogIndex.missingOrganizationType.toLocaleString()}
+          />
+          <StatRow
+            label="Missing canonical type (unclassified)"
+            value={report.catalogIndex.missingCanonicalType.toLocaleString()}
+          />
+          <StatRow
+            label="Index loaded at"
+            value={new Date(report.catalogIndex.loadedAt).toLocaleString()}
+          />
+        </Section>
+
+        <Section title="By Canonical Organization Type">
+          {Object.entries(report.catalogIndex.byCanonicalOrganizationType)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, count]) => (
+              <StatRow
+                key={id}
+                label={canonicalOrgTypeLabel(id)}
+                value={count.toLocaleString()}
+              />
+            ))}
+        </Section>
+
+        <Section title="By Sector">
+          {Object.entries(report.coverage.bySector)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, count]) => (
+              <StatRow key={id} label={id} value={count.toLocaleString()} />
+            ))}
+        </Section>
+
+        <Section title="By State (top 20)">
+          {Object.entries(report.catalogIndex.byState)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([id, count]) => (
+              <StatRow key={id} label={id} value={count.toLocaleString()} />
+            ))}
         </Section>
 
         <Section title="Benchmark Summary">

@@ -22,6 +22,13 @@ import {
   taxonomyTargetsForIndustry,
   taxonomyTargetsForSector,
 } from "@/lib/taxonomy";
+import {
+  CANONICAL_ORG_TYPES,
+  canonicalOrgTypeLabel,
+  isCanonicalOrgTypeId,
+  normalizeCanonicalOrgTypeId,
+  taxonomyTargetForCanonicalOrgType,
+} from "@/lib/discovery/canonicalOrgType";
 
 /** Structured search state for universal organization discovery. */
 export interface SearchState {
@@ -69,6 +76,8 @@ export const EMPTY_SEARCH_STATE: SearchState = {
 export { EXAMPLE_SEARCHES, FRESHNESS_FILTERS };
 
 export const SECTORS = TAXONOMY_SECTORS;
+
+export const CANONICAL_ORGANIZATION_TYPES = CANONICAL_ORG_TYPES;
 
 export const ORGANIZATION_TYPES = TAXONOMY_ORGANIZATION_TYPES.map((o) => ({
   id: o.id,
@@ -144,6 +153,15 @@ function normalizeIndustryParam(value: string | null, sector: string | null): st
   return null;
 }
 
+function resolveOrganizationTypeId(id: string | null): string | null {
+  if (!id) return null;
+  return (
+    normalizeCanonicalOrgTypeId(id) ??
+    normalizeCanonicalOrgTypeId(normalizeOrganizationTypeId(id) ?? "") ??
+    null
+  );
+}
+
 /** Reads structured search state from URL search params. */
 export function parseSearchStateFromParams(
   params: URLSearchParams,
@@ -157,7 +175,9 @@ export function parseSearchStateFromParams(
     query: params.get("q") ?? "",
     sector,
     industry,
-    organizationType: normalizeOrganizationTypeId(params.get("org")),
+    organizationType: resolveOrganizationTypeId(
+      normalizeOrganizationTypeId(params.get("org")),
+    ),
     location: params.get("location"),
     companySize: params.get("size"),
     signals: parseList(params.get("signals")),
@@ -254,8 +274,9 @@ export function resolveSearchState(state: SearchState): SearchState {
     query: state.query,
     sector: state.sector ?? inferred.sector ?? null,
     industry: state.industry ?? inferred.industry ?? null,
-    organizationType: normalizeOrganizationTypeId(
-      state.organizationType ?? inferred.organizationType ?? null,
+    organizationType: resolveOrganizationTypeId(
+      state.organizationType ??
+        resolveOrganizationTypeId(inferred.organizationType ?? null),
     ),
     location: state.location ?? inferred.location ?? null,
     freshness: state.freshness ?? inferred.freshness ?? null,
@@ -278,12 +299,16 @@ function locationToRegion(location: string | null): string | undefined {
 /** Maps UI search state to the existing API / pipeline input shape. */
 export function searchStateToRawInput(state: SearchState): RawSearchInput {
   const resolved = resolveSearchState(state);
-  const buyerPack: BuyerPackId | undefined =
-    resolveTaxonomyTarget({
-      organizationTypeId: resolved.organizationType,
-      industryId: resolved.industry,
-      sectorId: resolved.sector,
-    });
+  const canonical = resolved.organizationType
+    ? normalizeCanonicalOrgTypeId(resolved.organizationType)
+    : null;
+  const buyerPack: BuyerPackId | undefined = canonical
+    ? taxonomyTargetForCanonicalOrgType(canonical)
+    : resolveTaxonomyTarget({
+        organizationTypeId: resolved.organizationType,
+        industryId: resolved.industry,
+        sectorId: resolved.sector,
+      });
 
   return {
     query: resolved.query.trim(),
@@ -304,6 +329,8 @@ export function locationLabel(id: string | null): string {
 }
 
 export function orgTypeLabel(id: string | null): string {
+  if (!id) return "";
+  if (isCanonicalOrgTypeId(id)) return canonicalOrgTypeLabel(id);
   return organizationTypeLabel(id);
 }
 
@@ -359,6 +386,11 @@ export function searchFetchFingerprint(state: SearchState): string {
 export function allowedTaxonomyTargets(state: SearchState): BuyerPackId[] | null {
   const resolved = resolveSearchState(state);
   if (resolved.organizationType) {
+    const canonical = normalizeCanonicalOrgTypeId(resolved.organizationType);
+    if (canonical) {
+      const target = taxonomyTargetForCanonicalOrgType(canonical);
+      return target ? [target] : null;
+    }
     const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
     return org ? [org.taxonomyTarget] : null;
   }

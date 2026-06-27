@@ -1,3 +1,4 @@
+import { organizationMatchesOrgTypeFilter } from "@/lib/discovery/canonicalOrgType";
 import type { Prospect, SignalSource } from "@/lib/search/types";
 import {
   displaySource,
@@ -9,7 +10,6 @@ import {
   allowedTaxonomyTargets,
   FRESHNESS_FILTERS,
   mountainWestRegions,
-  ORGANIZATION_TYPES,
   resolveSearchState,
   SIGNAL_FILTERS,
 } from "@/lib/search/searchState";
@@ -216,13 +216,13 @@ export function applyResultsFilters(
     }
 
     if (resolved.organizationType) {
-      if (p.organizationTypeId && p.organizationTypeId !== resolved.organizationType) {
+      const orgLike = {
+        organizationType: p.organizationTypeId ?? null,
+        canonicalOrganizationType:
+          p.canonicalOrganizationTypeId ?? p.organizationTypeId ?? "other",
+      };
+      if (!organizationMatchesOrgTypeFilter(orgLike, resolved.organizationType)) {
         return false;
-      } else {
-        const org = ORGANIZATION_TYPES.find((o) => o.id === resolved.organizationType);
-        if (org && p.buyerPack !== org.taxonomyTarget && !p.organizationTypeId) {
-          return false;
-        }
       }
     } else if (allowedTargets && !allowedTargets.includes(p.buyerPack)) {
       return false;

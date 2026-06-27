@@ -1,4 +1,4 @@
-import { deriveDomain, type Organization, type OrganizationSource } from "../organization";
+import { deriveDomain, finalizeOrganization, type Organization, type OrganizationSource } from "../organization";
 import type { CatalogRecord } from "./types";
 
 const REGIONS_BY_STATE: Record<string, string> = {
@@ -45,7 +45,7 @@ export function catalogRecordToOrganization(
       ? `${record.city}, ${record.state}`
       : record.state ?? null);
 
-  return {
+  return finalizeOrganization({
     id: `${connectorId}-${record.sourceId}`,
     canonicalName: record.name,
     aliases: record.aliases ?? [],
@@ -64,5 +64,6 @@ export function catalogRecordToOrganization(
     description: null,
     sources: [catalogSourceStamp(connectorId, record)],
     buyerPack: record.buyerPack ?? null,
-  };
+    canonicalOrganizationType: "other",
+  });
 }

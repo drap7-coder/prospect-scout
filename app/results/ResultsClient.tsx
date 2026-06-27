@@ -28,6 +28,7 @@ import {
   saveResultDensity,
   type ResultDensity,
 } from "@/lib/intelligence/resultDensity";
+import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultRow } from "@/app/components/ResultRow";
@@ -62,6 +63,7 @@ interface MockPhaseResponse {
   query: SearchQuery;
   prospects: Prospect[];
   coverage: SearchResponse["coverage"];
+  discovery?: SearchResponse["discovery"];
   phase: "mock";
   plannedProviders: ProviderBadgeKey[];
   secondaryProviders: LiveProviderKey[];
@@ -110,6 +112,12 @@ export function ResultsClient() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [density, setDensity] = useState<ResultDensity>("comfortable");
+  const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
+    null,
+  );
+  const [discoveryTotals, setDiscoveryTotals] = useState<
+    SearchResponse["discovery"] | null
+  >(null);
   const [plannedProviders, setPlannedProviders] = useState<ProviderBadgeKey[]>(
     [],
   );
@@ -142,6 +150,7 @@ export function ResultsClient() {
     setSelectedId(null);
     setAllProspects([]);
     setCoverage(null);
+    setDiscoveryTotals(null);
     setPlannedProviders([]);
     setProviderStatuses(initialProviderStatuses([]));
 
@@ -167,6 +176,7 @@ export function ResultsClient() {
 
       setAllProspects(mockData.prospects);
       setCoverage(mockData.coverage);
+      setDiscoveryTotals(mockData.discovery ?? null);
       setPlannedProviders(mockData.plannedProviders);
       setPhase("enriching");
       setProviderStatuses(
@@ -281,6 +291,28 @@ export function ResultsClient() {
   );
 
   useEffect(() => {
+    if (!urlState.query.trim()) {
+      setCatalogFacets(null);
+      return;
+    }
+    const ac = new AbortController();
+    fetch("/api/facets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(urlState),
+      signal: ac.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { facets?: CatalogFacetCounts } | null) => {
+        if (data?.facets) setCatalogFacets(data.facets);
+      })
+      .catch(() => {
+        /* facets are best-effort */
+      });
+    return () => ac.abort();
+  }, [searchFetchKey, urlState]);
+
+  useEffect(() => {
     if (urlState.query.trim()) {
       fetchProgressive(urlState);
     }
@@ -325,6 +357,16 @@ export function ResultsClient() {
     setDensity(next);
     saveResultDensity(next);
   }
+
+  const matchCatalogSummary =
+    discoveryTotals ??
+    (catalogFacets
+      ? {
+          totalReturned: allProspects.length,
+          totalAfterRank: allProspects.length,
+          catalogTotal: catalogFacets.catalogTotal,
+        }
+      : null);
 
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
@@ -425,6 +467,7 @@ export function ResultsClient() {
                 state={searchState}
                 onChange={handleFiltersChange}
                 prospects={allProspects}
+                catalogFacets={catalogFacets}
               />
 
               <div className="min-w-0 flex-1">
@@ -449,6 +492,16 @@ export function ResultsClient() {
                   <div
                     className={`flex flex-col ${density === "compact" ? "gap-2" : "gap-2.5 sm:gap-3"}`}
                   >
+                    {matchCatalogSummary ? (
+                      <p className="font-mono text-xs text-muted-2">
+                        Showing{" "}
+                        {matchCatalogSummary.totalReturned.toLocaleString()} of{" "}
+                        {matchCatalogSummary.totalAfterRank.toLocaleString()}{" "}
+                        matches ·{" "}
+                        {matchCatalogSummary.catalogTotal.toLocaleString()}{" "}
+                        indexed
+                      </p>
+                    ) : null}
                     {filtered.map((prospect, i) => (
                       <ResultRow
                         key={prospect.id}

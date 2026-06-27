@@ -7,6 +7,7 @@ import { getBuyerPack } from "@/lib/packs";
 import { searchDirectory } from "@/lib/directories/search";
 import { directoryRecordsToRawProspects } from "@/lib/directories/toRawProspect";
 import { discoverOrganizationsSync } from "@/lib/discovery/discoveryEngine";
+import { getCatalogIndex } from "@/lib/discovery/catalog/catalogIndex";
 import { catalogOrganizations } from "@/lib/discovery/diagnostics";
 import { rankedOrganizationsToRawProspects } from "@/lib/discovery/toRawProspect";
 import { parseIntent } from "./intentParser";
@@ -54,6 +55,7 @@ export function runSearch(input: RawSearchInput): SearchResponse {
 
   let candidates: RawProspect[] = [];
   let searchedRecords = 0;
+  let discoveryMeta: SearchResponse["discovery"];
 
   if (hasDiscoveryIntent(input, queryText)) {
     const discovery = discoverOrganizationsSync(queryText, {
@@ -64,6 +66,11 @@ export function runSearch(input: RawSearchInput): SearchResponse {
       region: profile.region !== ANY_REGION ? profile.region : null,
     });
     searchedRecords = discovery.totalBeforeDedupe;
+    discoveryMeta = {
+      totalAfterRank: discovery.totalAfterRank,
+      totalReturned: discovery.totalReturned,
+      catalogTotal: getCatalogIndex().orgs.length,
+    };
     if (discovery.organizations.length > 0) {
       candidates = rankedOrganizationsToRawProspects(discovery.organizations);
     }
@@ -122,6 +129,11 @@ export function runSearch(input: RawSearchInput): SearchResponse {
       searchedRecords: searched,
       coveragePercent,
       confidence,
+    },
+    discovery: discoveryMeta ?? {
+      totalAfterRank: prospects.length,
+      totalReturned: prospects.length,
+      catalogTotal: totalCatalogRecords,
     },
   };
 }

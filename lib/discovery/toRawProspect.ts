@@ -44,6 +44,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     sectorId: org.sectorId ?? undefined,
     industryId: org.industries[0],
     organizationTypeId: org.organizationType ?? undefined,
+    canonicalOrganizationTypeId: org.canonicalOrganizationType,
     stateCode: org.states[0],
     publicCompany: org.ownership === "public",
     website: org.website ?? undefined,

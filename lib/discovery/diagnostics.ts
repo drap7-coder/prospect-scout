@@ -8,6 +8,7 @@ import {
   getCatalogIndex,
   getCatalogOrganizations,
 } from "./catalog/catalogIndex";
+import { CANONICAL_ORG_TYPES } from "./canonicalOrgType";
 import {
   CATALOG_MANIFEST,
   catalogRecordCountByConnector,
@@ -108,6 +109,19 @@ export interface DiagnosticsReport {
   catalogFreshness: {
     lastIngest: string;
     generatedAt: string;
+  };
+  catalogIndex: {
+    sourceRecordCount: number;
+    rawIngested: number;
+    normalizedCount: number;
+    excludedCount: number;
+    mergedCount: number;
+    canonicalTotal: number;
+    loadedAt: string;
+    missingOrganizationType: number;
+    missingCanonicalType: number;
+    byCanonicalOrganizationType: Record<string, number>;
+    byState: Record<string, number>;
   };
   generatedAt: string;
 }
@@ -431,7 +445,29 @@ export function measureDiscoveryLatency(): LatencyReport {
 
 export function runDiagnostics(orgs?: Organization[]): DiagnosticsReport {
   const list = orgs ?? catalogOrganizations();
+  const index = getCatalogIndex();
   const benchmarkItems = summarizeBenchmarkQueries(BENCHMARK_QUERIES.slice(0, 20));
+
+  const byCanonicalOrganizationType: Record<string, number> = {};
+  for (const t of CANONICAL_ORG_TYPES) byCanonicalOrganizationType[t.id] = 0;
+  const byState: Record<string, number> = {};
+  let missingOrganizationType = 0;
+  let missingCanonicalType = 0;
+
+  for (const org of list) {
+    const canonical = org.canonicalOrganizationType ?? "other";
+    byCanonicalOrganizationType[canonical] =
+      (byCanonicalOrganizationType[canonical] ?? 0) + 1;
+    if (!org.organizationType) missingOrganizationType += 1;
+    if (!org.canonicalOrganizationType || canonical === "other") {
+      if (!org.organizationType && org.industries.length === 0 && !org.sectorId) {
+        missingCanonicalType += 1;
+      }
+    }
+    for (const st of org.states) {
+      byState[st] = (byState[st] ?? 0) + 1;
+    }
+  }
 
   return {
     coverage: computeCoverage(list),
@@ -465,6 +501,19 @@ export function runDiagnostics(orgs?: Organization[]): DiagnosticsReport {
     catalogFreshness: {
       lastIngest: CATALOG_MANIFEST.generatedAt,
       generatedAt: CATALOG_MANIFEST.generatedAt,
+    },
+    catalogIndex: {
+      sourceRecordCount: index.sourceRecordCount,
+      rawIngested: index.rawIngested,
+      normalizedCount: index.normalizedCount,
+      excludedCount: index.excludedCount,
+      mergedCount: index.mergedCount,
+      canonicalTotal: index.orgs.length,
+      loadedAt: new Date(index.loadedAt).toISOString(),
+      missingOrganizationType,
+      missingCanonicalType,
+      byCanonicalOrganizationType,
+      byState,
     },
     generatedAt: new Date().toISOString(),
   };

@@ -16,10 +16,13 @@ import {
   filterIncompatibleOrganizations,
   scoreOrganizationRelevance,
 } from "../lib/discovery/rank.ts";
+import { getCatalogOrganizations } from "../lib/discovery/catalog/catalogIndex.ts";
+import { computeCatalogFacetCounts } from "../lib/discovery/catalog/facetCounts.ts";
 import {
   discoverOrganizationsSync,
   initDiscoveryEngine,
 } from "../lib/discovery/discoveryEngine.ts";
+import { finalizeOrganization } from "../lib/discovery/organization.ts";
 import {
   computeCoverage,
   computeConnectorHealth,
@@ -201,6 +204,55 @@ check("diagnostics detects duplicate connector records without crashing", () => 
   assert.equal(duplicates.duplicateDomains.length, first!.domain ? 1 : 0);
   const health = computeConnectorHealth([first!, duplicate]);
   assert.ok(health.every((item) => typeof item.failures === "number"));
+});
+
+check("every catalog org has exactly one canonical organization type", () => {
+  initDiscoveryEngine();
+  const orgs = organizationsFromDirectory().slice(0, 20).map(finalizeOrganization);
+  for (const org of orgs) {
+    assert.ok(org.canonicalOrganizationType);
+    assert.ok(typeof org.canonicalOrganizationType === "string");
+  }
+});
+
+check("health plan facet counts come from full catalog not result cap", () => {
+  initDiscoveryEngine();
+  const intent = parseSearchIntent("health plans");
+  const facets = computeCatalogFacetCounts(intent);
+  const fromIndex = getCatalogOrganizations().filter(
+    (o) => o.canonicalOrganizationType === "health-plan",
+  ).length;
+  const healthPlanCount = facets.canonicalOrganizationType["health-plan"] ?? 0;
+  assert.equal(
+    healthPlanCount,
+    fromIndex,
+    "facet count must match manual CatalogIndex tally",
+  );
+  const capped = discoverOrganizationsSync("health plans", { maxResults: 10 });
+  const facetsAgain = computeCatalogFacetCounts(intent);
+  assert.equal(
+    facetsAgain.canonicalOrganizationType["health-plan"],
+    healthPlanCount,
+    "facet count must not change when search result cap changes",
+  );
+  assert.equal(capped.totalReturned, Math.min(10, capped.totalAfterRank));
+  if (healthPlanCount > capped.totalReturned) {
+    assert.ok(
+      healthPlanCount > capped.totalReturned,
+      "catalog facet must not be capped to returned page size",
+    );
+  }
+});
+
+check("discovery ranks full catalog before pagination cap", () => {
+  initDiscoveryEngine();
+  const result = discoverOrganizationsSync("manufacturers in ohio", {
+    maxResults: 25,
+  });
+  assert.ok(result.totalAfterRank >= result.totalReturned);
+  if (result.totalAfterRank > 25) {
+    assert.equal(result.totalReturned, 25);
+  }
 });
 
 console.log(`\nAll ${passed} discovery checks passed.`);

@@ -4,7 +4,7 @@
  */
 import type { DiscoveryConnector, ConnectorRecord } from "../connector";
 import { sourceStamp } from "../connector";
-import { mergeOrganizations } from "../organization";
+import { finalizeOrganization, mergeOrganizations } from "../organization";
 import type { Organization } from "../organization";
 import { RSS_FEED_SOURCES } from "@/lib/providers/rssNews";
 import { CMS_ORGANIZATIONS } from "@/lib/providers/cms";
@@ -21,7 +21,7 @@ function stubOrg(
   name: string,
   extras: Partial<Organization> = {},
 ): Organization {
-  return {
+  return finalizeOrganization({
     id,
     canonicalName: name,
     aliases: extras.aliases ?? [],
@@ -40,7 +40,8 @@ function stubOrg(
     description: null,
     sources: extras.sources ?? [],
     buyerPack: extras.buyerPack ?? null,
-  };
+    canonicalOrganizationType: extras.canonicalOrganizationType ?? "other",
+  });
 }
 
 /** RSS feed registry → Organization stubs (enrichment via existing RSS provider). */

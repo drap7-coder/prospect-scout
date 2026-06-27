@@ -13,11 +13,14 @@ import {
   SOURCE_FILTERS,
   US_STATE_FILTERS,
 } from "@/lib/search/searchState";
+import {
+  CANONICAL_ORG_TYPES,
+} from "@/lib/discovery/canonicalOrgType";
 import { countProspectsForFilter } from "@/lib/search/resultsFilters";
+import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import {
   industriesForSector,
   industryLabel,
-  organizationTypesForFilters,
   sectorLabel,
 } from "@/lib/taxonomy";
 import { sourceTone } from "@/lib/intelligence/colors";
@@ -160,10 +163,12 @@ export function ResultsFilterRail({
   state,
   onChange,
   prospects = [],
+  catalogFacets = null,
 }: {
   state: SearchState;
   onChange: (partial: Partial<SearchState>) => void;
   prospects?: Prospect[];
+  catalogFacets?: CatalogFacetCounts | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showPersonalization, setShowPersonalization] = useState(false);
@@ -174,13 +179,51 @@ export function ResultsFilterRail({
     [state.sector],
   );
 
-  const orgTypes = useMemo(
-    () => organizationTypesForFilters(state.sector, state.industry),
-    [state.sector, state.industry],
-  );
+  const orgTypes = CANONICAL_ORG_TYPES;
 
-  function count(patch: Partial<SearchState>): number {
+  function sumFacet(rec: Record<string, number>): number {
+    return Object.values(rec).reduce((a, b) => a + b, 0);
+  }
+
+  /** Client-side counts for narrow-results filters only. */
+  function refineCount(patch: Partial<SearchState>): number {
     return countProspectsForFilter(prospects, state, patch);
+  }
+
+  function sectorCount(sectorId: string | null): number {
+    if (!catalogFacets) {
+      return refineCount({ sector: sectorId, industry: null, organizationType: null });
+    }
+    if (!sectorId) return sumFacet(catalogFacets.sector);
+    return catalogFacets.sector[sectorId] ?? 0;
+  }
+
+  function industryCount(industryId: string | null): number {
+    if (!catalogFacets) {
+      return refineCount({ industry: industryId, organizationType: null });
+    }
+    if (!industryId) return sumFacet(catalogFacets.industry);
+    return catalogFacets.industry[industryId] ?? 0;
+  }
+
+  function orgTypeCount(orgId: string | null): number {
+    if (!catalogFacets) {
+      return refineCount({ organizationType: orgId });
+    }
+    if (!orgId) return sumFacet(catalogFacets.canonicalOrganizationType);
+    return catalogFacets.canonicalOrganizationType[orgId] ?? 0;
+  }
+
+  function locationCount(locationId: string | null): number {
+    if (!catalogFacets) return refineCount({ location: locationId });
+    if (!locationId) return catalogFacets.scopeTotal;
+    return catalogFacets.region[locationId] ?? refineCount({ location: locationId });
+  }
+
+  function stateCount(stateId: string | null): number {
+    if (!catalogFacets) return refineCount({ state: stateId });
+    if (!stateId) return sumFacet(catalogFacets.state);
+    return catalogFacets.state[stateId] ?? 0;
   }
 
   function visible(countValue: number, selected: boolean): boolean {
@@ -216,7 +259,7 @@ export function ResultsFilterRail({
       <div className="border-b border-border/60 py-4">
         <p className="label-mono px-2 text-foreground/80">Search criteria</p>
         <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
-          Updates the organization search
+          Updates the organization search · counts from full catalog
         </p>
         <div className="mt-3 space-y-1">
           <FilterSelect
@@ -230,30 +273,18 @@ export function ResultsFilterRail({
               })
             }
             options={[
-              { value: "", label: "All sectors", count: prospects.length },
+              {
+                value: "",
+                label: "All sectors",
+                count: catalogFacets ? sumFacet(catalogFacets.sector) : prospects.length,
+              },
               ...SECTORS.filter((sector) =>
-                visible(
-                  count({
-                    sector: sector.id,
-                    industry: null,
-                    organizationType: null,
-                  }),
-                  state.sector === sector.id,
-                ),
+                visible(sectorCount(sector.id), state.sector === sector.id),
               ).map((sector) => ({
                 value: sector.id,
                 label: sector.label,
-                count: count({
-                  sector: sector.id,
-                  industry: null,
-                  organizationType: null,
-                }),
-                dimmed:
-                  count({
-                    sector: sector.id,
-                    industry: null,
-                    organizationType: null,
-                  }) === 0,
+                count: sectorCount(sector.id),
+                dimmed: sectorCount(sector.id) === 0,
               })),
             ]}
           />
@@ -265,19 +296,20 @@ export function ResultsFilterRail({
               onChange({ industry: value || null, organizationType: null })
             }
             options={[
-              { value: "", label: "All industries", count: prospects.length },
+              {
+                value: "",
+                label: "All industries",
+                count: catalogFacets ? sumFacet(catalogFacets.industry) : prospects.length,
+              },
               ...industries
                 .filter((ind) =>
-                  visible(
-                    count({ industry: ind.id, organizationType: null }),
-                    state.industry === ind.id,
-                  ),
+                  visible(industryCount(ind.id), state.industry === ind.id),
                 )
                 .map((ind) => ({
                   value: ind.id,
                   label: ind.label,
-                  count: count({ industry: ind.id, organizationType: null }),
-                  dimmed: count({ industry: ind.id, organizationType: null }) === 0,
+                  count: industryCount(ind.id),
+                  dimmed: industryCount(ind.id) === 0,
                 })),
             ]}
           />
@@ -287,19 +319,22 @@ export function ResultsFilterRail({
             value={state.organizationType ?? ""}
             onChange={(value) => onChange({ organizationType: value || null })}
             options={[
-              { value: "", label: "All types", count: prospects.length },
+              {
+                value: "",
+                label: "All types",
+                count: catalogFacets
+                  ? sumFacet(catalogFacets.canonicalOrganizationType)
+                  : prospects.length,
+              },
               ...orgTypes
                 .filter((org) =>
-                  visible(
-                    count({ organizationType: org.id }),
-                    state.organizationType === org.id,
-                  ),
+                  visible(orgTypeCount(org.id), state.organizationType === org.id),
                 )
                 .map((org) => ({
                   value: org.id,
                   label: org.label,
-                  count: count({ organizationType: org.id }),
-                  dimmed: count({ organizationType: org.id }) === 0,
+                  count: orgTypeCount(org.id),
+                  dimmed: orgTypeCount(org.id) === 0,
                 })),
             ]}
           />
@@ -309,14 +344,18 @@ export function ResultsFilterRail({
             value={state.location ?? ""}
             onChange={(value) => onChange({ location: value || null })}
             options={[
-              { value: "", label: "All regions", count: prospects.length },
+              {
+                value: "",
+                label: "All regions",
+                count: catalogFacets?.scopeTotal ?? prospects.length,
+              },
               ...LOCATIONS.filter((loc) =>
-                visible(count({ location: loc.id }), state.location === loc.id),
+                visible(locationCount(loc.id), state.location === loc.id),
               ).map((loc) => ({
                 value: loc.id,
                 label: loc.label,
-                count: count({ location: loc.id }),
-                dimmed: count({ location: loc.id }) === 0,
+                count: locationCount(loc.id),
+                dimmed: locationCount(loc.id) === 0,
               })),
             ]}
           />
@@ -326,14 +365,18 @@ export function ResultsFilterRail({
             value={state.state ?? ""}
             onChange={(value) => onChange({ state: value || null })}
             options={[
-              { value: "", label: "All states", count: prospects.length },
+              {
+                value: "",
+                label: "All states",
+                count: catalogFacets ? sumFacet(catalogFacets.state) : prospects.length,
+              },
               ...US_STATE_FILTERS.filter((st) =>
-                visible(count({ state: st.id }), state.state === st.id),
+                visible(stateCount(st.id), state.state === st.id),
               ).map((st) => ({
                 value: st.id,
                 label: st.label,
-                count: count({ state: st.id }),
-                dimmed: count({ state: st.id }) === 0,
+                count: stateCount(st.id),
+                dimmed: stateCount(st.id) === 0,
               })),
             ]}
           />
@@ -354,7 +397,7 @@ export function ResultsFilterRail({
       <FilterSection title="Signal type">
         {SIGNAL_FILTERS.filter((sig) =>
           visible(
-            count({ signals: [...state.signals, sig.id] }),
+            refineCount({ signals: [...state.signals, sig.id] }),
             state.signals.includes(sig.id),
           ),
         ).map((sig) => (
@@ -363,8 +406,8 @@ export function ResultsFilterRail({
             label={sig.label}
             checked={state.signals.includes(sig.id)}
             onChange={() => toggleSignal(sig.id)}
-            count={count({ signals: [sig.id] })}
-            dimmed={count({ signals: [sig.id] }) === 0}
+            count={refineCount({ signals: [sig.id] })}
+            dimmed={refineCount({ signals: [sig.id] }) === 0}
           />
         ))}
       </FilterSection>
@@ -372,7 +415,7 @@ export function ResultsFilterRail({
       <FilterSection title="Source">
         {SOURCE_FILTERS.filter((src) =>
           visible(
-            count({ sources: [src.id] }),
+            refineCount({ sources: [src.id] }),
             state.sources.includes(src.id),
           ),
         ).map((src) => {
@@ -384,8 +427,8 @@ export function ResultsFilterRail({
               checked={state.sources.includes(src.id)}
               onChange={() => toggleSource(src.id)}
               accent={st?.text}
-              count={count({ sources: [src.id] })}
-              dimmed={count({ sources: [src.id] }) === 0}
+              count={refineCount({ sources: [src.id] })}
+              dimmed={refineCount({ sources: [src.id] }) === 0}
             />
           );
         })}
@@ -404,8 +447,8 @@ export function ResultsFilterRail({
             label={own.label}
             checked={state.ownership === own.id}
             onChange={() => onChange({ ownership: own.id })}
-            count={count({ ownership: own.id })}
-            dimmed={count({ ownership: own.id }) === 0}
+            count={refineCount({ ownership: own.id })}
+            dimmed={refineCount({ ownership: own.id }) === 0}
           />
         ))}
       </FilterSection>
@@ -418,7 +461,7 @@ export function ResultsFilterRail({
             checked={(state.freshness ?? "any") === f.id}
             onChange={() => onChange({ freshness: f.id === "any" ? null : f.id })}
             count={
-              f.id === "any" ? prospects.length : count({ freshness: f.id })
+              f.id === "any" ? prospects.length : refineCount({ freshness: f.id })
             }
           />
         ))}
@@ -437,8 +480,8 @@ export function ResultsFilterRail({
             label={size}
             checked={state.companySize === size}
             onChange={() => onChange({ companySize: size })}
-            count={count({ companySize: size })}
-            dimmed={count({ companySize: size }) === 0}
+            count={refineCount({ companySize: size })}
+            dimmed={refineCount({ companySize: size }) === 0}
           />
         ))}
       </FilterSection>
@@ -532,8 +575,14 @@ export function ResultsFilterRail({
         <div className="max-h-[min(70vh,32rem)] overflow-y-auto rounded-xl border border-border/80 bg-surface/40 px-3 py-2 lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-6rem)]">
           <p className="label-mono px-2 pt-2 text-accent-cyan/90">Filters</p>
           <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
-            Selectors re-run search · checkboxes narrow instantly
+            Selectors re-run search · catalog counts in selectors
           </p>
+          {catalogFacets ? (
+            <p className="mt-1 px-2 font-mono text-[0.625rem] text-muted-2">
+              {catalogFacets.catalogTotal.toLocaleString()} indexed ·{" "}
+              {catalogFacets.scopeTotal.toLocaleString()} in scope
+            </p>
+          ) : null}
           {(state.sector || state.industry || state.organizationType) && (
             <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-muted-2">
               {[

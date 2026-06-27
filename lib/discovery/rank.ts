@@ -1,6 +1,7 @@
 import type { Organization } from "./organization";
 import type { SearchIntent } from "./intent";
 import { ANY_REGION } from "@/lib/search/regions";
+import { organizationMatchesOrgTypeFilter } from "./canonicalOrgType";
 import {
   orgMatchesAnyIndustry,
   intentIndustryIds,
@@ -113,11 +114,11 @@ export function scoreOrganizationRelevance(
   const reasons: string[] = [];
 
   if (intent.organizationTypeId) {
-    if (org.organizationType === intent.organizationTypeId) {
+    if (organizationMatchesOrgTypeFilter(org, intent.organizationTypeId)) {
       score += 28;
       confidence += 0.2;
       reasons.push(`orgType:${intent.organizationTypeId}`);
-    } else if (org.organizationType) {
+    } else if (org.organizationType || org.canonicalOrganizationType) {
       score -= 22;
       confidence -= 0.18;
       reasons.push("orgType:mismatch");
@@ -266,16 +267,17 @@ export function filterIncompatibleOrganizations(
     }
 
     if (
-      intent.organizationTypeId === "hospital" &&
+      (intent.organizationTypeId === "hospital" ||
+        intent.organizationTypeId === "hospital-health-system") &&
       org.organizationType &&
       NON_HOSPITAL_TYPES.has(org.organizationType)
     ) {
       return false;
     }
 
-    if (intent.organizationTypeId && org.organizationType) {
+    if (intent.organizationTypeId) {
       if (
-        org.organizationType !== intent.organizationTypeId &&
+        !organizationMatchesOrgTypeFilter(org, intent.organizationTypeId) &&
         org.relevance < 75
       ) {
         return false;
