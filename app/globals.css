@@ -362,6 +362,84 @@ body {
   color: var(--result-card-muted);
 }
 
+/* ---- Discovery carousel ---- */
+.discovery-row {
+  min-width: 0;
+}
+
+.discovery-scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 0.125rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 0.5rem;
+  outline: none;
+}
+
+.discovery-scroll:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-cyan) 50%, transparent);
+  border-radius: 0.75rem;
+}
+
+.discovery-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.discovery-scroll::-webkit-scrollbar-thumb {
+  background: var(--result-card-border-hover);
+  border-radius: 9999px;
+}
+
+.discovery-card-slot {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  width: 85vw;
+  max-width: 22rem;
+}
+
+@media (min-width: 640px) {
+  .discovery-card-slot {
+    width: 60vw;
+  }
+}
+
+@media (min-width: 1024px) {
+  .discovery-card-slot {
+    /* ~3 cards across, accounting for the two 0.75rem gaps */
+    width: calc((100% - 1.5rem) / 3);
+    max-width: none;
+  }
+}
+
+.discovery-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  width: 1.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--result-card-chip-border);
+  background: var(--result-card-chip-bg);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--result-card-muted);
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.discovery-arrow:hover:not(:disabled) {
+  border-color: var(--result-card-border-hover);
+  color: var(--result-card-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.discovery-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .result-action-btn {
   display: inline-flex;
   align-items: center;

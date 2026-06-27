@@ -30,9 +30,16 @@ import {
 } from "@/lib/intelligence/resultDensity";
 import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
+import {
+  DEFAULT_RESULT_VIEW,
+  type ResultView,
+} from "@/lib/discovery/discoveryRows";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
-import { ResultRow } from "@/app/components/ResultRow";
+import { ResultViewToggle } from "@/app/components/ResultViewToggle";
+import { DiscoveryView } from "@/app/components/DiscoveryView";
+import { ResultsList } from "@/app/components/ResultsList";
+import { ResultsTableStub } from "@/app/components/ResultsTableStub";
 import { ResultDensityToggle } from "@/app/components/ResultDensityToggle";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
@@ -112,6 +119,7 @@ export function ResultsClient() {
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<ResultView>(DEFAULT_RESULT_VIEW);
   const [density, setDensity] = useState<ResultDensity>("comfortable");
   const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
     null,
@@ -492,6 +500,7 @@ export function ResultsClient() {
                 ) : null}
               </div>
               <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <ResultViewToggle value={view} onChange={setView} />
                 <ResultDensityToggle value={density} onChange={handleDensityChange} />
                 <div className="flex items-center gap-2">
                 <span className="label-mono shrink-0">Sort</span>
@@ -538,9 +547,7 @@ export function ResultsClient() {
                 ) : null}
 
                 {showResults && filtered.length > 0 ? (
-                  <div
-                    className={`flex flex-col ${density === "compact" ? "gap-2" : "gap-2.5 sm:gap-3"}`}
-                  >
+                  <div className="flex flex-col gap-3 sm:gap-4">
                     {matchCatalogSummary ? (
                       <p className="font-mono text-xs text-muted-2">
                         Showing{" "}
@@ -567,17 +574,26 @@ export function ResultsClient() {
                         ) : null}
                       </p>
                     ) : null}
-                    {filtered.map((prospect, i) => (
-                      <ResultRow
-                        key={prospect.id}
-                        prospect={prospect}
-                        rank={i + 1}
+
+                    {view === "discovery" ? (
+                      <DiscoveryView
+                        prospects={filtered}
                         density={density}
                         enriching={phase === "enriching"}
-                        selected={prospect.id === selectedId}
-                        onSelect={() => setSelectedId(prospect.id)}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
                       />
-                    ))}
+                    ) : view === "table" ? (
+                      <ResultsTableStub count={filtered.length} />
+                    ) : (
+                      <ResultsList
+                        prospects={filtered}
+                        density={density}
+                        enriching={phase === "enriching"}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                      />
+                    )}
                   </div>
                 ) : null}
               </div>
