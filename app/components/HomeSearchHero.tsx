@@ -191,7 +191,7 @@ function IndustryCarousel({
               key={i}
               type="button"
               onClick={() => scrollToPage(i)}
-              aria-label={`Go to industry page ${i + 1}`}
+              aria-label={`Go to prospect starter page ${i + 1}`}
               aria-current={page === i ? "page" : undefined}
               className={`h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${
                 page === i ? "w-5 bg-cyan-300" : "w-2 bg-white/30 hover:bg-white/50"
@@ -267,7 +267,7 @@ export function HomeSearchHero() {
         </p>
       </div>
 
-      {/* Primary entry point: guided industry selector */}
+      {/* Primary entry point: guided prospect-list selector */}
       <section
         id="start"
         aria-labelledby="industry-selector-heading"
@@ -283,10 +283,10 @@ export function HomeSearchHero() {
             <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
             <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
           </svg>
-          Start with an industry
+          Start with a prospect list
         </h2>
         <p className="mx-auto mt-1.5 max-w-xl text-balance text-sm text-white/70 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)]">
-          Choose a market and Scout will guide the rest.
+          Choose who you want to find and Scout will guide the rest.
         </p>
 
         <IndustryCarousel selectedId={selectedIndustryId} onPick={pickIndustry} />
