@@ -77,6 +77,69 @@ function StepCard({
   );
 }
 
+function CollapsibleStepCard({
+  step,
+  icon,
+  question,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  step: number;
+  icon: React.ReactNode;
+  question: string;
+  summary?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card-float rounded-[1.25rem] p-5 sm:p-6">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="interactive-press flex w-full items-start justify-between gap-3 text-left"
+      >
+        <span className="flex min-w-0 items-start gap-3">
+          {icon}
+          <span className="min-w-0">
+            <span className="block text-xs font-medium uppercase tracking-wide text-muted-2">
+              Step {step}
+            </span>
+            <span className="mt-1 block text-lg font-semibold leading-snug text-foreground">
+              {question}
+            </span>
+            {summary ? (
+              <span className="mt-1 block text-sm leading-relaxed text-muted">
+                {summary}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        <span
+          className={`mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-muted transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="m6 9 6 6 6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
+      {open ? <div className="mt-5">{children}</div> : null}
+    </section>
+  );
+}
+
 function CategoryCard({
   label,
   selected,
@@ -220,6 +283,8 @@ export function ProspectListBuilder({
   const [showAllOrgTypes, setShowAllOrgTypes] = useState(false);
   const [locationMode, setLocationMode] = useState<LocationMode>("anywhere");
   const [showLocationAdvanced, setShowLocationAdvanced] = useState(false);
+  const [showSignalOptions, setShowSignalOptions] = useState(false);
+  const [showSizeOwnershipOptions, setShowSizeOwnershipOptions] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [editQuery, setEditQuery] = useState(false);
   const { feedback } = useInteractionFeedback();
@@ -254,6 +319,16 @@ export function ProspectListBuilder({
     () => buildNaturalLanguageSummary(builder),
     [builder],
   );
+  const signalSummary =
+    builder.builderSignals.length > 0
+      ? `${builder.builderSignals.length} selected`
+      : "Optional signals";
+  const sizeOwnershipCount =
+    (builder.companySize ? 1 : 0) + (builder.ownership ? 1 : 0);
+  const sizeOwnershipSummary =
+    sizeOwnershipCount > 0
+      ? `${sizeOwnershipCount} selected`
+      : "Optional size and ownership";
 
   function patch(partial: Partial<ProspectListBuilderState>) {
     setBuilder((prev) => ({ ...prev, ...partial }));
@@ -637,7 +712,7 @@ export function ProspectListBuilder({
         )}
       </StepCard>
 
-      <StepCard
+      <CollapsibleStepCard
         step={3}
         icon={
           <StepIcon>
@@ -652,6 +727,9 @@ export function ProspectListBuilder({
           </StepIcon>
         }
         question="Narrow results: which signals matter?"
+        summary={signalSummary}
+        open={showSignalOptions}
+        onToggle={() => setShowSignalOptions((v) => !v)}
       >
         <p className="mb-4 text-sm text-muted">
           Select all that apply — each signal broadens what Scout looks for.
@@ -670,9 +748,9 @@ export function ProspectListBuilder({
             ))}
           </div>
         </fieldset>
-      </StepCard>
+      </CollapsibleStepCard>
 
-      <StepCard
+      <CollapsibleStepCard
         step={4}
         icon={
           <StepIcon>
@@ -691,6 +769,9 @@ export function ProspectListBuilder({
           </StepIcon>
         }
         question="Narrow results: size and ownership"
+        summary={sizeOwnershipSummary}
+        open={showSizeOwnershipOptions}
+        onToggle={() => setShowSizeOwnershipOptions((v) => !v)}
       >
         <fieldset>
           <legend className="mb-2.5 text-sm font-medium text-muted">
@@ -742,7 +823,7 @@ export function ProspectListBuilder({
           </div>
           </fieldset>
         </div>
-      </StepCard>
+      </CollapsibleStepCard>
 
       {!showMoreFilters ? (
         <button

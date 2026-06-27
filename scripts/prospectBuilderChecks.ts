@@ -99,17 +99,13 @@ check("full builder maps all fields to URL params", () => {
 });
 
 check("starter chips map to expected search state", () => {
-  assert.equal(starterState("health-plans").organizationType, "health-plan");
-  assert.equal(starterState("health-plans").industry, "payers");
-
-  assert.equal(
-    starterState("hospitals").organizationType,
-    "hospital-health-system",
-  );
-  assert.equal(starterState("hospitals").industry, "providers");
+  assert.equal(starterState("healthcare").sector, "healthcare");
+  assert.equal(starterState("healthcare").organizationType, null);
+  assert.equal(starterState("healthcare").industry, null);
 
   assert.equal(starterState("manufacturers").organizationType, "manufacturer");
-  assert.equal(starterState("banks").industry, "banks");
+  assert.equal(starterState("financial-services").sector, "financial-services");
+  assert.equal(starterState("financial-services").industry, null);
   assert.equal(starterState("universities").organizationType, "university");
 });
 

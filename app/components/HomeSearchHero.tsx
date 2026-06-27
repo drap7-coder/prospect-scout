@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import {
-  ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -26,123 +25,6 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-/** Line-icon + accent color per industry, keyed by selector id. */
-const INDUSTRY_VISUALS: Record<string, { accent: string; icon: ReactNode }> = {
-  "health-plans": {
-    accent: "text-cyan-300",
-    icon: (
-      <path
-        d="M12 20s-7-4.3-7-9.3A4 4 0 0 1 12 7a4 4 0 0 1 7 3.7c0 1.2-.5 2.4-1.3 3.5M3 13h4l1.5-3 2.5 6 1.5-3H17"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
-  },
-  hospitals: {
-    accent: "text-emerald-300",
-    icon: (
-      <>
-        <path
-          d="M5 21V6l7-3 7 3v15"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12 8v5M9.5 10.5h5M9 21v-4h6v4"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </>
-    ),
-  },
-  "pbm-pharmacy": {
-    accent: "text-violet-300",
-    icon: (
-      <>
-        <rect
-          x="3.5"
-          y="8.5"
-          width="17"
-          height="7"
-          rx="3.5"
-          transform="rotate(45 12 12)"
-          stroke="currentColor"
-          strokeWidth="1.75"
-        />
-        <path d="m9.5 9.5 5 5" stroke="currentColor" strokeWidth="1.75" />
-      </>
-    ),
-  },
-  manufacturers: {
-    accent: "text-amber-200",
-    icon: (
-      <path
-        d="M3 21V10l6 4V10l6 4V6l3-2v17H3Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-    ),
-  },
-  employers: {
-    accent: "text-teal-300",
-    icon: (
-      <>
-        <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.75" />
-        <path
-          d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.2a3 3 0 0 1 0 5.6M16.5 14c2.6.4 4.5 2.3 4.5 5"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-        />
-      </>
-    ),
-  },
-  nonprofits: {
-    accent: "text-rose-300",
-    icon: (
-      <path
-        d="M12 21s-6-3.8-6-8.2A3.3 3.3 0 0 1 12 9.6a3.3 3.3 0 0 1 6 3.2C18 17.2 12 21 12 21ZM4 13l3-3M20 13l-3-3"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
-  },
-  "financial-services": {
-    accent: "text-sky-300",
-    icon: (
-      <>
-        <path
-          d="M3 9.5 12 4l9 5.5M5 10v8M19 10v8M9.5 10v8M14.5 10v8M3.5 20.5h17"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </>
-    ),
-  },
-  "restaurants-hospitality": {
-    accent: "text-orange-300",
-    icon: (
-      <path
-        d="M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
-  },
-};
-
 function IndustryCard({
   selector,
   selected,
@@ -152,7 +34,6 @@ function IndustryCard({
   selected: boolean;
   onPick: (s: HomepageIndustrySelector) => void;
 }) {
-  const visual = INDUSTRY_VISUALS[selector.id];
   return (
     <button
       type="button"
@@ -161,21 +42,19 @@ function IndustryCard({
       className={`interactive-press flex h-full w-full flex-col items-center gap-2.5 rounded-2xl border p-4 text-center text-white transition hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-5 ${
         selected
           ? "border-cyan-300/70 bg-[#06141f]/95 ring-1 ring-cyan-200/50 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
-          : "border-white/20 bg-[#06141f]/92 shadow-[0_8px_32px_rgba(0,0,0,0.28)] hover:border-cyan-200/45 hover:bg-[#06141f]"
+          : "border-white/25 bg-[#06141f] shadow-[0_8px_32px_rgba(0,0,0,0.34)] hover:border-cyan-200/45 hover:bg-[#06141f]"
       }`}
     >
       <span
-        className={`flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] ${visual?.accent ?? "text-cyan-300"}`}
+        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.08] text-[1.7rem] leading-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         aria-hidden
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          {visual?.icon}
-        </svg>
+        {selector.emoji}
       </span>
       <span className="text-sm font-semibold leading-tight text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.75)]">
         {selector.label}
       </span>
-      <span className="text-xs leading-snug text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.65)]">
+      <span className="text-xs leading-snug text-white/90 drop-shadow-[0_1px_6px_rgba(0,0,0,0.65)]">
         {selector.description}
       </span>
     </button>

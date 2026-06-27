@@ -246,7 +246,7 @@ body {
 
 /* Light builder on dark homepage — reset inherited hero text color */
 .builder-panel {
-  color: var(--foreground);
+  color: #1c222b;
 }
 
 .builder-panel .card-float {
@@ -254,13 +254,15 @@ body {
 }
 
 .builder-panel .interactive-choice {
-  color: var(--foreground);
+  border-color: rgba(28, 34, 43, 0.12);
+  background: #ffffff;
+  color: #1c222b;
 }
 
 .builder-panel .builder-choice-selected {
   border-color: var(--accent-cyan);
   background: color-mix(in srgb, var(--accent-cyan) 16%, #ffffff);
-  color: var(--foreground);
+  color: #1c222b;
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--accent-cyan) 28%, transparent),
     0 2px 10px color-mix(in srgb, var(--accent-cyan) 16%, transparent);
@@ -268,22 +270,22 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   .builder-panel .interactive-choice:not(.builder-choice-selected):hover {
-    border-color: color-mix(in srgb, var(--accent-cyan) 38%, var(--border));
+    border-color: color-mix(in srgb, var(--accent-cyan) 38%, rgba(28, 34, 43, 0.12));
     background: color-mix(in srgb, var(--accent-cyan) 7%, #ffffff);
-    color: var(--foreground);
+    color: #1c222b;
   }
 }
 
 .builder-panel .builder-choice-selected .builder-choice-label {
-  color: color-mix(in srgb, var(--accent-cyan) 72%, #0c4a44);
+  color: #10202a;
 }
 
 .builder-panel .builder-choice-hint {
-  color: var(--muted);
+  color: #5c6570;
 }
 
 .builder-panel .builder-choice-selected .builder-choice-hint {
-  color: color-mix(in srgb, var(--muted) 70%, #0c4a44);
+  color: #43505a;
 }
 
 /* Dark enterprise-style result cards */

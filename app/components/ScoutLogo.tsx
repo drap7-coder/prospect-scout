@@ -29,14 +29,16 @@ export function ScoutBrand({
   size = 32,
   showSubtitle = false,
   className = "",
+  priority = false,
 }: {
   size?: number;
   showSubtitle?: boolean;
   className?: string;
+  priority?: boolean;
 }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <ScoutLogo size={size} />
+      <ScoutLogo size={size} priority={priority} />
       <div className="min-w-0">
         <span className="block text-base font-semibold leading-tight tracking-[-0.02em] text-foreground">
           Prospect Scout

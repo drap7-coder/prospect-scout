@@ -39,18 +39,9 @@ interface BuilderStarterCategory {
 /** Primary starter searches shown in Step 1 of the guided builder. */
 export const BUILDER_PRIMARY_CATEGORIES: BuilderStarterCategory[] = [
   {
-    cardId: "health-plans",
-    label: "Health Plans",
+    cardId: "healthcare",
+    label: "Healthcare",
     sectorId: "healthcare",
-    industry: "payers",
-    organizationType: "health-plan",
-  },
-  {
-    cardId: "hospitals",
-    label: "Hospitals",
-    sectorId: "healthcare",
-    industry: "providers",
-    organizationType: "hospital-health-system",
   },
   {
     cardId: "manufacturers",
@@ -60,10 +51,9 @@ export const BUILDER_PRIMARY_CATEGORIES: BuilderStarterCategory[] = [
     organizationType: "manufacturer",
   },
   {
-    cardId: "banks",
-    label: "Banks",
+    cardId: "financial-services",
+    label: "Financial Services",
     sectorId: "financial-services",
-    industry: "banks",
   },
   {
     cardId: "universities",
@@ -133,7 +123,7 @@ export const HOMEPAGE_INDUSTRY_SELECTORS: HomepageIndustrySelector[] = [
     sectorId: "healthcare",
     industry: "payers",
     organizationType: "health-plan",
-    builderCardId: "health-plans",
+    builderCardId: "healthcare",
   },
   {
     id: "hospitals",
@@ -143,7 +133,7 @@ export const HOMEPAGE_INDUSTRY_SELECTORS: HomepageIndustrySelector[] = [
     sectorId: "healthcare",
     industry: "providers",
     organizationType: "hospital-health-system",
-    builderCardId: "hospitals",
+    builderCardId: "healthcare",
   },
   {
     id: "pbm-pharmacy",
@@ -153,6 +143,7 @@ export const HOMEPAGE_INDUSTRY_SELECTORS: HomepageIndustrySelector[] = [
     sectorId: "healthcare",
     industry: "payers",
     organizationType: "pbm",
+    builderCardId: "healthcare",
   },
   {
     id: "manufacturers",
@@ -189,6 +180,7 @@ export const HOMEPAGE_INDUSTRY_SELECTORS: HomepageIndustrySelector[] = [
     description: "Banks, credit unions, and financial institutions.",
     emoji: "🏦",
     sectorId: "financial-services",
+    builderCardId: "financial-services",
   },
   {
     id: "restaurants-hospitality",
