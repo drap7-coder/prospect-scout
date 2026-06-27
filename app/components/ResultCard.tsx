@@ -1,97 +1,24 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Prospect, ProspectSignal, SizeTier } from "@/lib/search/types";
+import type { Prospect } from "@/lib/search/types";
 import type { ResultDensity } from "@/lib/intelligence/resultDensity";
 import { resultScoreBadge } from "@/lib/intelligence/colors";
-import { sourceTone } from "@/lib/intelligence/colors";
-import {
-  formatFreshness,
-  prospectFreshness,
-  topSignals,
-} from "@/lib/intelligence/evidence";
+import { formatFreshness, prospectFreshness } from "@/lib/intelligence/evidence";
 import { primaryMatchReason } from "@/lib/intelligence/matchReasons";
-import {
-  buildSourceRecords,
-  faviconUrl,
-} from "@/lib/intelligence/sourceRecords";
-import {
-  industryLabel,
-  organizationTypeLabel,
-  sectorLabel,
-} from "@/lib/taxonomy";
+import { faviconUrl } from "@/lib/intelligence/sourceRecords";
+import { synthesizeIntelligenceCard } from "@/lib/intelligence/synthesizeCard";
+import { useNonprofitEnrichment } from "@/lib/intelligence/useNonprofitEnrichment";
 import { useInteractionFeedback } from "./InteractionProvider";
-import { EnrichmentHint, SourceRecordBadge } from "./SourceRecordPopover";
+import { EnrichmentHint } from "./SourceRecordPopover";
+import { IntelligenceSourceBadge } from "./IntelligenceSourceBadge";
 import {
   isNonprofitProspect,
-  NonprofitEnrichmentStrip,
   extractEinFromProspectId,
   parseCityFromLocation,
 } from "./NonprofitEnrichmentStrip";
 
-const SIZE_LABELS: Record<SizeTier, string> = {
-  small: "Small",
-  mid: "Mid-market",
-  large: "Large",
-  enterprise: "Enterprise",
-};
-
-type SignalGroup = {
-  id: string;
-  label: string;
-  signals: ProspectSignal[];
-};
-
-function groupSignals(signals: ProspectSignal[]): SignalGroup[] {
-  const groups: SignalGroup[] = [
-    { id: "news", label: "Recent news", signals: [] },
-    { id: "regulatory", label: "Regulatory", signals: [] },
-    { id: "fda", label: "FDA", signals: [] },
-    { id: "sec", label: "SEC", signals: [] },
-    { id: "cms", label: "CMS", signals: [] },
-    { id: "other", label: "Other signals", signals: [] },
-  ];
-
-  for (const s of signals) {
-    const src = s.source;
-    const text = `${s.label} ${s.evidenceText}`.toLowerCase();
-    if (src === "RSS" || /press|news|announcement/.test(text)) {
-      groups.find((g) => g.id === "news")!.signals.push(s);
-    } else if (src === "FDA" || /recall|fda|enforcement/.test(text)) {
-      groups.find((g) => g.id === "fda")!.signals.push(s);
-    } else if (src === "SEC" || /filing|10-k|8-k|edgar/.test(text)) {
-      groups.find((g) => g.id === "sec")!.signals.push(s);
-    } else if (src === "CMS" || /medicare|enrollment|star rating/.test(text)) {
-      groups.find((g) => g.id === "cms")!.signals.push(s);
-    } else if (s.type === "regulatory" || /regulat|compliance/.test(text)) {
-      groups.find((g) => g.id === "regulatory")!.signals.push(s);
-    } else {
-      groups.find((g) => g.id === "other")!.signals.push(s);
-    }
-  }
-
-  return groups.filter((g) => g.signals.length > 0);
-}
-
-function TypeBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-md bg-white/[0.06] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--result-card-muted)] ring-1 ring-white/[0.08]">
-      {children}
-    </span>
-  );
-}
-
-function SignalChip({ signal }: { signal: ProspectSignal }) {
-  const tone = sourceTone(signal.source);
-  return (
-    <span
-      className={`inline-flex max-w-full items-center gap-1 truncate rounded-md border px-2 py-1 font-mono text-[0.625rem] ${tone.bg} ${tone.border} ${tone.text}`}
-    >
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`} />
-      {signal.label}
-    </span>
-  );
-}
+const CARD_INDENT = "pl-[calc(1.25rem+2.25rem+0.75rem)]";
 
 function CardLogo({ website, name }: { website?: string; name: string }) {
   const icon = faviconUrl(website);
@@ -114,6 +41,43 @@ function CardLogo({ website, name }: { website?: string; name: string }) {
   );
 }
 
+function IntelSection({
+  title,
+  children,
+  className = "",
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`intel-section ${className}`}>
+      <h4 className="intel-section-label">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+function IdentityMeta({
+  parts,
+}: {
+  parts: { label: string; value: React.ReactNode }[];
+}) {
+  if (parts.length === 0) return null;
+  return (
+    <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+      {parts.map(({ label, value }) => (
+        <div key={label} className="flex min-w-0 items-baseline gap-1.5">
+          <dt className="shrink-0 font-mono text-[0.625rem] uppercase tracking-wide text-[var(--result-card-muted-2)]">
+            {label}
+          </dt>
+          <dd className="text-[var(--result-card-muted)]">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function ResultCard({
   prospect,
   rank,
@@ -132,41 +96,71 @@ export function ResultCard({
   const [expanded, setExpanded] = useState(density === "detailed");
   const { feedback } = useInteractionFeedback();
 
-  const sourceRecords = useMemo(
-    () => buildSourceRecords(prospect),
-    [prospect],
-  );
-  const signals = topSignals(prospect, density === "compact" ? 2 : 5);
-  const signalGroups = groupSignals(prospect.signals);
-  const freshness = prospectFreshness(prospect);
-  const scoreBadge = resultScoreBadge(prospect.score);
-  const showExpanded = density === "detailed" || expanded;
-  const awaitingEnrichment =
-    enriching && prospect.signals.length === 0 && prospect.directoryMatch;
   const showNonprofitEnrichment = isNonprofitProspect(prospect);
   const nonprofitEin =
     prospect.ein ?? extractEinFromProspectId(prospect.id) ?? null;
   const nonprofitCity = parseCityFromLocation(prospect.location);
 
-  const summary =
-    prospect.description ??
-    prospect.whyItMatters[0] ??
-    prospect.whyNow;
+  const { enrichment: nonprofitEnrichment } = useNonprofitEnrichment({
+    enabled: showNonprofitEnrichment,
+    name: prospect.name,
+    ein: nonprofitEin,
+    city: nonprofitCity,
+    state: prospect.stateCode ?? null,
+  });
 
-  const metaParts: string[] = [];
-  if (prospect.employeeEstimate) {
-    metaParts.push(`~${prospect.employeeEstimate.toLocaleString()} employees`);
-  } else if (prospect.size) {
-    metaParts.push(SIZE_LABELS[prospect.size]);
+  const card = useMemo(
+    () => synthesizeIntelligenceCard(prospect, nonprofitEnrichment),
+    [prospect, nonprofitEnrichment],
+  );
+
+  const freshness = prospectFreshness(prospect);
+  const scoreBadge = resultScoreBadge(card.identity.matchScore);
+  const showExpanded = density === "detailed" || expanded;
+  const awaitingEnrichment =
+    enriching && prospect.signals.length === 0 && prospect.directoryMatch;
+
+  const intelLimit =
+    density === "compact" ? 2 : showExpanded ? card.intelligence.length : 3;
+  const signalLimit = density === "compact" ? 1 : 3;
+  const visibleIntel = card.intelligence.slice(0, intelLimit);
+  const visibleSignals = card.opportunitySignals.slice(0, signalLimit);
+  const hiddenIntel = card.intelligence.length - visibleIntel.length;
+  const hiddenSignals = card.opportunitySignals.length - visibleSignals.length;
+
+  const identityMeta: { label: string; value: React.ReactNode }[] = [];
+  if (card.identity.orgType) {
+    identityMeta.push({ label: "Type", value: card.identity.orgType });
   }
-  if (prospect.publicCompany === true) metaParts.push("Public");
-  else if (prospect.publicCompany === false) metaParts.push("Private");
-  if (prospect.sectorId === "nonprofit") metaParts.push("Nonprofit");
+  if (card.identity.industry) {
+    identityMeta.push({ label: "Industry", value: card.identity.industry });
+  }
+  if (card.identity.headquarters) {
+    identityMeta.push({ label: "HQ", value: card.identity.headquarters });
+  }
+  if (card.identity.website && card.identity.websiteHref) {
+    identityMeta.push({
+      label: "Web",
+      value: (
+        <a
+          href={card.identity.websiteHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-accent-cyan/90 hover:text-accent-cyan hover:underline"
+        >
+          {card.identity.website}
+        </a>
+      ),
+    });
+  }
 
   function handleShare(e: React.MouseEvent) {
     e.stopPropagation();
     feedback("tap");
-    const text = `${prospect.name} — ${primaryMatchReason(prospect)}`;
+    const summary =
+      card.intelligence[0]?.text ?? primaryMatchReason(prospect);
+    const text = `${prospect.name} — ${summary}`;
     if (navigator.share) {
       void navigator.share({ title: prospect.name, text });
     } else {
@@ -178,133 +172,112 @@ export function ResultCard({
     <article
       className={`result-card-v2 group ${density === "compact" ? "result-card-v2--compact" : ""} ${density === "detailed" ? "result-card-v2--detailed" : ""} ${selected ? "result-card--selected" : ""}`}
     >
-      {/* Header */}
       <div className="flex items-start gap-3">
         <span className="mt-1 font-mono text-[0.625rem] tabular-nums text-[var(--result-card-muted-2)]">
           {String(rank).padStart(2, "0")}
         </span>
-        <CardLogo website={prospect.website} name={prospect.name} />
+        <CardLogo website={prospect.website} name={card.identity.name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
             <div className="min-w-0">
               <h3 className="text-[0.9375rem] font-semibold leading-snug tracking-[-0.01em] text-[var(--result-card-text)] sm:text-base">
-                {prospect.name}
+                {card.identity.name}
               </h3>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {prospect.organizationTypeId ? (
-                  <TypeBadge>{organizationTypeLabel(prospect.organizationTypeId)}</TypeBadge>
-                ) : (
-                  <TypeBadge>{prospect.buyerType}</TypeBadge>
-                )}
-                {prospect.industryId ? (
-                  <TypeBadge>{industryLabel(prospect.industryId)}</TypeBadge>
-                ) : prospect.sectorId ? (
-                  <TypeBadge>{sectorLabel(prospect.sectorId)}</TypeBadge>
-                ) : null}
-                {prospect.stateCode ? (
-                  <TypeBadge>{prospect.stateCode}</TypeBadge>
-                ) : null}
-              </div>
+              <IdentityMeta parts={identityMeta} />
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <div className="flex shrink-0 flex-col items-end gap-1">
               <span
                 className={`inline-flex min-w-[2.5rem] items-center justify-center rounded-lg border px-2 py-1 font-mono text-sm font-bold tabular-nums leading-none ${scoreBadge}`}
-                title="Match confidence"
+                title="Match score"
               >
-                {prospect.score}
+                {card.identity.matchScore}
               </span>
-              {prospect.discoveryConfidence !== undefined ? (
-                <span className="font-mono text-[0.5625rem] text-[var(--result-card-muted-2)]">
-                  {Math.round(prospect.discoveryConfidence * 100)}% conf.
+              {card.identity.confidencePercent != null ? (
+                <span
+                  className="font-mono text-[0.5625rem] text-[var(--result-card-muted-2)]"
+                  title="Discovery confidence"
+                >
+                  {card.identity.confidencePercent}% confidence
                 </span>
               ) : null}
             </div>
           </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {sourceRecords.map((rec) => (
-              <SourceRecordBadge
-                key={rec.connector}
-                record={rec}
-                pulsing={awaitingEnrichment && rec.connector !== "directory"}
-              />
-            ))}
-            {awaitingEnrichment ? (
-              <EnrichmentHint label="Enriching…" />
-            ) : null}
-          </div>
         </div>
       </div>
 
-      {/* Summary — always visible except ultra-compact */}
-      {density !== "compact" ? (
-        <div className="mt-3 border-t border-white/[0.06] pt-3 pl-[calc(1.25rem+2.25rem+0.75rem)] sm:pl-[calc(1.25rem+2.25rem+0.75rem)]">
-          <p className="text-sm leading-relaxed text-[var(--result-card-text)]/90">
-            {summary}
-          </p>
-          <div className="mt-2.5">
-            <p className="font-mono text-[0.625rem] uppercase tracking-wide text-[var(--result-card-muted-2)]">
-              Why this matched
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {prospect.matchReasons.slice(0, showExpanded ? 6 : 2).map((r) => (
-                <li
-                  key={r}
-                  className="flex items-start gap-1.5 text-xs leading-relaxed text-[var(--result-card-muted)]"
-                >
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-cyan/80" />
-                  {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-          {metaParts.length > 0 ? (
-            <p className="mt-2 font-mono text-[0.6875rem] text-[var(--result-card-muted-2)]">
-              {metaParts.join(" · ")}
+      {visibleIntel.length > 0 ? (
+        <IntelSection title="Intelligence" className={`mt-3 ${CARD_INDENT}`}>
+          <ul className="intel-bullet-list">
+            {visibleIntel.map((bullet) => (
+              <li key={bullet.text}>{bullet.text}</li>
+            ))}
+          </ul>
+          {!showExpanded && hiddenIntel > 0 ? (
+            <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--result-card-muted-2)]">
+              +{hiddenIntel} more insight{hiddenIntel === 1 ? "" : "s"}
             </p>
           ) : null}
-        </div>
-      ) : (
-        <p className="mt-2 pl-[calc(1.25rem+2.25rem+0.75rem)] text-xs text-[var(--result-card-muted)]">
+        </IntelSection>
+      ) : density === "compact" ? (
+        <p className={`mt-2 ${CARD_INDENT} text-xs text-[var(--result-card-muted)]`}>
           {primaryMatchReason(prospect)}
         </p>
-      )}
-
-      {showNonprofitEnrichment ? (
-        <NonprofitEnrichmentStrip
-          name={prospect.name}
-          ein={nonprofitEin}
-          city={nonprofitCity}
-          state={prospect.stateCode ?? null}
-        />
       ) : null}
 
-      {/* Signals — comfortable+ when expanded or detailed */}
-      {showExpanded && density !== "compact" && signalGroups.length > 0 ? (
-        <div className="mt-3 space-y-2.5 border-t border-white/[0.06] pt-3 pl-[calc(1.25rem+2.25rem+0.75rem)]">
-          {signalGroups.map((group) => (
-            <div key={group.id}>
-              <p className="font-mono text-[0.625rem] uppercase tracking-wide text-[var(--result-card-muted-2)]">
-                {group.label}
-              </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {group.signals.slice(0, 4).map((s) => (
-                  <SignalChip key={s.id} signal={s} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : density === "comfortable" && signals.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/[0.06] pt-3 pl-[calc(1.25rem+2.25rem+0.75rem)]">
-          {signals.slice(0, 3).map((s) => (
-            <SignalChip key={s.id} signal={s} />
-          ))}
+      {card.whyNow && showExpanded && density !== "compact" ? (
+        <div className={`mt-3 ${CARD_INDENT}`}>
+          <p className="intel-why-now">{card.whyNow}</p>
         </div>
       ) : null}
 
-      {/* Footer actions */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3 pl-[calc(1.25rem+2.25rem+0.75rem)]">
+      {visibleSignals.length > 0 ? (
+        <IntelSection
+          title="Opportunity signals"
+          className={`mt-3 border-t border-white/[0.06] pt-3 ${CARD_INDENT}`}
+        >
+          <ul className="intel-signal-list">
+            {visibleSignals.map((signal) => (
+              <li key={`${signal.source}-${signal.label}`}>
+                <span className="intel-signal-label">{signal.label}</span>
+                {showExpanded && signal.detail ? (
+                  <span className="intel-signal-detail">{signal.detail}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {!showExpanded && hiddenSignals > 0 ? (
+            <p className="mt-1.5 font-mono text-[0.625rem] text-[var(--result-card-muted-2)]">
+              +{hiddenSignals} more signal{hiddenSignals === 1 ? "" : "s"}
+            </p>
+          ) : null}
+        </IntelSection>
+      ) : null}
+
+      {card.dataSources.length > 0 ? (
+        <IntelSection
+          title="Data sources"
+          className={`mt-3 border-t border-white/[0.06] pt-3 ${CARD_INDENT}`}
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            {card.dataSources.map((badge) => (
+              <IntelligenceSourceBadge
+                key={badge.id}
+                badge={badge}
+                pulsing={awaitingEnrichment && badge.id !== "directory"}
+              />
+            ))}
+            {awaitingEnrichment ? <EnrichmentHint label="Enriching…" /> : null}
+          </div>
+        </IntelSection>
+      ) : awaitingEnrichment ? (
+        <div className={`mt-3 ${CARD_INDENT}`}>
+          <EnrichmentHint label="Enriching…" />
+        </div>
+      ) : null}
+
+      <div
+        className={`mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3 ${CARD_INDENT}`}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -316,13 +289,9 @@ export function ResultCard({
           >
             View details
           </button>
-          {prospect.website ? (
+          {card.identity.websiteHref ? (
             <a
-              href={
-                /^https?:\/\//i.test(prospect.website)
-                  ? prospect.website
-                  : `https://${prospect.website}`
-              }
+              href={card.identity.websiteHref}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -330,10 +299,17 @@ export function ResultCard({
             >
               Website ↗
             </a>
-          ) : awaitingEnrichment ? (
-            <span className="result-action-btn result-action-btn--muted">
-              Website pending
-            </span>
+          ) : null}
+          {card.form990Url ? (
+            <a
+              href={card.form990Url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="result-action-btn"
+            >
+              Form 990 ↗
+            </a>
           ) : null}
           <button
             type="button"
@@ -348,12 +324,11 @@ export function ResultCard({
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`font-mono text-[0.625rem] tabular-nums text-[var(--result-card-muted-2)]`}
-          >
+          <span className="font-mono text-[0.625rem] tabular-nums text-[var(--result-card-muted-2)]">
             {formatFreshness(freshness)}
           </span>
-          {density !== "detailed" ? (
+          {density !== "detailed" &&
+          (hiddenIntel > 0 || hiddenSignals > 0 || card.whyNow) ? (
             <button
               type="button"
               onClick={() => {
