@@ -36,7 +36,7 @@ export default function DiagnosticsPage() {
     <main className="mx-auto max-w-3xl px-4 py-10">
       <header className="mb-8">
         <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
-          Internal · Discovery Engine v1
+          Internal · Discovery Engine v2
         </p>
         <h1 className="mt-1 text-2xl font-medium">Organization Catalog Diagnostics</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
@@ -46,27 +46,45 @@ export default function DiagnosticsPage() {
 
       <div className="flex flex-col gap-6">
         <Section title="Coverage">
-          <StatRow label="Total organizations" value={report.coverage.total} />
-          <StatRow label="Catalog scale target coverage" value={`${report.coverage.sourceCoveragePercent}%`} />
+          <StatRow label="Total organizations (canonical)" value={report.coverage.total.toLocaleString()} />
           <StatRow label="Catalog confidence" value={`${Math.round(report.coverage.confidence * 100)}%`} />
+          <StatRow label="Domain duplicate rate" value={`${report.duplicates.duplicateRate}%`} />
+          <StatRow label="Domain duplicate clusters" value={report.duplicates.duplicateDomains.length} />
           <StatRow label="Companies" value={report.coverage.categories.companies} />
           <StatRow label="Nonprofits" value={report.coverage.categories.nonprofits} />
-          <StatRow label="Government" value={report.coverage.categories.government} />
           <StatRow label="Education" value={report.coverage.categories.education} />
           <StatRow label="Healthcare" value={report.coverage.categories.healthcare} />
           <StatRow label="Manufacturers" value={report.coverage.categories.manufacturers} />
-          <StatRow
-            label="Financial Services"
-            value={report.coverage.categories.financialServices}
-          />
-          <StatRow label="Technology" value={report.coverage.categories.technology} />
-          <StatRow label="Retail" value={report.coverage.categories.retail} />
-          <h3 className="mb-2 mt-4 text-sm font-medium text-[var(--muted)]">By sector</h3>
-          {Object.entries(report.coverage.bySector)
-            .sort((a, b) => b[1] - a[1])
-            .map(([sector, count]) => (
-              <StatRow key={sector} label={sector} value={count} />
-            ))}
+          <StatRow label="Financial Services" value={report.coverage.categories.financialServices} />
+        </Section>
+
+        <Section title="Performance">
+          <StatRow label="Catalog load (once per process)" value={`${report.latency.catalogLoadMs} ms`} />
+          <StatRow label="Search latency p50" value={`${report.latency.p50Ms} ms`} />
+          <StatRow label="Search latency p95" value={`${report.latency.p95Ms} ms`} />
+          <StatRow label="Search latency max (sample)" value={`${report.latency.maxMs} ms`} />
+          <h3 className="mb-2 mt-4 text-sm font-medium text-[var(--muted)]">Sample queries</h3>
+          {report.latency.sampleQueries.map((s) => (
+            <StatRow
+              key={s.query}
+              label={s.query}
+              value={`${s.latencyMs} ms · ${s.resultCount} results`}
+            />
+          ))}
+        </Section>
+
+        <Section title="Benchmark Summary">
+          <StatRow label="Queries sampled" value={report.benchmarkSummary.queryCount} />
+          <StatRow label="Avg results per query" value={report.benchmarkSummary.avgResultCount} />
+          <StatRow label="Avg relevance" value={report.benchmarkSummary.avgRelevance} />
+          <StatRow label="Avg confidence" value={report.benchmarkSummary.avgConfidence} />
+          <StatRow label="Queries with coverage gaps" value={report.benchmarkSummary.queriesWithGaps} />
+          <StatRow label="Queries with zero results" value={report.benchmarkSummary.queriesWithZeroResults} />
+        </Section>
+
+        <Section title="Catalog Freshness">
+          <StatRow label="Last successful ingest" value={report.catalogFreshness.lastIngest.slice(0, 10)} />
+          <StatRow label="Manifest generated" value={report.catalogFreshness.generatedAt.slice(0, 10)} />
         </Section>
 
         <Section title="Connector Health">
@@ -75,11 +93,9 @@ export default function DiagnosticsPage() {
               <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--muted)]">
                 <tr>
                   <th className="py-2 pr-3 font-medium">Connector</th>
-                  <th className="py-2 pr-3 font-medium">Industry</th>
+                  <th className="py-2 pr-3 font-medium">Source</th>
                   <th className="py-2 pr-3 font-medium">Records</th>
-                  <th className="py-2 pr-3 font-medium">Freshness</th>
-                  <th className="py-2 pr-3 font-medium">Duplicates</th>
-                  <th className="py-2 pr-3 font-medium">Failures</th>
+                  <th className="py-2 pr-3 font-medium">Last updated</th>
                   <th className="py-2 pr-3 font-medium">Coverage</th>
                   <th className="py-2 font-medium">Confidence</th>
                 </tr>
@@ -88,11 +104,18 @@ export default function DiagnosticsPage() {
                 {report.connectorHealth.map((item) => (
                   <tr key={item.connectorId} className="border-b border-[var(--border)]">
                     <td className="py-2 pr-3 font-medium">{item.label}</td>
-                    <td className="py-2 pr-3 text-[var(--muted)]">{item.industry}</td>
+                    <td className="max-w-[180px] truncate py-2 pr-3 text-[var(--muted)]">
+                      <a
+                        href={item.sourceUrl}
+                        className="underline hover:text-[var(--foreground)]"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {item.sourceName}
+                      </a>
+                    </td>
                     <td className="py-2 pr-3 tabular-nums">{item.recordsIngested.toLocaleString()}</td>
-                    <td className="py-2 pr-3 text-[var(--muted)]">{item.freshness}</td>
-                    <td className="py-2 pr-3 tabular-nums">{item.duplicates}</td>
-                    <td className="py-2 pr-3 tabular-nums">{item.failures}</td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--muted)]">{item.lastUpdated}</td>
                     <td className="py-2 pr-3 tabular-nums">{item.sourceCoveragePercent}%</td>
                     <td className="py-2 tabular-nums">{Math.round(item.confidence * 100)}%</td>
                   </tr>
@@ -103,82 +126,17 @@ export default function DiagnosticsPage() {
         </Section>
 
         <Section title="Completeness">
-          <StatRow
-            label="With website"
-            value={`${report.completeness.pctWebsite}% (${report.completeness.withWebsite}/${report.completeness.total})`}
-          />
-          <StatRow
-            label="With domain"
-            value={`${report.completeness.pctDomain}% (${report.completeness.withDomain}/${report.completeness.total})`}
-          />
-          <StatRow
-            label="With headquarters"
-            value={`${report.completeness.pctHeadquarters}% (${report.completeness.withHeadquarters}/${report.completeness.total})`}
-          />
-          <StatRow
-            label="With state"
-            value={`${report.completeness.pctState}% (${report.completeness.withState}/${report.completeness.total})`}
-          />
-          <StatRow
-            label="With industry"
-            value={`${report.completeness.pctIndustry}% (${report.completeness.withIndustry}/${report.completeness.total})`}
-          />
-          <StatRow
-            label="With organization type"
-            value={`${report.completeness.pctOrganizationType}% (${report.completeness.withOrganizationType}/${report.completeness.total})`}
-          />
+          <StatRow label="With state" value={`${report.completeness.pctState}%`} />
+          <StatRow label="With industry" value={`${report.completeness.pctIndustry}%`} />
+          <StatRow label="With organization type" value={`${report.completeness.pctOrganizationType}%`} />
+          <StatRow label="With website" value={`${report.completeness.pctWebsite}%`} />
+          <StatRow label="With domain" value={`${report.completeness.pctDomain}%`} />
         </Section>
 
         <Section title="Duplicate Detection">
-          <h3 className="mb-2 text-sm font-medium">
-            Duplicate domains ({report.duplicates.duplicateDomains.length})
-          </h3>
-          {report.duplicates.duplicateDomains.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">None detected.</p>
-          ) : (
-            <ul className="space-y-3 text-sm">
-              {report.duplicates.duplicateDomains.map((group) => (
-                <li key={group.key}>
-                  <span className="font-mono text-xs">{group.key}</span>
-                  <ul className="ml-4 mt-1 list-disc text-[var(--muted)]">
-                    {group.organizations.map((o) => (
-                      <li key={o.id}>
-                        {o.name} ({o.id})
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h3 className="mb-2 mt-4 text-sm font-medium">
-            Similar names ({report.duplicates.similarNames.length})
-          </h3>
-          {report.duplicates.similarNames.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">None detected.</p>
-          ) : (
-            <ul className="space-y-2 text-sm text-[var(--muted)]">
-              {report.duplicates.similarNames.map((group) => (
-                <li key={group.key}>{group.key}</li>
-              ))}
-            </ul>
-          )}
-
-          <h3 className="mb-2 mt-4 text-sm font-medium">
-            Probable duplicates ({report.duplicates.probableDuplicates.length})
-          </h3>
-          {report.duplicates.probableDuplicates.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">None detected.</p>
-          ) : (
-            <ul className="space-y-2 text-sm text-[var(--muted)]">
-              {report.duplicates.probableDuplicates.map((group) => (
-                <li key={group.key}>
-                  {group.organizations.map((o) => o.name).join(" · ")}
-                </li>
-              ))}
-            </ul>
-          )}
+          <StatRow label="Duplicate domains" value={report.duplicates.duplicateDomains.length} />
+          <StatRow label="Similar names (sample)" value={report.duplicates.similarNames.length} />
+          <StatRow label="Probable duplicates (sample)" value={report.duplicates.probableDuplicates.length} />
         </Section>
       </div>
 

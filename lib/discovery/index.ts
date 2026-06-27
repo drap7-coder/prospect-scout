@@ -60,3 +60,8 @@ export {
   type BenchmarkReport,
   type BenchmarkQueryResult,
 } from "./benchmark";
+export {
+  assertBenchmarkQuality,
+  summarizeBenchmarkQueries,
+  type BenchmarkQuerySummary,
+} from "./benchmarkQueries";

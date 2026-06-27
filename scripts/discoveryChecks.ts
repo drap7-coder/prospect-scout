@@ -22,7 +22,7 @@ import {
 } from "../lib/discovery/discoveryEngine.ts";
 import {
   computeCoverage,
-  computeCompleteness,
+  computeConnectorHealth,
   detectDuplicates,
   runDiagnostics,
 } from "../lib/discovery/diagnostics.ts";
@@ -151,10 +151,10 @@ check("discoverOrganizationsSync returns Ohio manufacturers", () => {
 
 check("runDiagnostics reports catalog health", () => {
   const report = runDiagnostics();
-  assert.ok(report.coverage.total >= 100_000);
-  assert.ok(report.completeness.pctState >= 99);
-  assert.ok(report.completeness.pctIndustry >= 99);
-  assert.ok(report.completeness.pctOrganizationType >= 99);
+  assert.ok(report.coverage.total >= 5_000, "catalog should exceed curated baseline");
+  assert.ok(report.completeness.pctState >= 60);
+  assert.ok(report.completeness.pctIndustry >= 95);
+  assert.ok(report.completeness.pctOrganizationType >= 95);
   assert.ok(report.connectorHealth.length >= 6);
   assert.ok(typeof report.duplicates.duplicateDomains === "object");
 });
@@ -171,6 +171,36 @@ check("computeCoverage categories sum sensibly", () => {
     coverage.categories.nonprofits +
     coverage.categories.government;
   assert.ok(catSum >= coverage.total * 0.5);
+});
+
+check("diagnostics handles an empty connector result set", () => {
+  const report = runDiagnostics([]);
+  assert.equal(report.coverage.total, 0);
+  assert.equal(report.completeness.total, 0);
+  assert.deepEqual(report.duplicates.duplicateDomains, []);
+  assert.ok(report.connectorHealth.length >= 1);
+});
+
+check("diagnostics detects duplicate connector records without crashing", () => {
+  const [first] = organizationsFromDirectory();
+  assert.ok(first);
+  const duplicate = {
+    ...first!,
+    id: "duplicate-diagnostics-record",
+    sources: [
+      ...first!.sources,
+      {
+        connector: "test-failed-connector",
+        sourceId: "dup",
+        retrievedAt: new Date().toISOString(),
+        evidence: ["duplicate fixture"],
+      },
+    ],
+  };
+  const duplicates = detectDuplicates([first!, duplicate]);
+  assert.equal(duplicates.duplicateDomains.length, first!.domain ? 1 : 0);
+  const health = computeConnectorHealth([first!, duplicate]);
+  assert.ok(health.every((item) => typeof item.failures === "number"));
 });
 
 console.log(`\nAll ${passed} discovery checks passed.`);

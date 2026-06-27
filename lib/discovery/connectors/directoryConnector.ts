@@ -4,6 +4,11 @@ import type { SearchIntent } from "../intent";
 import type { DiscoveryConnector, ConnectorRecord } from "../connector";
 import type { OrganizationRecord } from "@/lib/directories/types";
 import { ANY_REGION } from "@/lib/search/regions";
+import {
+  intentIndustryIds,
+  intentSectorIds,
+  orgMatchesAnyIndustry,
+} from "../match";
 
 const REGION_ALIASES: Record<string, string[]> = {
   midwest: ["midwest", "great-lakes", "upper-midwest"],
@@ -15,19 +20,14 @@ const REGION_ALIASES: Record<string, string[]> = {
 };
 
 function passesIntentFilter(org: Organization, intent: SearchIntent): boolean {
-  if (intent.sectorId && org.sectorId && org.sectorId !== intent.sectorId) {
-    // Allow cross-sector only when no industry specified (soft filter at discover).
-    if (intent.industryId) return false;
+  const sectors = intentSectorIds(intent);
+  if (sectors.length > 0 && org.sectorId && !sectors.includes(org.sectorId)) {
+    return false;
   }
 
-  if (intent.industryId) {
-    const match =
-      org.industries.includes(intent.industryId) ||
-      (intent.industryId === "life-sciences" &&
-        org.industries.includes("medical-device-manufacturing")) ||
-      (intent.industryId === "medical-device-manufacturing" &&
-        org.industries.includes("life-sciences"));
-    if (!match && org.industries.length > 0) return false;
+  const industries = intentIndustryIds(intent);
+  if (industries.length > 0 && org.industries.length > 0) {
+    if (!orgMatchesAnyIndustry(org, industries)) return false;
   }
 
   if (intent.organizationTypeId && org.organizationType) {
@@ -72,8 +72,7 @@ export const directoryConnector: DiscoveryConnector = {
       return all.map((org) => ({ __type: "organization", org }) as ConnectorRecord);
     }
     const filtered = all.filter((org) => passesIntentFilter(org, intent));
-    // If filters are too strict, fall back to full catalog for ranking to decide.
-    const pool = filtered.length > 0 ? filtered : all;
+    const pool = filtered;
     return pool.map((org) => ({ __type: "organization", org }) as ConnectorRecord);
   },
 

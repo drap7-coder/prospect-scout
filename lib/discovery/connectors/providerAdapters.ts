@@ -69,10 +69,10 @@ export const rssConnector: DiscoveryConnector = {
   merge: mergeOrganizations,
 };
 
-/** CMS contract registry → Organization stubs. */
-export const cmsConnector: DiscoveryConnector = {
-  id: "cms",
-  label: "CMS Medicare Contracts",
+/** CMS contract registry — enrichment adapter (not used for listing). */
+export const cmsEnrichmentConnector: DiscoveryConnector = {
+  id: "cms-enrichment",
+  label: "CMS Medicare Contracts (live)",
 
   discover(): ConnectorRecord[] {
     return CMS_ORGANIZATIONS.map((org) => ({ __type: "cms", org }));
@@ -95,10 +95,10 @@ export const cmsConnector: DiscoveryConnector = {
   merge: mergeOrganizations,
 };
 
-/** FDA firm registry → Organization stubs. */
-export const fdaConnector: DiscoveryConnector = {
-  id: "fda",
-  label: "FDA Enforcement",
+/** FDA firm registry — enrichment adapter (not used for listing). */
+export const fdaEnrichmentConnector: DiscoveryConnector = {
+  id: "fda-enrichment",
+  label: "FDA Enforcement (live)",
 
   discover(): ConnectorRecord[] {
     return FDA_FIRM_REGISTRY.map((firm) => ({ __type: "fda", firm }));
@@ -148,10 +148,10 @@ export const publicWebConnector: DiscoveryConnector = {
   merge: mergeOrganizations,
 };
 
-/** SEC is enrichment-only — no static catalog; discover returns empty. */
-export const secConnector: DiscoveryConnector = {
-  id: "sec",
-  label: "SEC EDGAR",
+/** SEC EDGAR — live enrichment adapter (listing uses sec bulk catalog). */
+export const secEnrichmentConnector: DiscoveryConnector = {
+  id: "sec-enrichment",
+  label: "SEC EDGAR (live)",
 
   discover(): ConnectorRecord[] {
     return [];

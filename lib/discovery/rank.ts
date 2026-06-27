@@ -1,6 +1,12 @@
 import type { Organization } from "./organization";
 import type { SearchIntent } from "./intent";
 import { ANY_REGION } from "@/lib/search/regions";
+import {
+  orgMatchesAnyIndustry,
+  intentIndustryIds,
+  UNIVERSITY_EXCLUSION_RE,
+  NON_HOSPITAL_TYPES,
+} from "./match";
 
 const REGION_ALIASES: Record<string, string[]> = {
   midwest: ["midwest", "great-lakes", "upper-midwest"],
@@ -31,22 +37,13 @@ function stateMatches(org: Organization, state: string): boolean {
   return org.states.includes(state);
 }
 
-function industryMatches(org: Organization, industryId: string): boolean {
-  if (org.industries.includes(industryId)) return true;
-  // Life-sciences ↔ medical-device cross-match (same as resultsFilters).
-  if (
-    industryId === "life-sciences" &&
-    org.industries.includes("medical-device-manufacturing")
-  ) {
-    return true;
-  }
-  if (
-    industryId === "medical-device-manufacturing" &&
-    org.industries.includes("life-sciences")
-  ) {
-    return true;
-  }
-  return false;
+function cityMatches(org: Organization, city: string): boolean {
+  const needle = city.toLowerCase();
+  const hay = [org.headquarters, ...org.locations, org.canonicalName]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(needle);
 }
 
 /** Sectors that are clearly unrelated — used for mismatch penalty. */
@@ -64,88 +61,156 @@ const SECTOR_INCOMPATIBLE: Record<string, string[]> = {
 function isSectorMismatch(org: Organization, intent: SearchIntent): boolean {
   if (!intent.sectorId || !org.sectorId) return false;
   if (org.sectorId === intent.sectorId) return false;
+  const alternates = intent.alternateSectorIds ?? [];
+  if (alternates.includes(org.sectorId)) return false;
   const incompatible = SECTOR_INCOMPATIBLE[intent.sectorId];
   return incompatible?.includes(org.sectorId) ?? false;
 }
 
+const AUTHORITATIVE_CONNECTORS = new Set([
+  "directory",
+  "nces",
+  "sec",
+  "cms",
+  "fda",
+  "irs-nonprofits",
+]);
+
+const ENRICHMENT_CONNECTORS = new Set(["rss", "public-web"]);
+
+function sourceTierAdjustment(org: Organization): {
+  scoreDelta: number;
+  confidenceDelta: number;
+  reason?: string;
+} {
+  const connectors = new Set(org.sources.map((s) => s.connector));
+  const authoritative = [...connectors].some((c) =>
+    AUTHORITATIVE_CONNECTORS.has(c),
+  );
+  const enrichmentOnly =
+    [...connectors].some((c) => ENRICHMENT_CONNECTORS.has(c)) &&
+    !authoritative;
+
+  if (authoritative && !enrichmentOnly) {
+    return { scoreDelta: 15, confidenceDelta: 0.15, reason: "source:authoritative" };
+  }
+  if (enrichmentOnly) {
+    return { scoreDelta: -30, confidenceDelta: -0.25, reason: "source:enrichment-only" };
+  }
+  return { scoreDelta: 0, confidenceDelta: 0 };
+}
+
 /**
  * Score a single organization against structured search intent.
- * Strong boosts for industry/geo/orgType; strong penalty for cross-sector mismatch.
+ * Prioritizes org type → industry → state/city → authoritative source → exact name.
  */
 export function scoreOrganizationRelevance(
   org: Organization,
   intent: SearchIntent,
 ): { relevance: number; confidence: number; matchReasons: string[] } {
-  let score = 40; // baseline for appearing in catalog
-  let confidence = 0.5;
+  let score = 30;
+  let confidence = 0.45;
   const reasons: string[] = [];
 
-  if (intent.industryId) {
-    if (industryMatches(org, intent.industryId)) {
-      score += 30;
-      confidence += 0.25;
-      reasons.push(`industry:${intent.industryId}`);
+  if (intent.organizationTypeId) {
+    if (org.organizationType === intent.organizationTypeId) {
+      score += 28;
+      confidence += 0.2;
+      reasons.push(`orgType:${intent.organizationTypeId}`);
+    } else if (org.organizationType) {
+      score -= 22;
+      confidence -= 0.18;
+      reasons.push("orgType:mismatch");
+    }
+  }
+
+  const industries = intentIndustryIds(intent);
+  if (industries.length > 0) {
+    if (orgMatchesAnyIndustry(org, industries)) {
+      score += 32;
+      confidence += 0.22;
+      reasons.push(`industry:${intent.industryId ?? industries[0]}`);
     } else if (org.industries.length > 0) {
-      score -= 25;
-      confidence -= 0.15;
+      score -= 28;
+      confidence -= 0.18;
       reasons.push("industry:mismatch");
     }
   }
 
   if (intent.sectorId) {
     if (org.sectorId === intent.sectorId) {
-      score += 15;
+      score += 18;
       confidence += 0.1;
       reasons.push(`sector:${intent.sectorId}`);
+    } else if (
+      org.sectorId &&
+      (intent.alternateSectorIds ?? []).includes(org.sectorId)
+    ) {
+      score += 12;
+      confidence += 0.08;
+      reasons.push(`sector:alternate:${org.sectorId}`);
     } else if (isSectorMismatch(org, intent)) {
-      score -= 35;
-      confidence -= 0.3;
+      score -= 40;
+      confidence -= 0.32;
       reasons.push("sector:incompatible");
-    }
-  }
-
-  if (intent.organizationTypeId) {
-    if (org.organizationType === intent.organizationTypeId) {
-      score += 20;
-      confidence += 0.15;
-      reasons.push(`orgType:${intent.organizationTypeId}`);
     }
   }
 
   if (intent.state) {
     if (stateMatches(org, intent.state)) {
-      score += 25;
+      score += 26;
       confidence += 0.2;
       reasons.push(`state:${intent.state}`);
-    } else {
-      score -= 15;
-      confidence -= 0.1;
+    } else if (org.states.length > 0) {
+      score -= 18;
+      confidence -= 0.12;
       reasons.push("state:mismatch");
+    }
+  }
+
+  if (intent.city) {
+    if (cityMatches(org, intent.city)) {
+      score += 22;
+      confidence += 0.15;
+      reasons.push(`city:${intent.city}`);
+    } else if (intent.state && stateMatches(org, intent.state)) {
+      score += 6;
+      reasons.push(`state-proximity:${intent.state}`);
     }
   }
 
   if (intent.region !== ANY_REGION) {
     if (regionMatches(org, intent.region)) {
-      score += 15;
-      confidence += 0.1;
+      score += 12;
+      confidence += 0.08;
       reasons.push(`region:${intent.region}`);
     } else if (!intent.state) {
-      score -= 10;
+      score -= 12;
       reasons.push("region:mismatch");
     }
   }
 
-  // Keyword overlap on name/aliases (secondary to structured match).
+  const queryLower = intent.query.toLowerCase();
+  const nameLower = org.canonicalName.toLowerCase();
+  if (queryLower.length >= 4 && nameLower.includes(queryLower)) {
+    score += 15;
+    confidence += 0.1;
+    reasons.push("exact:query-in-name");
+  }
+
   if (intent.keywords.length > 0) {
-    const hay = [org.canonicalName, ...org.aliases]
-      .join(" ")
-      .toLowerCase();
+    const hay = [org.canonicalName, ...org.aliases].join(" ").toLowerCase();
     const matched = intent.keywords.filter((kw) => hay.includes(kw));
     if (matched.length > 0) {
-      score += Math.min(10, matched.length * 3);
+      score += Math.min(8, matched.length * 2);
       reasons.push(`keywords:${matched.join(",")}`);
     }
   }
+
+  const tier = sourceTierAdjustment(org);
+  score += tier.scoreDelta;
+  confidence += tier.confidenceDelta;
+  if (tier.reason) reasons.push(tier.reason);
 
   return {
     relevance: clamp(score, 0, 100),
@@ -175,56 +240,85 @@ export function rankOrganizations(
   );
 }
 
-/** Filter out organizations with strong sector/industry mismatch when intent is structured. */
+const MIN_RELEVANCE_STRUCTURED = 52;
+
+/** Filter out organizations with strong sector/industry/org-type mismatch. */
 export function filterIncompatibleOrganizations(
   orgs: RankedOrganization[],
   intent: SearchIntent,
 ): RankedOrganization[] {
-  if (!intent.sectorId && !intent.industryId && !intent.organizationTypeId) {
-    return orgs;
-  }
+  const hasStructured = Boolean(
+    intent.sectorId ||
+      intent.industryId ||
+      intent.organizationTypeId ||
+      intent.state ||
+      intent.city,
+  );
 
   return orgs.filter((org) => {
     if (org.matchReasons.includes("sector:incompatible")) return false;
 
-    if (intent.industryId && org.industries.length > 0) {
-      const industryOk = industryMatches(org, intent.industryId);
-      if (!industryOk && org.relevance < 70) return false;
+    if (
+      intent.organizationTypeId === "university" &&
+      UNIVERSITY_EXCLUSION_RE.test(org.canonicalName)
+    ) {
+      return false;
+    }
+
+    if (
+      intent.organizationTypeId === "hospital" &&
+      org.organizationType &&
+      NON_HOSPITAL_TYPES.has(org.organizationType)
+    ) {
+      return false;
     }
 
     if (intent.organizationTypeId && org.organizationType) {
       if (
         org.organizationType !== intent.organizationTypeId &&
-        org.relevance < 70
+        org.relevance < 75
       ) {
         return false;
       }
     }
 
+    const industries = intentIndustryIds(intent);
+    if (industries.length > 0 && org.industries.length > 0) {
+      if (!orgMatchesAnyIndustry(org, industries) && org.relevance < 68) {
+        return false;
+      }
+    }
+
     if (
-      intent.industryId &&
       org.matchReasons.includes("industry:mismatch") &&
-      org.relevance < 55
+      org.matchReasons.includes("orgType:mismatch") &&
+      org.relevance < 60
     ) {
       return false;
     }
 
-    // When industry/org-type intent is explicit, drop unrelated sectors that
-    // only matched via multi-state footprint (e.g. health plans "in California").
-    if (intent.industryId || intent.organizationTypeId) {
-      const industryOk =
-        !intent.industryId ||
-        org.industries.length === 0 ||
-        industryMatches(org, intent.industryId);
-      const orgTypeOk =
-        !intent.organizationTypeId ||
-        !org.organizationType ||
-        org.organizationType === intent.organizationTypeId;
-      if (!industryOk || !orgTypeOk) {
-        if (org.relevance < 80) return false;
+    if (intent.state && org.states.length > 0) {
+      if (
+        !stateMatches(org, intent.state) &&
+        org.relevance < 72 &&
+        !org.matchReasons.some((r) => r.startsWith("sector:alternate"))
+      ) {
+        return false;
       }
+    }
+
+    if (hasStructured && org.relevance < MIN_RELEVANCE_STRUCTURED) {
+      return false;
     }
 
     return true;
   });
+}
+
+/** Cap result set size after ranking. */
+export function limitResults(
+  orgs: RankedOrganization[],
+  max = 500,
+): RankedOrganization[] {
+  return orgs.slice(0, max);
 }

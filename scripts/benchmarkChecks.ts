@@ -7,12 +7,17 @@ import {
   discoverOrganizationsSync,
   initDiscoveryEngine,
 } from "../lib/discovery/discoveryEngine.ts";
-import { BENCHMARK_QUERIES } from "../lib/discovery/benchmark.ts";
+import {
+  BENCHMARK_QUERIES,
+  assertBenchmarkQuality,
+} from "../lib/discovery/benchmarkQueries.ts";
+import { runBenchmark } from "../lib/discovery/benchmark.ts";
+import { getCatalogOrganizations } from "../lib/discovery/catalog/catalogIndex.ts";
 import { runSearch } from "../lib/search/runSearch.ts";
 
 let passed = 0;
-function check(name: string, fn: () => void) {
-  fn();
+async function check(name: string, fn: () => void | Promise<void>) {
+  await fn();
   passed += 1;
   console.log(`  ok  ${name}`);
 }
@@ -21,13 +26,18 @@ console.log("Benchmark regression checks:\n");
 
 initDiscoveryEngine();
 
-check("BENCHMARK_QUERIES has 10 entries", () => {
-  assert.equal(BENCHMARK_QUERIES.length, 10);
+await check("BENCHMARK_QUERIES has at least 100 entries", () => {
+  assert.ok(BENCHMARK_QUERIES.length >= 100);
 });
 
-check("manufacturers in ohio returns Ohio manufacturers, not banks", () => {
-  const { organizations } = discoverOrganizationsSync("manufacturers in ohio");
-  assert.ok(organizations.length > 0, "expected at least one Ohio manufacturer");
+await check("catalog exceeds curated baseline", () => {
+  assert.ok(getCatalogOrganizations().length >= 5_000);
+});
+
+await check("manufacturers in ohio returns Ohio manufacturers, not banks", () => {
+  const { organizations, latencyMs } = discoverOrganizationsSync("manufacturers in ohio");
+  assert.ok(latencyMs < 100, `latency ${latencyMs}ms`);
+  assert.ok(organizations.length > 0);
   for (const org of organizations.slice(0, 10)) {
     assert.notEqual(org.sectorId, "financial-services");
     assert.ok(!org.industries.includes("banks"));
@@ -37,77 +47,102 @@ check("manufacturers in ohio returns Ohio manufacturers, not banks", () => {
   assert.ok(top.states.includes("OH"));
 });
 
-check("manufacturers in ohio via runSearch ranks manufacturers highest", () => {
-  const result = runSearch({
-    query: "manufacturers in ohio",
-    sells: "",
-    targets: "manufacturers in ohio",
-  });
-  assert.ok(result.prospects.length > 0);
-  const top = result.prospects[0]!;
-  assert.equal(top.sectorId, "manufacturing");
-  assert.ok(top.score >= 50);
-  const banks = result.prospects.filter((p) => p.industryId === "banks");
-  if (banks.length > 0) {
-    assert.ok(banks[0]!.score < top.score);
-  }
-});
-
-check("banks in texas does not return manufacturers when any banks exist", () => {
-  const { organizations } = discoverOrganizationsSync("banks in texas");
-  if (organizations.length === 0) {
-    console.log("    (skip: no TX banks in catalog yet — coverage gap)");
-    return;
-  }
+await check("banks in texas returns FDIC/SEC bank records", () => {
+  const { organizations, latencyMs } = discoverOrganizationsSync("banks in texas");
+  assert.ok(latencyMs < 100);
+  assert.ok(organizations.length > 0);
   for (const org of organizations.slice(0, 5)) {
-    assert.ok(
-      org.sectorId === "financial-services" || org.industries.includes("banks"),
-    );
+    assert.ok(org.sectorId === "financial-services" && org.industries.includes("banks"));
+    assert.ok(org.states.includes("TX"));
+    assert.ok(org.sources.some((s) => s.connector === "sec"));
   }
 });
 
-check("universities in california filters to education sector when present", () => {
-  const { organizations } = discoverOrganizationsSync("universities in california");
-  if (organizations.length === 0) {
-    console.log("    (skip: no CA universities in catalog yet — coverage gap)");
-    return;
-  }
+await check("universities in california returns NCES education records", () => {
+  const { organizations, latencyMs } = discoverOrganizationsSync("universities in california");
+  assert.ok(latencyMs < 100);
+  assert.ok(organizations.length > 0);
   for (const org of organizations.slice(0, 5)) {
-    assert.ok(
-      org.sectorId === "education" ||
-        org.industries.includes("universities") ||
-        org.organizationType === "university",
-    );
+    assert.equal(org.sectorId, "education");
+    assert.ok(org.industries.includes("universities"));
+    assert.ok(org.states.includes("CA"));
+    assert.ok(org.sources.some((s) => s.connector === "nces"));
   }
 });
 
-check("nonprofits in pennsylvania returns nonprofit sector when present", () => {
+await check("nonprofits in pennsylvania returns nonprofit sector", () => {
   const { organizations } = discoverOrganizationsSync("nonprofits in pennsylvania");
-  if (organizations.length === 0) {
-    console.log("    (skip: no PA nonprofits in catalog yet — coverage gap)");
-    return;
-  }
-  const hasNonprofit = organizations.some(
-    (o) => o.sectorId === "nonprofit" || o.ownership === "nonprofit",
+  assert.ok(organizations.length > 0);
+  assert.ok(
+    organizations.some(
+      (o) => o.sectorId === "nonprofit" || o.ownership === "nonprofit",
+    ),
   );
-  assert.ok(hasNonprofit);
 });
 
-check("government contractors in virginia returns public sector when present", () => {
-  const { organizations } = discoverOrganizationsSync(
-    "government contractors in virginia",
+await check("PBMs query returns CMS PBM records", () => {
+  const { organizations } = discoverOrganizationsSync("PBMs");
+  assert.ok(organizations.some((o) => o.organizationType === "pbm"));
+});
+
+await check("health plans query returns CMS health plan records", () => {
+  const { organizations } = discoverOrganizationsSync("health plans");
+  assert.ok(organizations.some((o) => o.organizationType === "health-plan"));
+});
+
+await check("pharmaceutical manufacturers includes FDA and directory results", () => {
+  const { organizations } = discoverOrganizationsSync("pharmaceutical manufacturers");
+  assert.ok(organizations.length > 6, "expected FDA bulk + directory pharma");
+  const connectors = new Set(organizations.flatMap((o) => o.sources.map((s) => s.connector)));
+  assert.ok(connectors.has("fda") || connectors.has("directory"));
+});
+
+await check("medical device companies includes FDA establishments", () => {
+  const { organizations } = discoverOrganizationsSync("medical device companies");
+  assert.ok(organizations.length > 4);
+  assert.ok(
+    organizations.some((o) => o.sources.some((s) => s.connector === "fda")),
   );
-  if (organizations.length === 0) {
-    console.log("    (skip: no VA gov orgs in catalog yet — coverage gap)");
-    return;
+});
+
+await check("hospitals near philadelphia excludes health plans", () => {
+  const { organizations } = discoverOrganizationsSync("hospitals near Philadelphia");
+  assert.ok(organizations.length > 0);
+  for (const org of organizations.slice(0, 5)) {
+    assert.notEqual(org.organizationType, "health-plan");
+    assert.notEqual(org.organizationType, "pbm");
   }
 });
 
-check("each benchmark query completes without error", () => {
-  for (const query of BENCHMARK_QUERIES) {
-    const { organizations } = discoverOrganizationsSync(query);
-    assert.ok(Array.isArray(organizations));
+await check("100-query benchmark quality gate", () => {
+  const { passed: ok, failed } = assertBenchmarkQuality(BENCHMARK_QUERIES);
+  if (failed.length > 0) {
+    console.log(`    failures (${failed.length}):`);
+    for (const f of failed.slice(0, 10)) {
+      console.log(`      - ${f.query}: ${f.reason}`);
+    }
   }
+  assert.ok(
+    ok >= BENCHMARK_QUERIES.length * 0.92,
+    `expected >=92% pass rate, got ${ok}/${BENCHMARK_QUERIES.length}`,
+  );
+});
+
+await check("runSearch exposes coverage metadata", () => {
+  const result = runSearch({
+    query: "universities in california",
+    sells: "",
+    targets: "universities in california",
+  });
+  assert.ok(result.coverage.totalCatalogRecords >= 5_000);
+  assert.ok(result.coverage.searchedRecords > 0);
+});
+
+await check("benchmark report includes latency metrics", async () => {
+  const report = await runBenchmark();
+  assert.ok(report.catalogTotal >= 5_000);
+  assert.equal(typeof report.avgLatencyMs, "number");
+  assert.ok(report.p95LatencyMs < 120, `p95 latency ${report.p95LatencyMs}ms`);
 });
 
 console.log(`\nAll ${passed} benchmark checks passed.`);

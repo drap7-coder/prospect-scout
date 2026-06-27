@@ -16,7 +16,9 @@ export default async function BenchmarkPage() {
         </p>
         <h1 className="mt-1 text-2xl font-medium">Search Quality Benchmark</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Regression suite · {new Date(report.generatedAt).toLocaleString()}
+          Regression suite · {report.queries.length} queries · catalog{" "}
+          {report.catalogTotal.toLocaleString()} orgs · avg {report.avgLatencyMs}ms · p95{" "}
+          {report.p95LatencyMs}ms · {new Date(report.generatedAt).toLocaleString()}
         </p>
       </header>
 
@@ -49,6 +51,37 @@ export default async function BenchmarkPage() {
                 </ul>
               </div>
             )}
+
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  Results by connector
+                </p>
+                <ul className="mt-1 text-sm text-[var(--muted)]">
+                  {result.connectorBreakdown.length === 0 ? (
+                    <li>—</li>
+                  ) : (
+                    result.connectorBreakdown.map((c) => (
+                      <li key={c.connectorId}>
+                        {c.connectorId} ({c.count})
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
+                  Coverage gaps
+                </p>
+                <ul className="mt-1 text-sm text-[var(--muted)]">
+                  {result.coverageGaps.length === 0 ? (
+                    <li>None detected</li>
+                  ) : (
+                    result.coverageGaps.map((gap) => <li key={gap}>{gap}</li>)
+                  )}
+                </ul>
+              </div>
+            </div>
 
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div>

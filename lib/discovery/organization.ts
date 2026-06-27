@@ -7,6 +7,14 @@ import type { BuyerPackId } from "@/lib/search/types";
 export interface OrganizationSource {
   connector: string;
   sourceId: string;
+  /** Human-readable source name, e.g. "FDIC Institution Directory". */
+  sourceName?: string;
+  /** Public URL or dataset file for the source. */
+  sourceUrl?: string;
+  /** When the upstream dataset was last updated. */
+  lastUpdated?: string;
+  /** Confidence in this source record (0–1). */
+  confidence?: number;
   retrievedAt: string;
   evidence: string[];
 }
@@ -63,10 +71,31 @@ function normalizeNameKey(name: string): string {
     .trim();
 }
 
-/** Dedupe key: domain first, then normalized name. */
+const CORPORATE_SUFFIXES =
+  /\b(inc|incorporated|corp|corporation|co|company|llc|l l c|ltd|limited|plc|lp|llp|na|n a|national association|bancorp|bancshares|holdings|group)\b/gi;
+
+/** Strip legal suffixes for fuzzy name matching. */
+export function stripCorporateSuffix(name: string): string {
+  return normalizeNameKey(name.replace(CORPORATE_SUFFIXES, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDirectorySource(org: Organization): boolean {
+  return org.sources.some((s) => s.connector === "directory");
+}
+
+function sourcePriority(org: Organization): number {
+  if (isDirectorySource(org)) return 3;
+  const connector = org.sources[0]?.connector ?? "";
+  if (connector === "cms" || connector === "sec" || connector === "nces") return 2;
+  return 1;
+}
+
+/** Dedupe key: domain first, then stripped normalized name. */
 export function organizationDedupeKey(org: Organization): string {
   if (org.domain) return `domain:${org.domain}`;
-  return `name:${normalizeNameKey(org.canonicalName)}`;
+  return `name:${stripCorporateSuffix(org.canonicalName)}`;
 }
 
 function inferOwnership(record: OrganizationRecord): Organization["ownership"] {
@@ -125,6 +154,10 @@ export function directoryRecordToOrganization(
       {
         connector: "directory",
         sourceId: normalized.id,
+        sourceName: "Master Directory",
+        sourceUrl: "lib/directories/",
+        lastUpdated: new Date().toISOString().slice(0, 10),
+        confidence: 0.92,
         retrievedAt: new Date().toISOString(),
         evidence: ["Master directory record"],
       },
@@ -147,14 +180,19 @@ function pickBetterString(a: string | null, b: string | null): string | null {
   return a ?? b;
 }
 
-/** Merge two organization records into one (dedupe aliases, sources, locations). */
+/** Merge two organization records; prefer directory canonical identity. */
 export function mergeOrganizations(
   existing: Organization,
   incoming: Organization,
 ): Organization {
-  const mergedIndustries = unionUnique(existing.industries, incoming.industries);
-  const mergedSources = [...existing.sources];
-  for (const src of incoming.sources) {
+  const preferIncoming =
+    isDirectorySource(incoming) && !isDirectorySource(existing);
+  const base = preferIncoming ? incoming : existing;
+  const other = preferIncoming ? existing : incoming;
+
+  const mergedIndustries = unionUnique(base.industries, other.industries);
+  const mergedSources = [...base.sources];
+  for (const src of other.sources) {
     const dup = mergedSources.some(
       (s) => s.connector === src.connector && s.sourceId === src.sourceId,
     );
@@ -162,38 +200,50 @@ export function mergeOrganizations(
   }
 
   return {
-    id: existing.id,
-    canonicalName: existing.canonicalName || incoming.canonicalName,
+    id: base.id,
+    canonicalName: base.canonicalName || other.canonicalName,
     aliases: unionUnique(
-      unionUnique(existing.aliases, incoming.aliases),
-      incoming.canonicalName !== existing.canonicalName
-        ? [incoming.canonicalName]
-        : [],
+      unionUnique(base.aliases, other.aliases),
+      other.canonicalName !== base.canonicalName ? [other.canonicalName] : [],
     ),
-    website: pickBetterString(existing.website, incoming.website),
-    domain: existing.domain ?? incoming.domain,
-    organizationType: existing.organizationType ?? incoming.organizationType,
+    website: pickBetterString(base.website, other.website),
+    domain: base.domain ?? other.domain,
+    organizationType: base.organizationType ?? other.organizationType,
     industries: mergedIndustries,
-    sectorId: existing.sectorId ?? incoming.sectorId,
-    headquarters: pickBetterString(existing.headquarters, incoming.headquarters),
-    locations: unionUnique(existing.locations, incoming.locations),
-    states: unionUnique(existing.states, incoming.states),
-    regions: unionUnique(existing.regions, incoming.regions),
-    ownership: existing.ownership ?? incoming.ownership,
-    employeeRange: existing.employeeRange ?? incoming.employeeRange,
-    revenueRange: existing.revenueRange ?? incoming.revenueRange,
-    description: existing.description ?? incoming.description,
+    sectorId: base.sectorId ?? other.sectorId,
+    headquarters: pickBetterString(base.headquarters, other.headquarters),
+    locations: unionUnique(base.locations, other.locations),
+    states: unionUnique(base.states, other.states),
+    regions: unionUnique(base.regions, other.regions),
+    ownership: base.ownership ?? other.ownership,
+    employeeRange: base.employeeRange ?? other.employeeRange,
+    revenueRange: base.revenueRange ?? other.revenueRange,
+    description: base.description ?? other.description,
     sources: mergedSources,
-    buyerPack: existing.buyerPack ?? incoming.buyerPack,
-    relevance: Math.max(existing.relevance ?? 0, incoming.relevance ?? 0),
-    confidence: Math.max(existing.confidence ?? 0, incoming.confidence ?? 0),
+    buyerPack: base.buyerPack ?? other.buyerPack,
+    relevance: Math.max(base.relevance ?? 0, other.relevance ?? 0),
+    confidence: Math.max(base.confidence ?? 0, other.confidence ?? 0),
   };
 }
 
 /** Deduplicate a list of organizations by domain then normalized name. */
 export function dedupeOrganizations(orgs: Organization[]): Organization[] {
+  return dedupeOrganizationsCanonical(orgs);
+}
+
+/**
+ * Canonical dedupe: domain → stripped name → alias overlap.
+ * Directory records are merged first so curated names win.
+ */
+export function dedupeOrganizationsCanonical(
+  orgs: Organization[],
+): Organization[] {
+  const sorted = [...orgs].sort(
+    (a, b) => sourcePriority(b) - sourcePriority(a),
+  );
+
   const byKey = new Map<string, Organization>();
-  for (const org of orgs) {
+  for (const org of sorted) {
     const key = organizationDedupeKey(org);
     const existing = byKey.get(key);
     if (!existing) {
@@ -202,7 +252,42 @@ export function dedupeOrganizations(orgs: Organization[]): Organization[] {
     }
     byKey.set(key, mergeOrganizations(existing, org));
   }
-  return [...byKey.values()];
+
+  let deduped = [...byKey.values()];
+
+  const byName = new Map<string, Organization>();
+  for (const org of deduped) {
+    const nameKey = stripCorporateSuffix(org.canonicalName);
+    const existing = byName.get(nameKey);
+    if (!existing) {
+      byName.set(nameKey, org);
+      continue;
+    }
+    byName.set(nameKey, mergeOrganizations(existing, org));
+  }
+  deduped = [...byName.values()];
+
+  const byAliasKey = new Map<string, Organization>();
+  for (const org of deduped) {
+    const keys = [
+      stripCorporateSuffix(org.canonicalName),
+      ...org.aliases.map(stripCorporateSuffix),
+    ].filter(Boolean);
+    let mergeTarget: Organization | null = null;
+    for (const key of keys) {
+      const existing = byAliasKey.get(key);
+      if (existing) {
+        mergeTarget = existing;
+        break;
+      }
+    }
+    const merged = mergeTarget ? mergeOrganizations(mergeTarget, org) : org;
+    for (const key of keys) {
+      byAliasKey.set(key, merged);
+    }
+  }
+
+  return [...new Set(byAliasKey.values())];
 }
 
 export { normalizeNameKey };

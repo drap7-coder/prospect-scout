@@ -1,138 +1,108 @@
 import { registerConnector, getConnectors } from "./connector";
 import { directoryConnector } from "./connectors/directoryConnector";
+import { ncesConnector } from "./connectors/ncesConnector";
+import { secBulkConnector } from "./connectors/secBulkConnector";
+import { cmsBulkConnector } from "./connectors/cmsBulkConnector";
+import { fdaBulkConnector } from "./connectors/fdaBulkConnector";
+import { irsNonprofitConnector } from "./connectors/irsNonprofitConnector";
 import {
   rssConnector,
-  cmsConnector,
-  fdaConnector,
   publicWebConnector,
-  secConnector,
 } from "./connectors/providerAdapters";
-import { highValueDirectoryConnectors } from "./connectors/highValueDirectoryConnectors";
 import { dedupeOrganizations } from "./organization";
-import type { Organization } from "./organization";
 import { parseSearchIntent, type ParseSearchIntentOptions } from "./intent";
 import {
   rankOrganizations,
   filterIncompatibleOrganizations,
+  limitResults,
   type RankedOrganization,
 } from "./rank";
+import { discoverFromCatalogIndex } from "./catalog/catalogIndex";
 
 let initialized = false;
+
+/** Authoritative listing connectors — RSS/public-web excluded by default. */
+export const LISTING_CONNECTOR_IDS = [
+  "directory",
+  "cms",
+  "sec",
+  "fda",
+  "irs-nonprofits",
+  "nces",
+] as const;
 
 /** Register all discovery connectors (idempotent). */
 export function initDiscoveryEngine(): void {
   if (initialized) return;
   registerConnector(directoryConnector);
+  registerConnector(ncesConnector);
+  registerConnector(secBulkConnector);
+  registerConnector(cmsBulkConnector);
+  registerConnector(fdaBulkConnector);
+  registerConnector(irsNonprofitConnector);
   registerConnector(rssConnector);
-  registerConnector(cmsConnector);
-  registerConnector(fdaConnector);
   registerConnector(publicWebConnector);
-  registerConnector(secConnector);
-  for (const connector of highValueDirectoryConnectors) {
-    registerConnector(connector);
-  }
   initialized = true;
 }
 
 export interface DiscoverOptions extends ParseSearchIntentOptions {
-  /** Connector ids to use; default = core directory + first five high-value source directories. */
   connectors?: string[];
+  maxResults?: number;
 }
 
 export interface DiscoverResult {
   intent: ReturnType<typeof parseSearchIntent>;
   organizations: RankedOrganization[];
   totalBeforeDedupe: number;
+  latencyMs: number;
 }
 
-/**
- * Run organization discovery: parse intent → discover from connectors →
- * dedupe → rank → filter incompatible.
- */
+function runDiscoveryPipeline(
+  intent: ReturnType<typeof parseSearchIntent>,
+  connectorIds: readonly string[],
+  maxResults: number,
+): DiscoverResult {
+  const started = performance.now();
+
+  const candidates = discoverFromCatalogIndex(intent, [...connectorIds]);
+  const totalBeforeDedupe = candidates.length;
+  const deduped = dedupeOrganizations(candidates);
+  const ranked = rankOrganizations(deduped, intent);
+  const filtered = filterIncompatibleOrganizations(ranked, intent);
+  const limited = limitResults(filtered, maxResults);
+
+  return {
+    intent,
+    organizations: limited,
+    totalBeforeDedupe,
+    latencyMs: Math.round((performance.now() - started) * 100) / 100,
+  };
+}
+
 export async function discoverOrganizations(
   query: string,
   options: DiscoverOptions = {},
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
+  getConnectors();
 
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [
-    "directory",
-    "cms",
-    "sec",
-    "fda",
-    "irs-nonprofits",
-    "nces",
-  ];
-  const connectors = getConnectors().filter((c) => connectorIds.includes(c.id));
+  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const maxResults = options.maxResults ?? 500;
 
-  const rawOrgs: Organization[] = [];
-
-  for (const connector of connectors) {
-    const records = await connector.discover(intent);
-    for (const record of records) {
-      try {
-        rawOrgs.push(connector.normalize(record));
-      } catch {
-        // skip invalid records
-      }
-    }
-  }
-
-  const totalBeforeDedupe = rawOrgs.length;
-  const deduped = dedupeOrganizations(rawOrgs);
-  const ranked = rankOrganizations(deduped, intent);
-  const filtered = filterIncompatibleOrganizations(ranked, intent);
-
-  return {
-    intent,
-    organizations: filtered,
-    totalBeforeDedupe,
-  };
+  return runDiscoveryPipeline(intent, connectorIds, maxResults);
 }
 
-/**
- * Synchronous discovery for the local search pipeline (directory only).
- */
 export function discoverOrganizationsSync(
   query: string,
   options: DiscoverOptions = {},
 ): DiscoverResult {
   initDiscoveryEngine();
+  getConnectors();
 
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [
-    "directory",
-    "cms",
-    "sec",
-    "fda",
-    "irs-nonprofits",
-    "nces",
-  ];
-  const connectors = getConnectors().filter((c) => connectorIds.includes(c.id));
+  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const maxResults = options.maxResults ?? 500;
 
-  const rawOrgs: Organization[] = [];
-
-  for (const connector of connectors) {
-    const records = connector.discover(intent);
-    const list = records instanceof Promise ? [] : records;
-    for (const record of list) {
-      try {
-        rawOrgs.push(connector.normalize(record));
-      } catch {
-        // skip invalid records
-      }
-    }
-  }
-
-  const totalBeforeDedupe = rawOrgs.length;
-  const deduped = dedupeOrganizations(rawOrgs);
-  const ranked = rankOrganizations(deduped, intent);
-  const filtered = filterIncompatibleOrganizations(ranked, intent);
-
-  return {
-    intent,
-    organizations: filtered,
-    totalBeforeDedupe,
-  };
+  return runDiscoveryPipeline(intent, connectorIds, maxResults);
 }

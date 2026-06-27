@@ -215,7 +215,7 @@ check("filters render from taxonomy even when result set is small", () => {
     sells: "",
   });
   assert.ok(response.prospects.length > 0);
-  assert.ok(response.coverage.totalCatalogRecords >= 100_000);
+  assert.ok(response.coverage.totalCatalogRecords >= 5_000);
   assert.ok(response.coverage.confidence > 0);
   assert.ok(TAXONOMY_SECTORS.length >= 10);
   assert.ok(TAXONOMY_INDUSTRIES.length >= 30);

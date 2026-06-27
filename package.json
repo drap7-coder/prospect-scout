@@ -2,11 +2,12 @@
   "name": "prospect-scout",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:sec": "node scripts/secEdgarChecks.ts",
     "test:cms": "node scripts/cmsChecks.ts",
@@ -18,7 +19,8 @@
     "test:builder": "node --import tsx scripts/prospectBuilderChecks.ts",
     "test:web": "node --import tsx scripts/publicWebChecks.ts",
     "test:discovery": "node --import tsx scripts/discoveryChecks.ts",
-    "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts"
+    "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
+    "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
   },
   "dependencies": {
     "next": "^15.5.19",

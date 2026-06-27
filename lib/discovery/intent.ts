@@ -17,6 +17,12 @@ export interface SearchIntent {
   organizationTypeId: string | null;
   /** US state postal code, e.g. "OH". */
   state: string | null;
+  /** City/locality for proximity queries, e.g. "Philadelphia". */
+  city: string | null;
+  /** Cross-sector sector ids (e.g. pharma → manufacturing). */
+  alternateSectorIds: string[];
+  /** Cross-sector industry ids (e.g. life-sciences → pharma-manufacturing). */
+  alternateIndustryIds: string[];
   /** Region bucket id, e.g. "midwest". "any" = no region filter. */
   region: string;
   /** Remaining significant keywords after structured extraction. */
@@ -83,6 +89,77 @@ function softenGenericListingIntent(
   return out;
 }
 
+const CITY_ALIASES: Record<string, { city: string; state: string }> = {
+  philadelphia: { city: "Philadelphia", state: "PA" },
+  chicago: { city: "Chicago", state: "IL" },
+  houston: { city: "Houston", state: "TX" },
+  phoenix: { city: "Phoenix", state: "AZ" },
+  "san francisco": { city: "San Francisco", state: "CA" },
+  "los angeles": { city: "Los Angeles", state: "CA" },
+  boston: { city: "Boston", state: "MA" },
+  cleveland: { city: "Cleveland", state: "OH" },
+  columbus: { city: "Columbus", state: "OH" },
+  cincinnati: { city: "Cincinnati", state: "OH" },
+  pittsburgh: { city: "Pittsburgh", state: "PA" },
+  detroit: { city: "Detroit", state: "MI" },
+  atlanta: { city: "Atlanta", state: "GA" },
+  dallas: { city: "Dallas", state: "TX" },
+  seattle: { city: "Seattle", state: "WA" },
+};
+
+function inferCityFromQuery(query: string): { city: string; state: string } | null {
+  const hay = query.toLowerCase();
+  const nearMatch = hay.match(/\bnear\s+([a-z\s]+?)(?:\s|$|,)/i);
+  const inMatch = hay.match(/\bin\s+([a-z\s]+?)(?:\s|$|,)/i);
+  const candidate = (nearMatch?.[1] ?? inMatch?.[1] ?? "").trim();
+  if (!candidate) return null;
+  return CITY_ALIASES[candidate] ?? null;
+}
+
+/** Add cross-sector alternates for manufacturer / life-sciences queries. */
+function applyCrossSectorAlternates(
+  query: string,
+  intent: {
+    sectorId: string | null;
+    industryId: string | null;
+    organizationTypeId: string | null;
+  },
+): { alternateSectorIds: string[]; alternateIndustryIds: string[] } {
+  const hay = query.toLowerCase();
+  const alternates = {
+    alternateSectorIds: [] as string[],
+    alternateIndustryIds: [] as string[],
+  };
+
+  const isPharma =
+    /\b(pharma|pharmaceutical|drug maker|biotech)\b/.test(hay) &&
+    /\b(manufacturers?|plant|company|companies)\b/.test(hay);
+  const isDevice =
+    /\b(medical device|medtech|device maker|device companies?)\b/.test(hay);
+
+  if (isPharma) {
+    alternates.alternateSectorIds.push("manufacturing");
+    alternates.alternateIndustryIds.push("pharma-manufacturing");
+    if (intent.sectorId === "healthcare") {
+      alternates.alternateIndustryIds.push("life-sciences");
+    }
+  }
+
+  if (isDevice) {
+    alternates.alternateSectorIds.push("manufacturing");
+    alternates.alternateIndustryIds.push("medical-device-manufacturing");
+    if (intent.sectorId === "healthcare") {
+      alternates.alternateIndustryIds.push("life-sciences");
+    }
+  }
+
+  if (intent.organizationTypeId === "hospital") {
+    alternates.alternateSectorIds.push("nonprofit");
+  }
+
+  return alternates;
+}
+
 /** Parse a query into structured search intent. Explicit options win over inference. */
 export function parseSearchIntent(
   query: string,
@@ -104,6 +181,10 @@ export function parseSearchIntent(
   const state =
     options.state ?? inferStateFromQuery(trimmed) ?? null;
 
+  const cityHint = inferCityFromQuery(trimmed);
+  const resolvedState = state ?? cityHint?.state ?? null;
+  const city = cityHint?.city ?? null;
+
   let region = ANY_REGION;
   if (options.region) {
     region = normalizeRegion(options.region);
@@ -122,12 +203,21 @@ export function parseSearchIntent(
     .split(/\s+/)
     .filter((t) => t.length >= 3 && !GENERIC_TERMS.has(t));
 
+  const crossSector = applyCrossSectorAlternates(trimmed, {
+    sectorId,
+    industryId,
+    organizationTypeId,
+  });
+
   return {
     query: trimmed,
     sectorId,
     industryId,
     organizationTypeId,
-    state,
+    state: resolvedState,
+    city,
+    alternateSectorIds: crossSector.alternateSectorIds,
+    alternateIndustryIds: crossSector.alternateIndustryIds,
     region,
     keywords: [...new Set(keywords)],
   };

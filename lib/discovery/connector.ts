@@ -28,12 +28,19 @@ export function sourceStamp(
   connector: string,
   sourceId: string,
   evidence: string[],
+  extras: Partial<
+    Pick<
+      OrganizationSource,
+      "sourceName" | "sourceUrl" | "lastUpdated" | "confidence"
+    >
+  > = {},
 ): OrganizationSource {
   return {
     connector,
     sourceId,
     retrievedAt: new Date().toISOString(),
     evidence,
+    ...extras,
   };
 }
 

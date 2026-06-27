@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import type { Prospect } from "../lib/search/types";
 import { mergeProspectLists } from "../lib/search/mergeProspects";
 import { withTimeout } from "../lib/search/withTimeout";
-import { plannedPrimaryProviders } from "../lib/search/providerPlan";
+import { plannedPrimaryProviders, plannedSecondaryProviders } from "../lib/search/providerPlan";
 import { planSources } from "../lib/search/sourcePlanner";
 import { parseIntent } from "../lib/search/intentParser";
 
@@ -78,7 +78,38 @@ console.log("Running provider phase checks…\n");
   assert.ok(primary.includes("cms"));
   assert.ok(primary.includes("sec"));
   assert.ok(primary.includes("rss"));
+  assert.ok(plannedSecondaryProviders(plan).includes("public-web"));
   console.log("  ok plannedPrimaryProviders includes CMS for health-plans");
+}
+
+{
+  const query = parseIntent({
+    sells: "pharmacy supply chain risk analytics",
+    query: "regional PBMs and health plans with drug supply recall exposure",
+    targets: "regional PBMs and health plans with drug supply recall exposure",
+  });
+  const plan = planSources(query);
+  const primary = plannedPrimaryProviders(plan);
+  const secondary = plannedSecondaryProviders(plan);
+  assert.ok(primary.includes("cms"));
+  assert.ok(primary.includes("sec"));
+  assert.ok(primary.includes("fda"));
+  assert.ok(secondary.includes("public-web"));
+  console.log("  ok health-plan/PBM intent routes CMS, SEC, contextual FDA, and Public Web");
+}
+
+{
+  const query = parseIntent({
+    sells: "",
+    query: "manufacturers in Ohio",
+    targets: "manufacturers in Ohio",
+  });
+  const plan = planSources(query);
+  const primary = plannedPrimaryProviders(plan);
+  assert.ok(primary.includes("sec"));
+  assert.ok(primary.includes("fda"));
+  assert.ok(!primary.includes("cms"));
+  console.log("  ok manufacturing intent excludes CMS and includes SEC/FDA");
 }
 
 {
