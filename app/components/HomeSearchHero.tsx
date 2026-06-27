@@ -378,13 +378,15 @@ export function HomeSearchHero() {
 
   return (
     <div className="mx-auto w-full max-w-5xl text-center">
-      <h1 className="text-balance text-[2.6rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.72)] sm:text-6xl lg:text-[4.25rem]">
-        Find your next best opportunity.
-      </h1>
-      <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-white/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)] sm:text-lg">
-        AI-powered prospecting that helps you identify, understand, and engage
-        the right organizations.
-      </p>
+      <div className="pt-[max(calc(env(safe-area-inset-top)+9.5rem),calc(env(safe-area-inset-top)+30svh))] sm:pt-[max(calc(env(safe-area-inset-top)+8.5rem),calc(env(safe-area-inset-top)+28svh))] lg:pt-[max(calc(env(safe-area-inset-top)+7.5rem),calc(env(safe-area-inset-top)+26svh))]">
+        <h1 className="text-balance text-[2.6rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.72)] sm:text-6xl lg:text-[4.25rem]">
+          Find your next best opportunity.
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-white/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)] sm:text-lg">
+          AI-powered prospecting that helps you identify, understand, and engage
+          the right organizations.
+        </p>
+      </div>
 
       {/* Primary entry point: guided industry selector */}
       <section
