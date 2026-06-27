@@ -383,7 +383,7 @@ export function computeConnectorHealth(orgs?: Organization[]): ConnectorHealthIt
             ? "education"
             : connectorId === "sec"
               ? "financial-services"
-              : connectorId === "cms"
+              : connectorId === "cms" || connectorId === "aca-marketplace"
                 ? "healthcare"
                 : connectorId === "fda"
                   ? "manufacturing"

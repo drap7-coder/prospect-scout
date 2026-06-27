@@ -84,6 +84,16 @@ function orgMatchesScopedIntent(
     return false;
   }
 
+  // Health-plan subtype scope: exclude only orgs with a different explicit
+  // subtype (untagged plans are never dropped — subtypes are not inferred).
+  if (
+    intent.healthPlanType &&
+    org.healthPlanType &&
+    org.healthPlanType !== intent.healthPlanType
+  ) {
+    return false;
+  }
+
   return true;
 }
 

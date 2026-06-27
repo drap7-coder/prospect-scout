@@ -55,6 +55,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     industryId: org.industries[0],
     organizationTypeId: org.organizationType ?? undefined,
     canonicalOrganizationTypeId: org.canonicalOrganizationType,
+    healthPlanType: org.healthPlanType,
     ein: extractEinFromOrgId(org.id),
     stateCode: org.states[0],
     stateCodes: org.states,

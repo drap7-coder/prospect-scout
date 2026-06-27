@@ -65,5 +65,6 @@ export function catalogRecordToOrganization(
     sources: [catalogSourceStamp(connectorId, record)],
     buyerPack: record.buyerPack ?? null,
     canonicalOrganizationType: "other",
+    healthPlanType: record.healthPlanType,
   });
 }

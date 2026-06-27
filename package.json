@@ -23,6 +23,7 @@
     "test:propublica": "node --import tsx scripts/propublicaChecks.ts",
     "test:intel": "node --import tsx scripts/synthesizeCardChecks.ts",
     "test:discovery-rows": "node --import tsx scripts/discoveryRowsChecks.ts",
+    "test:aca": "node --import tsx scripts/acaMarketplaceChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
     "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
   },

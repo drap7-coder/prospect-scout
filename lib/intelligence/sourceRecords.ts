@@ -27,6 +27,10 @@ const CONNECTOR_META: Record<
     label: "CMS",
     sourceUrl: "https://data.cms.gov/",
   },
+  "aca-marketplace": {
+    label: "CMS Marketplace",
+    sourceUrl: "https://www.cms.gov/marketplace",
+  },
   fda: {
     label: "FDA",
     sourceUrl: "https://open.fda.gov/",
@@ -143,7 +147,7 @@ export function buildSourceRecords(
     }));
   }
 
-  const order = ["directory", "nces", "sec", "cms", "fda", "irs-nonprofits", "rss", "public-web"];
+  const order = ["directory", "nces", "sec", "cms", "aca-marketplace", "fda", "irs-nonprofits", "rss", "public-web"];
   return [...byConnector.values()].sort(
     (a, b) =>
       (order.indexOf(a.connector) === -1 ? 99 : order.indexOf(a.connector)) -

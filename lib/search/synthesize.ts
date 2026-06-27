@@ -213,6 +213,7 @@ export function synthesizeProspect(
     industryId: prospect.industryId,
     organizationTypeId: prospect.organizationTypeId,
     canonicalOrganizationTypeId: prospect.canonicalOrganizationTypeId,
+    healthPlanType: prospect.healthPlanType,
     stateCode: prospect.stateCode,
     stateCodes: prospect.stateCodes,
     publicCompany: prospect.publicCompany,

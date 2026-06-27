@@ -1,5 +1,6 @@
 import type { BuyerPackId } from "@/lib/search/types";
 import type { Organization } from "../organization";
+import type { HealthPlanType } from "../healthPlanType";
 
 /** Source metadata preserved on every catalog record. */
 export interface CatalogSourceMetadata {
@@ -26,6 +27,8 @@ export interface CatalogRecord {
   aliases?: string[];
   headquarters?: string;
   regions?: string[];
+  /** Optional health-plan subtype (only set by sources that know it). */
+  healthPlanType?: HealthPlanType;
   metadata: CatalogSourceMetadata;
 }
 

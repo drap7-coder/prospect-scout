@@ -73,6 +73,14 @@ const SOURCE_TONES: Record<string, SourceTone> = {
     dot: "bg-source-cms",
     ring: "ring-source-cms/25",
   },
+  "CMS Marketplace": {
+    text: "text-source-cms",
+    bg: "bg-source-cms/12",
+    border: "border-source-cms/30",
+    borderLeft: "border-l-source-cms",
+    dot: "bg-source-cms",
+    ring: "ring-source-cms/25",
+  },
   SEC: {
     text: "text-source-sec",
     bg: "bg-source-sec/12",

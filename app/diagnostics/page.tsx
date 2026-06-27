@@ -5,6 +5,7 @@ import {
   getCensusConnectorStatus,
 } from "@/lib/discovery/connectors/census";
 import { getProPublicaConnectorStatus } from "@/lib/discovery/connectors/propublica";
+import { getAcaMarketplaceConnectorStatus } from "@/lib/discovery/connectors/aca";
 import { computeCatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { parseSearchIntent } from "@/lib/discovery/intent";
 
@@ -43,6 +44,7 @@ export default async function DiagnosticsPage() {
   const report = runDiagnostics();
   const census = await getCensusConnectorStatus();
   const propublica = await getProPublicaConnectorStatus();
+  const acaMarketplace = getAcaMarketplaceConnectorStatus();
   const sampleIntent = parseSearchIntent("manufacturers in ohio");
   const sampleFacets = computeCatalogFacetCounts(sampleIntent);
   const sampleCoverage = computeMarketCoveragePercent(
@@ -270,6 +272,20 @@ export default async function DiagnosticsPage() {
           ) : propublica.sampleResult?.error ? (
             <StatRow label="Sample error" value={propublica.sampleResult.error} />
           ) : null}
+        </Section>
+
+        <Section title="ACA Marketplace (seed)">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Curated ACA Marketplace (QHP) issuers seeded into the catalog as
+            health plans (healthPlanType = aca_marketplace). This is a small,
+            transparent starting point — the live CMS Marketplace API and QHP
+            Public Use Files will be added in a later pull request.
+          </p>
+          <StatRow label="Connector status" value={acaMarketplace.status} />
+          <StatRow label="Completeness" value={acaMarketplace.completeness} />
+          <StatRow label="API" value={acaMarketplace.api} />
+          <StatRow label="Seeded issuers" value={acaMarketplace.issuerCount} />
+          <StatRow label="States covered (seed)" value={acaMarketplace.stateCount} />
         </Section>
 
         <Section title="Connector Health">

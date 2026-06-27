@@ -1,6 +1,10 @@
 import { inferStateFromQuery, inferRegionFromQuery } from "@/lib/directories/search";
 import { inferTaxonomyFromQuery } from "@/lib/taxonomy";
 import { inferRegionFromText, normalizeRegion, ANY_REGION } from "@/lib/search/regions";
+import {
+  inferHealthPlanTypeFromQuery,
+  type HealthPlanType,
+} from "./healthPlanType";
 
 /**
  * Structured search intent parsed from free text or explicit filters.
@@ -25,6 +29,8 @@ export interface SearchIntent {
   alternateIndustryIds: string[];
   /** Region bucket id, e.g. "midwest". "any" = no region filter. */
   region: string;
+  /** Optional health-plan subtype implied by the query (e.g. aca_marketplace). */
+  healthPlanType: HealthPlanType | null;
   /** Remaining significant keywords after structured extraction. */
   keywords: string[];
 }
@@ -41,6 +47,7 @@ export interface ParseSearchIntentOptions {
   organizationTypeId?: string | null;
   state?: string | null;
   region?: string | null;
+  healthPlanType?: HealthPlanType | null;
 }
 
 /** When the query names a broad category (not a sub-industry), avoid narrow industry inference. */
@@ -75,6 +82,15 @@ function softenGenericListingIntent(
       hay,
     );
   if (explicitHealthPlan && !explicitPbm) {
+    out.sectorId = out.sectorId ?? "healthcare";
+    out.industryId = out.industryId ?? "payers";
+    out.organizationTypeId = "health-plan";
+  }
+
+  // ACA Marketplace synonyms ("ACA plans", "exchange plans", "marketplace
+  // plans", "HealthCare.gov plans", "QHP issuers") are health plans even when
+  // the generic "health plan" phrasing is absent.
+  if (!explicitPbm && inferHealthPlanTypeFromQuery(hay) === "aca_marketplace") {
     out.sectorId = out.sectorId ?? "healthcare";
     out.industryId = out.industryId ?? "payers";
     out.organizationTypeId = "health-plan";
@@ -219,6 +235,9 @@ export function parseSearchIntent(
     organizationTypeId,
   });
 
+  const healthPlanType =
+    options.healthPlanType ?? inferHealthPlanTypeFromQuery(trimmed) ?? null;
+
   return {
     query: trimmed,
     sectorId,
@@ -229,6 +248,7 @@ export function parseSearchIntent(
     alternateSectorIds: crossSector.alternateSectorIds,
     alternateIndustryIds: crossSector.alternateIndustryIds,
     region,
+    healthPlanType,
     keywords: [...new Set(keywords)],
   };
 }

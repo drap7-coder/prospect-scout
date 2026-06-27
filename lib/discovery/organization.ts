@@ -6,6 +6,7 @@ import {
   normalizeCanonicalOrganizationType,
   normalizeTaxonomyOrganizationType,
 } from "./canonicalOrgType";
+import type { HealthPlanType } from "./healthPlanType";
 
 /** Provenance for a field or record from a discovery connector. */
 export interface OrganizationSource {
@@ -54,6 +55,12 @@ export interface Organization {
   confidence?: number;
   /** Single canonical organization type for faceting and display. */
   canonicalOrganizationType: string;
+  /**
+   * Optional health-plan subtype (e.g. "aca_marketplace"). Only set when a
+   * source provides it explicitly — never inferred from connector presence.
+   * Refines, but does not replace, canonicalOrganizationType === "health-plan".
+   */
+  healthPlanType?: HealthPlanType;
 }
 
 /** Derive a hostname from a full website URL. */
@@ -247,6 +254,7 @@ export function mergeOrganizations(
     relevance: Math.max(base.relevance ?? 0, other.relevance ?? 0),
     confidence: Math.max(base.confidence ?? 0, other.confidence ?? 0),
     canonicalOrganizationType: base.canonicalOrganizationType,
+    healthPlanType: base.healthPlanType ?? other.healthPlanType,
   });
 }
 

@@ -12,7 +12,9 @@ import {
   CMS_RECORDS,
   FDA_RECORDS,
   IRS_NONPROFIT_RECORDS,
+  ACA_MARKETPLACE_RECORDS,
 } from "./loadCatalog";
+import { ACA_CONNECTOR_ID } from "../connectors/aca";
 import type { SearchIntent } from "../intent";
 import {
   isCanonicalOrgTypeId,
@@ -122,7 +124,8 @@ function loadNormalizedOrganizations(): {
     SEC_COMPANY_RECORDS.length +
     CMS_RECORDS.length +
     FDA_RECORDS.length +
-    IRS_NONPROFIT_RECORDS.length;
+    IRS_NONPROFIT_RECORDS.length +
+    ACA_MARKETPLACE_RECORDS.length;
   const sourceRecordCount = directoryRecords.length + bulkSourceCount;
 
   const normalized: Organization[] = [];
@@ -161,6 +164,9 @@ function bulkOrganizations(): Organization[] {
     ...FDA_RECORDS.map((r) => catalogRecordToOrganization("fda", r)),
     ...IRS_NONPROFIT_RECORDS.map((r) =>
       catalogRecordToOrganization("irs-nonprofits", r),
+    ),
+    ...ACA_MARKETPLACE_RECORDS.map((r) =>
+      catalogRecordToOrganization(ACA_CONNECTOR_ID, r),
     ),
   ];
 }
@@ -252,6 +258,18 @@ function orgMatchesIntent(org: Organization, intent: SearchIntent): boolean {
   if (
     intent.organizationTypeId &&
     !organizationMatchesOrgTypeFilter(org, intent.organizationTypeId)
+  ) {
+    return false;
+  }
+
+  // Health-plan subtype scoping: only exclude orgs whose subtype is explicitly
+  // a *different* one. Orgs without a known subtype are not dropped (we don't
+  // infer subtypes), so e.g. a Medicare Advantage query never pulls in ACA
+  // Marketplace issuers, but still returns untagged health plans.
+  if (
+    intent.healthPlanType &&
+    org.healthPlanType &&
+    org.healthPlanType !== intent.healthPlanType
   ) {
     return false;
   }

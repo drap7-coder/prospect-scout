@@ -25,6 +25,7 @@ let initialized = false;
 export const LISTING_CONNECTOR_IDS = [
   "directory",
   "cms",
+  "aca-marketplace",
   "sec",
   "fda",
   "irs-nonprofits",

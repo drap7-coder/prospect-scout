@@ -7,6 +7,8 @@
  * types — not seller-centric buyer ecosystems.
  */
 
+import type { HealthPlanType } from "@/lib/discovery/healthPlanType";
+
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
   | "health-plans"
@@ -205,6 +207,8 @@ export interface RawProspect {
   organizationTypeId?: string;
   /** Canonical organization type for catalog-scoped filters. */
   canonicalOrganizationTypeId?: string;
+  /** Optional health-plan subtype (e.g. aca_marketplace). */
+  healthPlanType?: HealthPlanType;
   /** US state code when known from directory. */
   stateCode?: string;
   /** All US states where the organization operates or is represented. */
@@ -322,6 +326,8 @@ export interface Prospect {
   organizationTypeId?: string;
   /** Canonical organization type for catalog-scoped filters. */
   canonicalOrganizationTypeId?: string;
+  /** Optional health-plan subtype (e.g. aca_marketplace). */
+  healthPlanType?: HealthPlanType;
   stateCode?: string;
   /** All US states where the organization operates or is represented. */
   stateCodes?: string[];
