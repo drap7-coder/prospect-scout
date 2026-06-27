@@ -207,6 +207,8 @@ export interface RawProspect {
   canonicalOrganizationTypeId?: string;
   /** US state code when known from directory. */
   stateCode?: string;
+  /** All US states where the organization operates or is represented. */
+  stateCodes?: string[];
   publicCompany?: boolean;
   /** Official website when known from catalog or enrichment. */
   website?: string;
@@ -321,6 +323,8 @@ export interface Prospect {
   /** Canonical organization type for catalog-scoped filters. */
   canonicalOrganizationTypeId?: string;
   stateCode?: string;
+  /** All US states where the organization operates or is represented. */
+  stateCodes?: string[];
   publicCompany?: boolean;
   /** True when sourced from master directory without live enrichment. */
   directoryMatch?: boolean;

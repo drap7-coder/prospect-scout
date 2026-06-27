@@ -5,6 +5,7 @@ import { organizationMatchesOrgTypeFilter } from "./canonicalOrgType";
 import {
   orgMatchesAnyIndustry,
   intentIndustryIds,
+  orgCityOrMetroMatches,
   UNIVERSITY_EXCLUSION_RE,
   NON_HOSPITAL_TYPES,
 } from "./match";
@@ -39,12 +40,7 @@ function stateMatches(org: Organization, state: string): boolean {
 }
 
 function cityMatches(org: Organization, city: string): boolean {
-  const needle = city.toLowerCase();
-  const hay = [org.headquarters, ...org.locations, org.canonicalName]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return hay.includes(needle);
+  return orgCityOrMetroMatches(org, city);
 }
 
 /** Sectors that are clearly unrelated — used for mismatch penalty. */
@@ -175,7 +171,8 @@ export function scoreOrganizationRelevance(
       confidence += 0.15;
       reasons.push(`city:${intent.city}`);
     } else if (intent.state && stateMatches(org, intent.state)) {
-      score += 6;
+      score -= 12;
+      confidence -= 0.08;
       reasons.push(`state-proximity:${intent.state}`);
     }
   }

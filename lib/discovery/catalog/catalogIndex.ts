@@ -26,6 +26,7 @@ import {
   orgIndustryMatches,
   orgMatchesAnyIndustry,
   orgSectorMatches,
+  orgCityOrMetroMatches,
   UNIVERSITY_EXCLUSION_RE,
   NON_HOSPITAL_TYPES,
 } from "../match";
@@ -217,14 +218,7 @@ function unionConnectorIndices(
 
 function locationMatches(org: Organization, intent: SearchIntent): boolean {
   if (!intent.city) return true;
-  const city = intent.city.toLowerCase();
-  const hay = [org.headquarters, ...org.locations, org.canonicalName]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  if (hay.includes(city)) return true;
-  if (intent.state && org.states.includes(intent.state)) return true;
-  return false;
+  return orgCityOrMetroMatches(org, intent.city);
 }
 
 function passesQualityFilters(org: Organization, intent: SearchIntent): boolean {

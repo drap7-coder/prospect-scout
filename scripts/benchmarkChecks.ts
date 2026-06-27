@@ -14,6 +14,8 @@ import {
 import { runBenchmark } from "../lib/discovery/benchmark.ts";
 import { getCatalogOrganizations } from "../lib/discovery/catalog/catalogIndex.ts";
 import { runSearch } from "../lib/search/runSearch.ts";
+import { applyResultsFilters } from "../lib/search/resultsFilters.ts";
+import { EMPTY_SEARCH_STATE } from "../lib/search/searchState.ts";
 
 let passed = 0;
 async function check(name: string, fn: () => void | Promise<void>) {
@@ -25,6 +27,11 @@ async function check(name: string, fn: () => void | Promise<void>) {
 console.log("Benchmark regression checks:\n");
 
 initDiscoveryEngine();
+
+const UNIVERSITY_EXCLUDED =
+  /\b(beauty|cosmetology|barber|salon|massage|bodywork|esthetic|nail|makeup|truck|tractor|diving|career institute|career college)\b/i;
+const PHILADELPHIA_METRO =
+  /\b(philadelphia|abington|ardmore|bryn mawr|camden|chester county|delaware county|montgomery county|bucks county|main line|king of prussia|norristown|media|paoli|conshohocken|willow grove|glenside|wyncote|wynnewood|lower merion|lansdale|blue bell)\b/i;
 
 await check("BENCHMARK_QUERIES has at least 100 entries", () => {
   assert.ok(BENCHMARK_QUERIES.length >= 100);
@@ -64,7 +71,7 @@ await check("universities in california returns NCES education records", () => {
   assert.ok(organizations.length > 0);
   for (const org of organizations.slice(0, 5)) {
     assert.equal(org.sectorId, "education");
-    assert.ok(org.industries.includes("universities"));
+    assert.equal(org.canonicalOrganizationType, "university");
     assert.ok(org.states.includes("CA"));
     assert.ok(org.sources.some((s) => s.connector === "nces"));
   }
@@ -90,6 +97,18 @@ await check("health plans query returns CMS health plan records", () => {
   assert.ok(organizations.some((o) => o.organizationType === "health-plan"));
 });
 
+await check("health plans top 20 are health plans, not PBMs or adjacent healthcare", () => {
+  const { organizations } = discoverOrganizationsSync("health plans");
+  assert.ok(organizations.length >= 20);
+  for (const org of organizations.slice(0, 20)) {
+    assert.equal(
+      org.canonicalOrganizationType,
+      "health-plan",
+      `${org.canonicalName} should be a health plan`,
+    );
+  }
+});
+
 await check("pharmaceutical manufacturers includes FDA and directory results", () => {
   const { organizations } = discoverOrganizationsSync("pharmaceutical manufacturers");
   assert.ok(organizations.length > 6, "expected FDA bulk + directory pharma");
@@ -112,6 +131,59 @@ await check("hospitals near philadelphia excludes health plans", () => {
     assert.notEqual(org.organizationType, "health-plan");
     assert.notEqual(org.organizationType, "pbm");
   }
+});
+
+await check("hospitals near philadelphia top 10 are Philadelphia-metro relevant", () => {
+  const { organizations } = discoverOrganizationsSync("hospitals near Philadelphia");
+  assert.ok(organizations.length >= 10);
+  for (const org of organizations.slice(0, 10)) {
+    const hay = `${org.canonicalName} ${org.headquarters ?? ""} ${org.locations.join(" ")}`;
+    assert.ok(
+      PHILADELPHIA_METRO.test(hay),
+      `${org.canonicalName} should be Philadelphia-metro relevant`,
+    );
+    assert.equal(org.canonicalOrganizationType, "hospital-health-system");
+  }
+});
+
+await check("universities in california top 20 exclude vocational false positives", () => {
+  const { organizations } = discoverOrganizationsSync("universities in california");
+  assert.ok(organizations.length >= 20);
+  for (const org of organizations.slice(0, 20)) {
+    assert.equal(org.sectorId, "education");
+    assert.ok(org.states.includes("CA"));
+    assert.equal(org.canonicalOrganizationType, "university");
+    assert.ok(!UNIVERSITY_EXCLUDED.test(org.canonicalName), org.canonicalName);
+  }
+});
+
+await check("manufacturers in ohio top 20 are Ohio manufacturers", () => {
+  const { organizations } = discoverOrganizationsSync("manufacturers in ohio");
+  assert.ok(organizations.length >= 20);
+  for (const org of organizations.slice(0, 20)) {
+    assert.equal(org.sectorId, "manufacturing");
+    assert.ok(org.states.includes("OH"), `${org.canonicalName} should include OH`);
+    assert.notEqual(org.sectorId, "financial-services");
+    assert.notEqual(org.sectorId, "nonprofit");
+    assert.notEqual(org.sectorId, "retail-consumer");
+  }
+});
+
+await check("SEC source filter preserves catalog-only SEC bank results", () => {
+  const response = runSearch({
+    query: "banks in texas",
+    sells: "",
+    targets: "banks in texas",
+  });
+  const filtered = applyResultsFilters(response.prospects, {
+    ...EMPTY_SEARCH_STATE,
+    query: "banks in texas",
+    sources: ["SEC"],
+  });
+  assert.ok(filtered.length > 0);
+  assert.ok(
+    filtered.every((p) => p.sourceRecords.some((rec) => rec.connector === "sec")),
+  );
 });
 
 await check("100-query benchmark quality gate", () => {

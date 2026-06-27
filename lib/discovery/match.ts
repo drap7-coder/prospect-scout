@@ -88,6 +88,22 @@ export function orgSectorMatches(org: Organization, intent: SearchIntent): boole
   return sectors.includes(org.sectorId);
 }
 
+const CITY_METRO_MATCHERS: Record<string, RegExp> = {
+  philadelphia:
+    /\b(philadelphia|abington|ardmore|bryn mawr|camden|chester county|delaware county|montgomery county|bucks county|main line|king of prussia|norristown|media|paoli|conshohocken|willow grove|glenside|wyncote|wynnewood|lower merion|lansdale|blue bell)\b/i,
+};
+
+/** Locality match for city-qualified searches when no geocoder is available. */
+export function orgCityOrMetroMatches(org: Organization, city: string): boolean {
+  const normalizedCity = city.toLowerCase();
+  const hay = [org.headquarters, ...org.locations, org.canonicalName]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (hay.includes(normalizedCity)) return true;
+  return CITY_METRO_MATCHERS[normalizedCity]?.test(hay) ?? false;
+}
+
 export function catalogSectorMatches(
   record: CatalogRecord,
   intent: SearchIntent,
@@ -99,7 +115,7 @@ export function catalogSectorMatches(
 
 /** Names that should not rank for university queries. */
 export const UNIVERSITY_EXCLUSION_RE =
-  /\b(adult school|beauty college|cosmetology|barber|trade school|technical institute)\b/i;
+  /\b(adult school|beauty|cosmetology|barber|salon|hair academy|massage|bodywork|esthetic|nail|makeup|truck|tractor|diving|trade school|technical institute|career institute|career college)\b/i;
 
 /** Non-hospital org types that should not appear for hospital queries. */
 export const NON_HOSPITAL_TYPES = new Set([

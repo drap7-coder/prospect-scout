@@ -57,6 +57,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     canonicalOrganizationTypeId: org.canonicalOrganizationType,
     ein: extractEinFromOrgId(org.id),
     stateCode: org.states[0],
+    stateCodes: org.states,
     publicCompany: org.ownership === "public",
     website: org.website ?? undefined,
     description: org.description ?? undefined,

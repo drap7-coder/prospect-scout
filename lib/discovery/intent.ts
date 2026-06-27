@@ -62,12 +62,22 @@ function softenGenericListingIntent(
     out.organizationTypeId = undefined;
   }
 
-  const genericHealthPlan =
-    /\bhealth\s+plans?\b/.test(hay) && !/\b(medicare|medicaid|commercial|blues|tpa)\b/.test(hay);
-  if (genericHealthPlan) {
+  const explicitPbm =
+    /\b(pbms?|pharmacy benefit managers?|pharmacy benefit)\b/.test(hay);
+  if (explicitPbm) {
     out.sectorId = out.sectorId ?? "healthcare";
-    out.industryId = out.industryId === "payers" ? undefined : out.industryId;
-    out.organizationTypeId = undefined;
+    out.industryId = out.industryId ?? "payers";
+    out.organizationTypeId = out.organizationTypeId ?? "pbm";
+  }
+
+  const explicitHealthPlan =
+    /\b(health\s+plans?|insurers?|payers?|mcos?|managed care organizations?|medicare advantage plans?|medicaid mcos?|blue cross plans?|blues plans?)\b/.test(
+      hay,
+    );
+  if (explicitHealthPlan && !explicitPbm) {
+    out.sectorId = out.sectorId ?? "healthcare";
+    out.industryId = out.industryId ?? "payers";
+    out.organizationTypeId = "health-plan";
   }
 
   const genericBank =

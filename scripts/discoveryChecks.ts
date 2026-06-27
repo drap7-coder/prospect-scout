@@ -30,6 +30,9 @@ import {
   runDiagnostics,
 } from "../lib/discovery/diagnostics.ts";
 import { getAllDirectoryRecords } from "../lib/directories/search.ts";
+import { runSearch } from "../lib/search/runSearch.ts";
+import { applyResultsFilters } from "../lib/search/resultsFilters.ts";
+import { EMPTY_SEARCH_STATE } from "../lib/search/searchState.ts";
 
 let passed = 0;
 function check(name: string, fn: () => void) {
@@ -297,6 +300,50 @@ check("discovery ranks full catalog before pagination cap", () => {
   if (result.totalAfterRank > 25) {
     assert.equal(result.totalReturned, 25);
   }
+});
+
+check("multi-state prospect remains visible when filtering by secondary state", () => {
+  const response = runSearch({
+    query: "health plans",
+    sells: "",
+    targets: "health plans",
+  });
+  const multiState = response.prospects.find((p) =>
+    p.stateCodes?.includes("PA") && p.stateCodes.includes("TX"),
+  );
+  assert.ok(multiState, "expected a health plan operating in PA and TX");
+
+  const filtered = applyResultsFilters(response.prospects, {
+    ...EMPTY_SEARCH_STATE,
+    query: "health plans",
+    state: "TX",
+  });
+  assert.ok(
+    filtered.some((p) => p.id === multiState.id),
+    `${multiState.name} should remain visible for secondary-state TX filter`,
+  );
+});
+
+check("catalog-only SEC source records match SEC source filter", () => {
+  const response = runSearch({
+    query: "banks in texas",
+    sells: "",
+    targets: "banks in texas",
+  });
+  const secProspect = response.prospects.find((p) =>
+    p.sourceRecords.some((rec) => rec.connector === "sec"),
+  );
+  assert.ok(secProspect, "expected a catalog SEC-backed bank prospect");
+
+  const filtered = applyResultsFilters(response.prospects, {
+    ...EMPTY_SEARCH_STATE,
+    query: "banks in texas",
+    sources: ["SEC"],
+  });
+  assert.ok(
+    filtered.some((p) => p.id === secProspect.id),
+    "SEC source filter should match sourceRecords, not only sourceTrail/signals",
+  );
 });
 
 console.log(`\nAll ${passed} discovery checks passed.`);

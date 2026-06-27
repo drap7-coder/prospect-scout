@@ -214,6 +214,7 @@ export function synthesizeProspect(
     organizationTypeId: prospect.organizationTypeId,
     canonicalOrganizationTypeId: prospect.canonicalOrganizationTypeId,
     stateCode: prospect.stateCode,
+    stateCodes: prospect.stateCodes,
     publicCompany: prospect.publicCompany,
     directoryMatch: prospect.directoryMatch,
     website: prospect.website,

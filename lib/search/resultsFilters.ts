@@ -107,6 +107,11 @@ function industryMatchesProspect(prospect: Prospect, industryId: string): boolea
   return false;
 }
 
+function stateMatchesProspect(prospect: Prospect, stateId: string): boolean {
+  if (prospect.stateCodes?.length) return prospect.stateCodes.includes(stateId);
+  return prospect.stateCode === stateId;
+}
+
 function matchesSourceFilter(
   prospect: Prospect,
   sourceId: string,
@@ -123,10 +128,24 @@ function matchesSourceFilter(
     const real = activeRealSources(prospect);
     return real.length === 0 && !prospect.directoryMatch;
   }
+  if (prospect.sourceRecords?.some((rec) => sourceRecordMatchesFilter(rec.connector, sourceId))) {
+    return true;
+  }
   if (sourceId === "SEC") {
     return prospectHasSource(prospect, "SEC");
   }
   return prospectHasSource(prospect, sourceId as SignalSource);
+}
+
+function sourceRecordMatchesFilter(connector: string, sourceId: string): boolean {
+  const normalized = connector.toLowerCase();
+  if (sourceId === "Directory") return normalized === "directory";
+  if (sourceId === "SEC") return normalized === "sec" || normalized === "sec-edgar";
+  if (sourceId === "CMS") return normalized === "cms";
+  if (sourceId === "FDA") return normalized === "fda";
+  if (sourceId === "RSS") return normalized === "rss";
+  if (sourceId === "Public Web") return normalized === "public-web";
+  return false;
 }
 
 function activeRealSources(prospect: Prospect): SignalSource[] {
@@ -228,7 +247,9 @@ export function applyResultsFilters(
       return false;
     }
 
-    if (resolved.state && p.stateCode && p.stateCode !== resolved.state) {
+    if (resolved.state && (p.stateCodes?.length || p.stateCode)) {
+      if (!stateMatchesProspect(p, resolved.state)) return false;
+    } else if (resolved.state && p.stateCode && p.stateCode !== resolved.state) {
       return false;
     }
 

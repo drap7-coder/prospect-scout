@@ -56,6 +56,7 @@ export function directoryRecordToRawProspect(record: OrganizationRecord): RawPro
     industryId: normalized.industryId,
     organizationTypeId: normalized.organizationTypeId,
     stateCode: headquartersState(normalized),
+    stateCodes: normalized.statesServed,
     publicCompany: normalized.publicCompany,
     website: normalized.website,
     employeeEstimate: normalized.employeeEstimate ?? normalized.memberEstimate,
