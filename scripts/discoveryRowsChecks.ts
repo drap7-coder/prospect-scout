@@ -75,10 +75,10 @@ check("Discovery is the default view", () => {
   assert.equal(DEFAULT_RESULT_VIEW, "discovery");
 });
 
-check("view toggle normalizes Discovery / List / Table", () => {
-  assert.deepEqual([...RESULT_VIEWS], ["discovery", "list", "table"]);
+check("view toggle normalizes Discovery / List", () => {
+  assert.deepEqual([...RESULT_VIEWS], ["discovery", "list"]);
   assert.equal(normalizeResultView("list"), "list");
-  assert.equal(normalizeResultView("table"), "table");
+  assert.equal(normalizeResultView("table"), "discovery");
   assert.equal(normalizeResultView("discovery"), "discovery");
   assert.equal(normalizeResultView("bogus"), "discovery");
   assert.equal(normalizeResultView(null), "discovery");

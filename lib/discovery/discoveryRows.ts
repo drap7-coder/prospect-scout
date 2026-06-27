@@ -1,8 +1,7 @@
 import type { Prospect } from "@/lib/search/types";
-import { prospectFreshness } from "@/lib/intelligence/evidence";
 
 /** Presentation-layer result views. Discovery is the default experience. */
-export const RESULT_VIEWS = ["discovery", "list", "table"] as const;
+export const RESULT_VIEWS = ["discovery", "list"] as const;
 export type ResultView = (typeof RESULT_VIEWS)[number];
 export const DEFAULT_RESULT_VIEW: ResultView = "discovery";
 
@@ -19,7 +18,6 @@ export function shouldRefetchOnViewChange(): boolean {
 
 export const MAX_ROW_CARDS = 12;
 export const MIN_ROW_PROSPECTS = 3;
-const RECENTLY_ADDED_MAX_DAYS = 21;
 
 export interface DiscoveryRow {
   id: string;
@@ -44,18 +42,6 @@ function isLargeOrganization(p: Prospect): boolean {
   if (p.size === "enterprise" || p.size === "large") return true;
   if ((p.employeeEstimate ?? 0) >= 1000) return true;
   return false;
-}
-
-function isRecentlyAdded(p: Prospect): boolean {
-  const fromSources = (p.sourceRecords ?? []).some((r) => {
-    if (!r.lastUpdated) return false;
-    const ts = Date.parse(r.lastUpdated);
-    if (Number.isNaN(ts)) return false;
-    const days = (Date.now() - ts) / 86_400_000;
-    return days >= 0 && days <= 60;
-  });
-  if (fromSources) return true;
-  return prospectFreshness(p) <= RECENTLY_ADDED_MAX_DAYS;
 }
 
 function isPublicCompany(p: Prospect): boolean {
@@ -113,12 +99,6 @@ const ROW_DEFINITIONS: RowDefinition[] = [
     title: "Largest Organizations",
     description: "Enterprise-scale organizations by size indicators",
     predicate: isLargeOrganization,
-  },
-  {
-    id: "recently-added",
-    title: "Recently Added",
-    description: "Organizations with the freshest source activity",
-    predicate: isRecentlyAdded,
   },
   {
     id: "public-companies",

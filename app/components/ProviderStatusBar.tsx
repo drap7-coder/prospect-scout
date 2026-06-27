@@ -31,7 +31,7 @@ export function ProviderStatusBar({
   statuses: Record<BadgeKey, ProviderBadgeStatus>;
   planned: ProviderBadgeKey[];
 }) {
-  const keys: BadgeKey[] = ["mock", "cms", "sec", "rss", "fda"];
+  const keys: ProviderBadgeKey[] = ["cms", "sec", "rss", "fda"];
 
   return (
     <div
@@ -41,12 +41,7 @@ export function ProviderStatusBar({
     >
       <span className="label-mono mr-1 text-muted-2">Sources</span>
       {keys.map((key) => {
-        const status =
-          key === "mock"
-            ? statuses.mock
-            : planned.includes(key)
-              ? statuses[key]
-              : "skipped";
+        const status = planned.includes(key) ? statuses[key] : "skipped";
         const label = PROVIDER_LABELS[key];
         const suffix = STATUS_TEXT[status];
         return (

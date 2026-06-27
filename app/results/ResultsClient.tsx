@@ -40,7 +40,6 @@ import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultViewToggle } from "@/app/components/ResultViewToggle";
 import { DiscoveryView } from "@/app/components/DiscoveryView";
 import { ResultsList } from "@/app/components/ResultsList";
-import { ResultsTableStub } from "@/app/components/ResultsTableStub";
 import { ResultDensityToggle } from "@/app/components/ResultDensityToggle";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
@@ -590,8 +589,6 @@ export function ResultsClient() {
                         selectedId={selectedId}
                         onSelect={setSelectedId}
                       />
-                    ) : view === "table" ? (
-                      <ResultsTableStub count={filtered.length} />
                     ) : (
                       <ResultsList
                         prospects={filtered}

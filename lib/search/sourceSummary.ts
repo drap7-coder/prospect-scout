@@ -25,7 +25,7 @@ export function countBySource(prospects: Prospect[]): Record<string, number> {
     }
     const real = [...sources].filter((s) => s !== "Mock");
     if (real.length === 0 && p.signals.length === 0 && !p.directoryMatch) {
-      sources.add("Mock");
+      sources.add("Directory");
     }
     for (const src of sources) {
       if (src in counts) counts[src] += 1;

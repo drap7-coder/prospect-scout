@@ -5,7 +5,6 @@ import type { ResultView } from "@/lib/discovery/discoveryRows";
 const VIEW_OPTIONS: { id: ResultView; label: string }[] = [
   { id: "discovery", label: "Discovery" },
   { id: "list", label: "List" },
-  { id: "table", label: "Table" },
 ];
 
 export function ResultViewToggle({

@@ -6,7 +6,7 @@ export const TAXONOMY_SOURCE_FILTERS = [
   { id: "FDA", label: "FDA" },
   { id: "RSS", label: "RSS / News" },
   { id: "Public Web", label: "Public Web" },
-  { id: "Mock", label: "Mock" },
+  { id: "Mock", label: "Directory" },
 ] as const;
 
 export type TaxonomySourceFilterId = (typeof TAXONOMY_SOURCE_FILTERS)[number]["id"];
@@ -19,5 +19,5 @@ export const SOURCE_SUMMARY_LABELS: Record<string, string> = {
   FDA: "FDA",
   RSS: "RSS",
   "Public Web": "Public Web",
-  Mock: "Mock",
+  Mock: "Directory",
 };

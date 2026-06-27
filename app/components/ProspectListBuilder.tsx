@@ -5,7 +5,6 @@ import {
   BUILDER_OWNERSHIP_OPTIONS,
   BUILDER_ORG_TYPE_REFINEMENTS,
   BUILDER_PRIMARY_CATEGORIES,
-  BUILDER_SECONDARY_CATEGORIES,
   BUILDER_SIGNAL_OPTIONS,
   BUILDER_SIZE_OPTIONS,
   BUILDER_SORT_OPTIONS,
@@ -21,7 +20,6 @@ import {
   industryLabel,
   organizationTypeLabel,
   sectorLabel,
-  TAXONOMY_INDUSTRIES,
   organizationTypesForFilters,
 } from "@/lib/taxonomy";
 import {
@@ -243,20 +241,6 @@ function HierarchyStack({ builder }: { builder: ProspectListBuilderState }) {
   );
 }
 
-function orgTypeMatchesSelection(
-  orgTypeId: string | null,
-  sectorId: string | null,
-  industryId: string | null,
-): boolean {
-  if (!orgTypeId) return true;
-  if (isCanonicalOrgTypeId(orgTypeId)) return true;
-  const org = getOrganizationType(orgTypeId);
-  if (!org) return false;
-  if (industryId) return org.industryId === industryId;
-  if (sectorId) return org.sectorId === sectorId;
-  return true;
-}
-
 function orgChoiceIndustry(choice: OrgTypeChoice): string | null {
   return choice.industry ?? choice.industryId ?? null;
 }
@@ -279,7 +263,6 @@ export function ProspectListBuilder({
   const [activeCategory, setActiveCategory] = useState<string | null>(
     initialCategoryId,
   );
-  const [showAllIndustries, setShowAllIndustries] = useState(false);
   const [showAllOrgTypes, setShowAllOrgTypes] = useState(false);
   const [locationMode, setLocationMode] = useState<LocationMode>("anywhere");
   const [showLocationAdvanced, setShowLocationAdvanced] = useState(false);
@@ -299,14 +282,6 @@ export function ProspectListBuilder({
     return BUILDER_ORG_TYPE_REFINEMENTS[builder.sector] ?? [];
   }, [builder.sector]);
 
-  const industriesForSector = useMemo(() => {
-    if (!builder.sector) return [];
-    return TAXONOMY_INDUSTRIES.filter((i) => i.sectorId === builder.sector);
-  }, [builder.sector]);
-
-  const visibleIndustries = showAllIndustries
-    ? industriesForSector
-    : industriesForSector.slice(0, 6);
   const visibleOrgTypes = showAllOrgTypes ? orgTypes : orgTypes.slice(0, 8);
   const visibleOrgTypeChoices: OrgTypeChoice[] =
     featuredOrgTypes.length > 0 ? featuredOrgTypes : visibleOrgTypes;
@@ -365,25 +340,7 @@ export function ProspectListBuilder({
       builderSources: category.builderSources ?? builder.builderSources,
       builderSignals: category.builderSignals ?? builder.builderSignals,
     });
-    setShowAllIndustries(false);
     setShowAllOrgTypes(false);
-  }
-
-  function pickIndustry(industryId: string) {
-    const ind = TAXONOMY_INDUSTRIES.find((i) => i.id === industryId);
-    const deselect = builder.industry === industryId;
-    const nextIndustry = deselect ? null : industryId;
-    patch({
-      industry: nextIndustry,
-      sector: ind?.sectorId ?? builder.sector,
-      organizationType: orgTypeMatchesSelection(
-        builder.organizationType,
-        ind?.sectorId ?? builder.sector,
-        nextIndustry,
-      )
-        ? builder.organizationType
-        : null,
-    });
   }
 
   function pickOrganizationType(
@@ -485,30 +442,6 @@ export function ProspectListBuilder({
           </div>
         </fieldset>
 
-        <fieldset className="mt-5">
-          <legend className="mb-2.5 text-sm font-medium text-muted">
-            Broader sectors{" "}
-            <span className="font-normal text-muted-2">(optional)</span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {BUILDER_SECONDARY_CATEGORIES.map((cat) => (
-              <button
-                key={cat.cardId}
-                type="button"
-                aria-pressed={activeCategory === cat.cardId}
-                onClick={() => pickCategory(cat)}
-                className={`interactive-press rounded-full border px-4 py-2.5 text-sm font-medium ${
-                  activeCategory === cat.cardId
-                    ? "builder-choice-selected font-semibold"
-                    : "interactive-choice border-border text-muted"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
         {builder.sector ? (
           <div className="mt-5 space-y-4">
             <HierarchyStack builder={builder} />
@@ -551,35 +484,6 @@ export function ProspectListBuilder({
               </fieldset>
             ) : null}
 
-            {industriesForSector.length > 0 ? (
-              <fieldset>
-                <p className="mb-2.5 text-sm font-medium text-muted">
-                  Industry{" "}
-                  <span className="font-normal text-muted-2">
-                    (advanced refinement)
-                  </span>
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {visibleIndustries.map((ind) => (
-                    <CategoryCard
-                      key={ind.id}
-                      label={ind.label}
-                      selected={builder.industry === ind.id}
-                      onClick={() => pickIndustry(ind.id)}
-                    />
-                  ))}
-                </div>
-                {industriesForSector.length > 6 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllIndustries((v) => !v)}
-                    className="mt-2 text-sm font-semibold text-accent-cyan"
-                  >
-                    {showAllIndustries ? "Show fewer" : "Show all industries"}
-                  </button>
-                ) : null}
-              </fieldset>
-            ) : null}
           </div>
         ) : null}
       </StepCard>

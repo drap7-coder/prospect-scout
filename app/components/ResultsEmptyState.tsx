@@ -84,8 +84,8 @@ export function ResultsErrorState({
       </p>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted">{message}</p>
       <p className="mx-auto mt-3 max-w-md text-xs text-muted-2">
-        Mock fallback data may still appear when live providers fail. Try again
-        or broaden your search.
+        Fallback directory data may still appear when live providers fail. Try
+        again or broaden your search.
       </p>
       <button
         type="button"
