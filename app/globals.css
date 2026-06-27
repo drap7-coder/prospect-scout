@@ -244,6 +244,48 @@ body {
   background: var(--surface);
 }
 
+/* Light builder on dark homepage — reset inherited hero text color */
+.builder-panel {
+  color: var(--foreground);
+}
+
+.builder-panel .card-float {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.builder-panel .interactive-choice {
+  color: var(--foreground);
+}
+
+.builder-panel .builder-choice-selected {
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 16%, #ffffff);
+  color: var(--foreground);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-cyan) 28%, transparent),
+    0 2px 10px color-mix(in srgb, var(--accent-cyan) 16%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .builder-panel .interactive-choice:not(.builder-choice-selected):hover {
+    border-color: color-mix(in srgb, var(--accent-cyan) 38%, var(--border));
+    background: color-mix(in srgb, var(--accent-cyan) 7%, #ffffff);
+    color: var(--foreground);
+  }
+}
+
+.builder-panel .builder-choice-selected .builder-choice-label {
+  color: color-mix(in srgb, var(--accent-cyan) 72%, #0c4a44);
+}
+
+.builder-panel .builder-choice-hint {
+  color: var(--muted);
+}
+
+.builder-panel .builder-choice-selected .builder-choice-hint {
+  color: color-mix(in srgb, var(--muted) 70%, #0c4a44);
+}
+
 /* Dark enterprise-style result cards */
 .result-card {
   touch-action: manipulation;

@@ -97,7 +97,7 @@ function CategoryCard({
       }}
       aria-pressed={selected}
       className={`interactive-press interactive-choice flex min-h-[3.75rem] w-full items-center rounded-2xl px-4 py-3.5 text-left text-sm font-semibold sm:min-h-[4.25rem] sm:text-[0.9375rem] ${
-        selected ? "card-selected" : ""
+        selected ? "builder-choice-selected" : "text-foreground"
       }`}
     >
       {label}
@@ -127,24 +127,14 @@ function ChoiceChip({
       }}
       aria-pressed={selected}
       className={`interactive-press interactive-choice min-h-[3.25rem] rounded-2xl px-4 py-3 text-left ${
-        selected ? "card-selected" : ""
+        selected ? "builder-choice-selected" : "text-foreground"
       }`}
     >
-      <span
-        className={`block text-sm font-semibold ${
-          selected ? "text-white" : "text-foreground"
-        }`}
-      >
+      <span className="builder-choice-label block text-sm font-semibold">
         {label}
       </span>
       {hint ? (
-        <span
-          className={`mt-0.5 block text-xs ${
-            selected ? "text-white/80" : "text-muted"
-          }`}
-        >
-          {hint}
-        </span>
+        <span className="builder-choice-hint mt-0.5 block text-xs">{hint}</span>
       ) : null}
     </button>
   );
@@ -387,7 +377,7 @@ export function ProspectListBuilder({
   if (!open) return null;
 
   return (
-    <div className="mt-8 space-y-5 text-left sm:mt-10">
+    <div className="builder-panel mt-8 space-y-5 text-left sm:mt-10">
       <StepCard
         step={1}
         icon={
@@ -434,7 +424,7 @@ export function ProspectListBuilder({
                 onClick={() => pickCategory(cat)}
                 className={`interactive-press rounded-full border px-4 py-2.5 text-sm font-medium ${
                   activeCategory === cat.cardId
-                    ? "card-selected"
+                    ? "builder-choice-selected font-semibold"
                     : "interactive-choice border-border text-muted"
                 }`}
               >
@@ -620,7 +610,10 @@ export function ProspectListBuilder({
             </label>
             <div>
               <p className="mb-2 text-sm font-medium text-muted">
-                Operates in states
+                Operates in states{" "}
+                <span className="font-normal text-muted-2">
+                  (select all that apply)
+                </span>
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {US_STATE_FILTERS.map((st) => (
@@ -629,9 +622,9 @@ export function ProspectListBuilder({
                     type="button"
                     aria-pressed={builder.operatingStates.includes(st.id)}
                     onClick={() => toggleOperatingState(st.id)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                    className={`interactive-choice rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                       builder.operatingStates.includes(st.id)
-                        ? "card-selected"
+                        ? "builder-choice-selected"
                         : "border-border text-muted hover:border-border-strong"
                     }`}
                   >
@@ -660,6 +653,9 @@ export function ProspectListBuilder({
         }
         question="Narrow results: which signals matter?"
       >
+        <p className="mb-4 text-sm text-muted">
+          Select all that apply — each signal broadens what Scout looks for.
+        </p>
         <fieldset>
           <legend className="sr-only">Signal filters</legend>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -736,7 +732,7 @@ export function ProspectListBuilder({
                 }}
                 className={`interactive-press rounded-full border px-4 py-2.5 text-sm font-medium ${
                   builder.ownership === o.id
-                    ? "card-selected"
+                    ? "builder-choice-selected font-semibold"
                     : "interactive-choice border-border text-muted"
                 }`}
               >
@@ -776,7 +772,10 @@ export function ProspectListBuilder({
           <div className="space-y-5">
             <fieldset>
               <legend className="mb-2.5 text-sm font-medium text-muted">
-                Source/evidence
+                Source/evidence{" "}
+                <span className="font-normal text-muted-2">
+                  (select all that apply)
+                </span>
               </legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {BUILDER_SOURCE_OPTIONS.map((src) => (
@@ -800,9 +799,9 @@ export function ProspectListBuilder({
                     type="button"
                     aria-pressed={(builder.sort ?? "score") === opt.id}
                     onClick={() => patch({ sort: opt.id })}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    className={`interactive-choice rounded-full border px-4 py-2 text-sm font-medium transition ${
                       (builder.sort ?? "score") === opt.id
-                        ? "card-selected"
+                        ? "builder-choice-selected font-semibold"
                         : "border-border text-muted hover:border-border-strong"
                     }`}
                   >
