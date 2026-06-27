@@ -104,6 +104,102 @@ export const BUILDER_FEATURED_SECTOR_IDS = BUILDER_PRIMARY_CATEGORIES.map(
   (c) => c.sectorId,
 );
 
+/** A guided industry entry point shown on the homepage hero. */
+export interface HomepageIndustrySelector {
+  id: string;
+  label: string;
+  description: string;
+  emoji: string;
+  /** null = no sector constraint (broad org-type search). */
+  sectorId: string | null;
+  industry?: string | null;
+  organizationType?: string | null;
+  ownership?: string | null;
+  /** Matching BUILDER_PRIMARY_CATEGORIES cardId, when one exists. */
+  builderCardId?: string;
+}
+
+/**
+ * Homepage industry selector — the primary entry point into the builder flow.
+ * Each option reuses existing taxonomy ids (sector / industry / organization
+ * type) so it preloads the guided builder with a valid selection.
+ */
+export const HOMEPAGE_INDUSTRY_SELECTORS: HomepageIndustrySelector[] = [
+  {
+    id: "health-plans",
+    label: "Health Plans",
+    description: "Insurance companies and health plan organizations.",
+    emoji: "🩺",
+    sectorId: "healthcare",
+    industry: "payers",
+    organizationType: "health-plan",
+    builderCardId: "health-plans",
+  },
+  {
+    id: "hospitals",
+    label: "Hospitals & Health Systems",
+    description: "Hospitals, health systems, and clinics.",
+    emoji: "🏥",
+    sectorId: "healthcare",
+    industry: "providers",
+    organizationType: "hospital-health-system",
+    builderCardId: "hospitals",
+  },
+  {
+    id: "pbm-pharmacy",
+    label: "PBMs / Pharmacy",
+    description: "Pharmacy benefit managers and pharmacy services.",
+    emoji: "💊",
+    sectorId: "healthcare",
+    industry: "payers",
+    organizationType: "pbm",
+  },
+  {
+    id: "manufacturers",
+    label: "Manufacturers",
+    description: "Industrial, consumer, and specialty manufacturers.",
+    emoji: "🏭",
+    sectorId: "manufacturing",
+    industry: "industrial-products",
+    organizationType: "manufacturer",
+    builderCardId: "manufacturers",
+  },
+  {
+    id: "employers",
+    label: "Employers",
+    description: "Mid-market and enterprise employer organizations.",
+    emoji: "🏢",
+    sectorId: null,
+    organizationType: "employer",
+  },
+  {
+    id: "nonprofits",
+    label: "Nonprofits",
+    description: "Nonprofit organizations and associations.",
+    emoji: "🤝",
+    sectorId: "nonprofit",
+    industry: "nonprofit",
+    organizationType: "nonprofit",
+    ownership: "nonprofit",
+    builderCardId: "nonprofits",
+  },
+  {
+    id: "financial-services",
+    label: "Financial Services",
+    description: "Banks, credit unions, and financial institutions.",
+    emoji: "🏦",
+    sectorId: "financial-services",
+  },
+  {
+    id: "restaurants-hospitality",
+    label: "Restaurants / Hospitality",
+    description: "Restaurants, hospitality groups, and venues.",
+    emoji: "🍽️",
+    sectorId: "hospitality-leisure",
+    industry: "hospitality",
+  },
+];
+
 export const BUILDER_SECTOR_HINTS: Record<string, string> = {
   healthcare: "Hospitals, payers, life sciences",
   manufacturing: "Plants, CPG, industrial",
@@ -239,6 +335,19 @@ export const EMPTY_BUILDER_STATE: ProspectListBuilderState = {
   builderSources: [],
   sort: "score",
 };
+
+/** Seeds a guided-builder state from a homepage industry selection. */
+export function industrySelectorToBuilderState(
+  selector: HomepageIndustrySelector,
+): ProspectListBuilderState {
+  return {
+    ...EMPTY_BUILDER_STATE,
+    sector: selector.sectorId,
+    industry: selector.industry ?? null,
+    organizationType: selector.organizationType ?? null,
+    ownership: selector.ownership ?? null,
+  };
+}
 
 const OWNERSHIP_PHRASES: Record<string, string> = {
   public: "public companies",

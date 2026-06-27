@@ -22,8 +22,8 @@ export default function Home() {
         className="motion-safe:animate-pulse absolute left-1/2 top-[20%] h-40 w-40 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl"
         aria-hidden
       />
-      <AppHeader minimal variant="hero" />
-      <main className="relative mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-6xl items-end px-5 pb-10 pt-24 sm:px-6 sm:pb-14 lg:pb-20">
+      <AppHeader minimal variant="hero" nav />
+      <main className="relative mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-6xl flex-col justify-center px-5 pb-16 pt-16 sm:px-6 sm:pb-20 sm:pt-20">
         <HomeSearchHero />
       </main>
     </div>

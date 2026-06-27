@@ -211,14 +211,21 @@ function orgChoiceIndustry(choice: OrgTypeChoice): string | null {
 export function ProspectListBuilder({
   open,
   onSubmit,
+  initialState,
+  initialCategoryId = null,
 }: {
   open: boolean;
   onSubmit: (state: ProspectListBuilderState) => void;
+  /** Preloads the builder (e.g. from the homepage industry selector). */
+  initialState?: ProspectListBuilderState;
+  initialCategoryId?: string | null;
 }) {
   const [builder, setBuilder] = useState<ProspectListBuilderState>(
-    EMPTY_BUILDER_STATE,
+    initialState ?? EMPTY_BUILDER_STATE,
   );
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(
+    initialCategoryId,
+  );
   const [showAllIndustries, setShowAllIndustries] = useState(false);
   const [showAllOrgTypes, setShowAllOrgTypes] = useState(false);
   const [locationMode, setLocationMode] = useState<LocationMode>("anywhere");

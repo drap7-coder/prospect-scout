@@ -187,6 +187,26 @@ body {
   filter: brightness(0.96);
 }
 
+/* The unlayered interaction utilities above override Tailwind's
+   `motion-reduce:*` variants, so disable their movement explicitly.
+   Non-motion feedback (color, background, shadow) is preserved. */
+@media (prefers-reduced-motion: reduce) {
+  .interactive-press,
+  .interactive-press:active,
+  .interactive-primary,
+  .interactive-primary:active,
+  .interactive-icon-btn,
+  .interactive-icon-btn:active {
+    transform: none;
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease,
+      box-shadow 200ms ease,
+      color 200ms ease,
+      filter 200ms ease;
+  }
+}
+
 .interactive-icon-btn {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
