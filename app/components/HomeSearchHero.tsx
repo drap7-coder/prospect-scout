@@ -201,6 +201,7 @@ function IndustryCarousel({
   onPick: (s: HomepageIndustrySelector) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [page, setPage] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [canLeft, setCanLeft] = useState(false);
@@ -221,6 +222,7 @@ function IndustryCarousel({
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
+    setLayoutReady(true);
     update();
     // Recompute once layout/fonts settle (avoids a first-paint race).
     const raf = requestAnimationFrame(update);
@@ -260,7 +262,7 @@ function IndustryCarousel({
         type="button"
         onClick={() => scrollByPage(-1)}
         aria-label="Scroll industries left"
-        disabled={!canLeft}
+        disabled={!layoutReady || !canLeft}
         className="interactive-press absolute -left-3 top-[calc(50%-0.75rem)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:flex lg:-left-5"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -268,29 +270,45 @@ function IndustryCarousel({
         </svg>
       </button>
 
-      <div
-        ref={scrollerRef}
-        className="grid grid-cols-1 gap-3 sm:flex sm:snap-x sm:snap-mandatory sm:gap-4 sm:overflow-x-auto sm:scroll-smooth sm:pb-1 sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden"
-      >
-        {HOMEPAGE_INDUSTRY_SELECTORS.map((selector) => (
-          <div
-            key={selector.id}
-            className="sm:w-[208px] sm:shrink-0 sm:snap-start"
-          >
-            <IndustryCard
-              selector={selector}
-              selected={selectedId === selector.id}
-              onPick={onPick}
-            />
-          </div>
-        ))}
+      <div className="relative">
+        <div
+          ref={scrollerRef}
+          className="grid grid-cols-1 gap-3 sm:flex sm:snap-x sm:snap-mandatory sm:gap-4 sm:overflow-x-auto sm:scroll-smooth sm:pb-1 sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden"
+        >
+          {HOMEPAGE_INDUSTRY_SELECTORS.map((selector) => (
+            <div
+              key={selector.id}
+              className="sm:w-[208px] sm:shrink-0 sm:snap-start"
+            >
+              <IndustryCard
+                selector={selector}
+                selected={selectedId === selector.id}
+                onPick={onPick}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Edge fades hint that more cards are scrollable (desktop only). */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 left-0 hidden w-14 rounded-l-2xl bg-gradient-to-r from-[#020b16] to-transparent transition-opacity duration-200 sm:block ${
+            layoutReady && canLeft ? "opacity-90" : "opacity-0"
+          }`}
+        />
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 right-0 hidden w-14 rounded-r-2xl bg-gradient-to-l from-[#020b16] to-transparent transition-opacity duration-200 sm:block ${
+            layoutReady && canRight ? "opacity-90" : "opacity-0"
+          }`}
+        />
       </div>
 
       <button
         type="button"
         onClick={() => scrollByPage(1)}
         aria-label="Scroll industries right"
-        disabled={!canRight}
+        disabled={!layoutReady || !canRight}
         className="interactive-press absolute -right-3 top-[calc(50%-0.75rem)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#06141f]/90 text-white shadow-lg backdrop-blur transition hover:border-cyan-200/50 disabled:cursor-default disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 sm:flex lg:-right-5"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -298,7 +316,7 @@ function IndustryCarousel({
         </svg>
       </button>
 
-      {pageCount > 1 ? (
+      {layoutReady && pageCount > 1 ? (
         <div className="mt-4 hidden items-center justify-center gap-2 sm:flex">
           {Array.from({ length: pageCount }).map((_, i) => (
             <button
@@ -306,7 +324,7 @@ function IndustryCarousel({
               type="button"
               onClick={() => scrollToPage(i)}
               aria-label={`Go to industry page ${i + 1}`}
-              aria-current={page === i}
+              aria-current={page === i ? "page" : undefined}
               className={`h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${
                 page === i ? "w-5 bg-cyan-300" : "w-2 bg-white/30 hover:bg-white/50"
               }`}
@@ -384,7 +402,7 @@ export function HomeSearchHero() {
 
   return (
     <div className="mx-auto w-full max-w-5xl text-center">
-      <h1 className="text-balance text-[2.6rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] sm:text-6xl lg:text-[4.25rem]">
+      <h1 className="text-balance text-[2.6rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.72)] sm:text-6xl lg:text-[4.25rem]">
         Find your next best opportunity.
       </h1>
       <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-white/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)] sm:text-lg">

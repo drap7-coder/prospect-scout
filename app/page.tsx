@@ -6,12 +6,12 @@ export default function Home() {
   return (
     <div className="relative min-h-full overflow-hidden bg-[#020b16] text-white">
       <Image
-        src="/prospect-scout-hero.png"
+        src="/prospect-scout-hero-v2.png"
         alt=""
         fill
         priority
         sizes="100vw"
-        className="absolute inset-0 object-cover object-[50%_18%] opacity-95 sm:object-center"
+        className="absolute inset-0 object-cover object-[50%_20%] opacity-100 sm:object-[50%_28%]"
         aria-hidden="true"
       />
       <div
