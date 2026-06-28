@@ -125,7 +125,7 @@ function IndustryCarousel({
   }
 
   return (
-    <div className="relative mt-6">
+    <div className="relative mt-4">
       <button
         type="button"
         onClick={() => scrollByPage(-1)}
@@ -261,9 +261,8 @@ export function HomeSearchHero() {
         <h1 className="text-balance text-[2.6rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.72)] sm:text-6xl lg:text-[4.25rem]">
           Find your next best opportunity.
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-white/80 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)] sm:text-lg">
-          AI-powered prospecting that helps you identify, understand, and engage
-          the right organizations.
+        <p className="mx-auto mt-3 max-w-xl text-balance text-sm leading-relaxed text-white/75 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)] sm:text-base">
+          Choose who you want to find and Scout will guide the rest.
         </p>
       </div>
 
@@ -271,7 +270,7 @@ export function HomeSearchHero() {
       <section
         id="start"
         aria-labelledby="industry-selector-heading"
-        className="mx-auto mt-10 max-w-5xl scroll-mt-20 sm:mt-12"
+        className="mx-auto mt-6 max-w-5xl scroll-mt-20 sm:mt-7"
       >
         <h2
           id="industry-selector-heading"
@@ -285,9 +284,6 @@ export function HomeSearchHero() {
           </svg>
           Start with a prospect list
         </h2>
-        <p className="mx-auto mt-1.5 max-w-xl text-balance text-sm text-white/70 drop-shadow-[0_1px_10px_rgba(0,0,0,0.5)]">
-          Choose who you want to find and Scout will guide the rest.
-        </p>
 
         <IndustryCarousel selectedId={selectedIndustryId} onPick={pickIndustry} />
 
