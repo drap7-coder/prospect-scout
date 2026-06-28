@@ -6,6 +6,7 @@ import {
   filterOrganizationsByQueryText,
   organizationMatchesQueryText,
 } from "./queryDiscovery";
+import { ERISA_CONNECTOR_ID } from "@/lib/import/erisa/types";
 import { dedupeOrganizationsByMergeKeys } from "./mergeKeys";
 import {
   rankOrganizations,
@@ -28,6 +29,7 @@ export const DISCOVERY_V2_CONNECTOR_IDS = [
   "wikipedia",
   "state-registry",
   "business-directory",
+  "erisa",
 ] as const;
 
 export type DiscoveryV2ConnectorId = (typeof DISCOVERY_V2_CONNECTOR_IDS)[number];
@@ -70,6 +72,7 @@ const CONNECTOR_LABELS: Record<string, string> = {
   wikipedia: "Wikipedia",
   "state-registry": "State Registry",
   "business-directory": "Business Directory",
+  erisa: "ERISA",
 };
 
 function connectorLabel(id: string): string {
@@ -132,9 +135,12 @@ function discoverFromConnector(
     ? normalizeConnectorRecords(connector, intent)
     : [];
 
-  const combined = dedupeOrganizationsByMergeKeys(
-    filterConnectorResults([...catalogHits, ...registryHits], intent),
-  );
+  const pool = [...catalogHits, ...registryHits];
+  const filtered =
+    connectorId === ERISA_CONNECTOR_ID
+      ? pool
+      : filterConnectorResults(pool, intent);
+  const combined = dedupeOrganizationsByMergeKeys(filtered);
 
   return {
     connectorId,

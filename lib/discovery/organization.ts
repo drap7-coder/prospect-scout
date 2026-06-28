@@ -7,6 +7,7 @@ import {
   normalizeTaxonomyOrganizationType,
 } from "./canonicalOrgType";
 import type { HealthPlanType } from "./healthPlanType";
+import type { ErisaCardIntel } from "@/lib/import/erisa/types";
 
 /** Provenance for a field or record from a discovery connector. */
 export interface OrganizationSource {
@@ -63,6 +64,10 @@ export interface Organization {
    * Refines, but does not replace, canonicalOrganizationType === "health-plan".
    */
   healthPlanType?: HealthPlanType;
+  /** Facet tags (e.g. ERISA plan sponsor labels). */
+  tags?: string[];
+  /** Latest Form 5500 intelligence when sourced from ERISA import. */
+  erisaIntel?: ErisaCardIntel;
 }
 
 /** Derive a hostname from a full website URL. */

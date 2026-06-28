@@ -43,6 +43,7 @@ export const organizations = pgTable(
     description: text("description"),
     buyerPack: text("buyer_pack"),
     healthPlanType: text("health_plan_type"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
     relevance: numeric("relevance", { precision: 5, scale: 2 }),
     confidence: numeric("confidence", { precision: 4, scale: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true })

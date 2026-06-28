@@ -1,0 +1,8 @@
+sponsor_ein,sponsor_name,sponsor_state,sponsor_city,plan_name,plan_number,filing_year,participant_count,health_welfare_plan,self_funded,funding_arrangement
+231234567,Independence Health Group Inc,PA,Philadelphia,Independence Blue Cross Welfare Plan,001,2023,8200,true,true,self-funded
+251234567,UPMC Health Plan Inc,PA,Pittsburgh,UPMC Health and Welfare Benefits Plan,001,2023,125000,true,true,self-funded
+461234567,Geisinger Health,PA,Danville,Geisinger Employee Benefits Plan,001,2023,5400,true,true,self-funded
+941234567,Penn State University,PA,State College,Penn State Welfare Benefits Plan,001,2023,12000,true,false,fully insured
+331234567,Acme Manufacturing LLC,PA,Allentown,Acme Welfare Plan,001,2023,750,true,true,self-funded
+231111111,California Pacific Employers,CA,San Francisco,California Welfare Plan,001,2023,9000,true,true,self-funded
+452222222,Texas Employer Services,TX,Dallas,Texas Welfare Benefits,001,2023,6200,true,true,self-funded

@@ -5,6 +5,7 @@ import {
   inferHealthPlanTypeFromQuery,
   type HealthPlanType,
 } from "./healthPlanType";
+import { parseErisaQueryConstraints } from "@/lib/import/erisa/queryIntent";
 
 /**
  * Structured search intent parsed from free text or explicit filters.
@@ -186,6 +187,32 @@ function applyCrossSectorAlternates(
   return alternates;
 }
 
+/** When query targets ERISA plan sponsors, avoid misclassified technology employer intent. */
+function applyErisaIntentOverrides(intent: SearchIntent): SearchIntent {
+  const constraints = parseErisaQueryConstraints(intent);
+  const erisaScoped =
+    constraints.selfFundedOnly ||
+    constraints.minParticipants != null ||
+    /\b(5500|erisa|plan sponsor|benefits buyer|welfare plan)\b/i.test(
+      intent.query,
+    );
+
+  if (!erisaScoped && !constraints.employerFocused) return intent;
+
+  const misclassifiedEmployer =
+    intent.organizationTypeId === "employer" &&
+    intent.sectorId === "technology" &&
+    intent.industryId === "technology";
+
+  return {
+    ...intent,
+    sectorId: misclassifiedEmployer ? null : intent.sectorId,
+    industryId: misclassifiedEmployer ? null : intent.industryId,
+    organizationTypeId: intent.organizationTypeId ?? "employer",
+    state: intent.state ?? constraints.state,
+  };
+}
+
 /** Parse a query into structured search intent. Explicit options win over inference. */
 export function parseSearchIntent(
   query: string,
@@ -238,7 +265,7 @@ export function parseSearchIntent(
   const healthPlanType =
     options.healthPlanType ?? inferHealthPlanTypeFromQuery(trimmed) ?? null;
 
-  return {
+  return applyErisaIntentOverrides({
     query: trimmed,
     sectorId,
     industryId,
@@ -250,5 +277,5 @@ export function parseSearchIntent(
     region,
     healthPlanType,
     keywords: [...new Set(keywords)],
-  };
+  });
 }

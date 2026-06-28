@@ -5,6 +5,8 @@ import { sourceRecordsFromOrgSources } from "@/lib/intelligence/sourceRecords";
 import { normalizeEinDigits } from "@/lib/discovery/connectors/propublica/normalize";
 
 function extractEinFromOrgId(id: string): string | undefined {
+  const erisaMatch = id.match(/^erisa-(\d{9})$/i);
+  if (erisaMatch) return erisaMatch[1];
   const match = id.match(/(?:irs-nonprofits-)(\d+)/i);
   if (match) {
     const digits = normalizeEinDigits(match[1]);
@@ -76,6 +78,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     coveredLives: memberEstimate,
     discoveryConfidence: org.confidence,
     sourceRecords: sourceRecordsFromOrgSources(org.sources),
+    erisaIntel: org.erisaIntel,
   };
 }
 

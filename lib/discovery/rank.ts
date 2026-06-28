@@ -78,6 +78,7 @@ const AUTHORITATIVE_CONNECTORS = new Set([
   "wikipedia",
   "state-registry",
   "business-directory",
+  "erisa",
 ]);
 
 const ENRICHMENT_CONNECTORS = new Set<string>();

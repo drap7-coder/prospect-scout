@@ -9,6 +9,7 @@ import {
   rssConnector,
   publicWebConnector,
 } from "./connectors/providerAdapters";
+import { erisaConnector } from "./connectors/erisaConnector";
 import {
   wikipediaConnector,
   stateRegistryConnector,
@@ -54,6 +55,7 @@ export function initDiscoveryEngine(): void {
   registerConnector(wikipediaConnector);
   registerConnector(stateRegistryConnector);
   registerConnector(businessDirectoryConnector);
+  registerConnector(erisaConnector);
   initialized = true;
 }
 
