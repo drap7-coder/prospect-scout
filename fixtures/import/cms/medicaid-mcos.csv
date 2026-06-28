@@ -1,0 +1,21 @@
+mco_id,organization_name,parent_organization,state,plan_type,naic_id,dataset_row_id
+mco-tx-superior,Superior HealthPlan,Centene Corporation,TX,medicaid_managed_care,95502,medicaid-001
+mco-fl-sunshine,Sunshine Health,Centene Corporation,FL,medicaid_managed_care,95502,medicaid-002
+mco-ga-peach,Peach State Health Plan,Centene Corporation,GA,medicaid_managed_care,95502,medicaid-003
+mco-oh-buckeye,Buckeye Health Plan,Centene Corporation,OH,medicaid_managed_care,95502,medicaid-004
+mco-ca-molina,Molina Healthcare of California,Molina Healthcare Inc.,CA,medicaid_managed_care,38362,medicaid-005
+mco-mi-molina,Molina Healthcare of Michigan,Molina Healthcare Inc.,MI,medicaid_managed_care,38362,medicaid-006
+mco-wa-molina,Molina Healthcare of Washington,Molina Healthcare Inc.,WA,medicaid_managed_care,38362,medicaid-007
+mco-az-mercy,Mercy Care Plan,Arizona Complete Health,AZ,medicaid_managed_care,80860,medicaid-008
+mco-nv-silver,SilverSummit Healthplan,Centene Corporation,NV,medicaid_managed_care,95502,medicaid-009
+mco-in-managed,Managed Health Services,Centene Corporation,IN,medicaid_managed_care,95502,medicaid-010
+mco-ky-passport,Passport Health Plan by Molina,Molina Healthcare Inc.,KY,medicaid_managed_care,38362,medicaid-011
+mco-la-ameri,AmeriHealth Caritas Louisiana,AmeriHealth Caritas,LA,medicaid_managed_care,80861,medicaid-012
+mco-nc-wellcare,WellCare of North Carolina,Centene Corporation,NC,medicaid_managed_care,95502,medicaid-013
+mco-sc-absolute,Absolute Total Care,Centene Corporation,SC,medicaid_managed_care,95502,medicaid-014
+mco-il-county,CountyCare Health Plan,Cook County Health,IL,medicaid_managed_care,80862,medicaid-015
+mco-nj-horizon,Horizon NJ Health,Horizon Blue Cross Blue Shield of New Jersey,NJ,medicaid_managed_care,80863,medicaid-016
+mco-wi-mcare,MCare HMO,Independent Care Health Plan,WI,medicaid_managed_care,80864,medicaid-017
+mco-mn-hennepin,Hennepin Health,Hennepin County,MN,medicaid_managed_care,80865,medicaid-018
+mco-co-rocky,Rocky Mountain Health Plans,UnitedHealth Group,CO,medicaid_managed_care,79413,medicaid-019
+mco-or-trillium,Trillium Community Health Plan,Centene Corporation,OR,medicaid_managed_care,95502,medicaid-020

@@ -1,0 +1,51 @@
+contract_id,legal_entity_name,marketing_name,parent_organization,contract_type,state_service,star_rating,naic_id,dataset_row_id
+H0028,UnitedHealthcare Insurance Company,UnitedHealthcare,UnitedHealth Group,MA-PD,FL,4.0,79413,cpsc-001
+H0322,UnitedHealthcare Insurance Company,UnitedHealthcare,UnitedHealth Group,MA-PD,TX,4.0,79413,cpsc-002
+H5216,Humana Insurance Company,Humana Inc.,Humana Inc.,MA-PD,FL,3.5,73288,cpsc-003
+H0434,Humana Insurance Company,Humana Inc.,Humana Inc.,MA-PD,KY,3.5,73288,cpsc-004
+H5521,Aetna Health Inc.,Aetna,CVS Health,MA-PD,FL,3.5,78700,cpsc-005
+H0544,Cigna Healthcare of Arizona,Cigna Healthcare,The Cigna Group,MA-PD,AZ,4.0,65241,cpsc-006
+H0537,Elevance Health Inc.,Elevance Health,Elevance Health Inc.,MA-PD,IN,3.5,65269,cpsc-007
+H0169,Kaiser Foundation Health Plan Inc.,Kaiser Foundation Health Plan,Kaiser Permanente,MA-PD,CA,4.5,80631,cpsc-008
+H0885,Centene Corporation,Centene Corporation,Centene Corporation,MA-PD,MO,3.0,95502,cpsc-009
+H5629,Molina Healthcare of Michigan,Molina Healthcare,Molina Healthcare Inc.,MA-PD,MI,3.0,38362,cpsc-010
+H5594,Independence Blue Cross,Independence Blue Cross,Independence Health Group,MA-PD,PA,4.0,54771,cpsc-011
+H3015,Highmark Inc.,Highmark Inc.,Highmark Health,MA-PD,PA,3.5,54771,cpsc-012
+H0154,Blue Cross Blue Shield of Illinois,Blue Cross Blue Shield of Illinois,Health Care Service Corporation,MA-PD,IL,3.5,60054,cpsc-013
+H0294,Blue Cross Blue Shield of Michigan,Blue Cross Blue Shield of Michigan,Blue Cross Blue Shield of Michigan Mutual Insurance Company,MA-PD,MI,4.0,00786,cpsc-014
+H0104,Florida Blue,Florida Blue,Guidewell Mutual Holding Corporation,MA-PD,FL,4.0,17386,cpsc-015
+H5599,Blue Cross Blue Shield of North Carolina,Blue Cross Blue Shield of North Carolina,Blue Cross Blue Shield of North Carolina,MA-PD,NC,3.5,56003,cpsc-016
+H4513,Blue Cross Blue Shield of Texas,Blue Cross Blue Shield of Texas,Health Care Service Corporation,MA-PD,TX,3.5,84980,cpsc-017
+H0523,Blue Shield of California,Blue Shield of California,Blue Shield of California,MA-PD,CA,4.0,70003,cpsc-018
+H2407,Regence BlueCross BlueShield of Oregon,Regence BlueCross BlueShield,Cambia Health Solutions,MA-PD,OR,3.5,54771,cpsc-019
+H2408,Regence BlueCross BlueShield of Utah,Regence BlueCross BlueShield,Cambia Health Solutions,MA-PD,UT,3.5,54771,cpsc-020
+H5590,Blue Cross Blue Shield of Arizona,Blue Cross Blue Shield of Arizona,Blue Cross Blue Shield of Arizona,MA-PD,AZ,3.5,53589,cpsc-021
+H4003,BlueCross BlueShield of Tennessee,BlueCross BlueShield of Tennessee,BlueCross BlueShield of Tennessee,MA-PD,TN,3.5,37308,cpsc-022
+H1608,Anthem Blue Cross and Blue Shield,Anthem Blue Cross and Blue Shield,Elevance Health Inc.,MA-PD,OH,3.5,65269,cpsc-023
+H1790,Priority Health,Priority Health,Priority Health,MA-PD,MI,4.0,61453,cpsc-024
+H5591,Medical Mutual of Ohio,Medical Mutual of Ohio,Medical Mutual of Ohio,MA-PD,OH,4.0,33189,cpsc-025
+H2425,HealthPartners Inc.,HealthPartners,HealthPartners,MA-PD,MN,4.5,53767,cpsc-026
+H4604,Premera Blue Cross,Premera Blue Cross,Premera Blue Cross,MA-PD,WA,4.0,54771,cpsc-027
+H4514,Blue Cross Blue Shield of Alabama,Blue Cross Blue Shield of Alabama,Blue Cross Blue Shield of Alabama,MA-PD,AL,3.5,00510,cpsc-028
+H0628,Arkansas Blue Cross Blue Shield,Arkansas Blue Cross Blue Shield,Arkansas Blue Cross Blue Shield,MA-PD,AR,3.5,54771,cpsc-029
+H0562,Blue Cross Blue Shield of Kansas City,Blue Cross Blue Shield of Kansas City,Blue Cross Blue Shield of Kansas City,MA-PD,MO,3.5,54771,cpsc-030
+H2166,WellCare Health Plans of Florida,WellCare,Centene Corporation,MA-PD,FL,3.0,95502,cpsc-031
+H1036,Humana Insurance Company,Humana Inc.,Humana Inc.,PDP,FL,3.5,73288,cpsc-032
+H4523,UnitedHealthcare Insurance Company,UnitedHealthcare,UnitedHealth Group,PDP,CA,4.0,79413,cpsc-033
+H4513,Cigna Health and Life Insurance Company,Cigna Healthcare,The Cigna Group,PDP,TN,4.0,65241,cpsc-034
+H2409,Devoted Health Insurance Company,Devoted Health,Devoted Health Inc.,MA-PD,MA,4.0,80840,cpsc-035
+H2410,Clover Health Insurance Company,Clover Health,Clover Health,MA-PD,NJ,3.5,80841,cpsc-036
+H2411,Alignment Health Plan,Alignment Health,Alignment Healthcare,MA-PD,CA,4.0,80842,cpsc-037
+H2412,SCAN Health Plan,SCAN Health Plan,SCAN Group,MA-PD,CA,4.5,80843,cpsc-038
+H2413,Bright Health Insurance Company,Bright Health,Bright Health Group,MA-PD,CO,3.0,80844,cpsc-039
+H2414,Security Health Plan of Wisconsin,Security Health Plan,Marshfield Clinic Health System,MA-PD,WI,4.0,80845,cpsc-040
+H2415,Excellus BlueCross BlueShield,Excellus BlueCross BlueShield,Excellus Health Plan Inc.,MA-PD,NY,4.0,54771,cpsc-041
+H2416,Capital BlueCross,Capital BlueCross,Capital BlueCross,MA-PD,PA,4.0,54771,cpsc-042
+H2417,Blue Cross Blue Shield of Louisiana,Blue Cross Blue Shield of Louisiana,Blue Cross Blue Shield of Louisiana,MA-PD,LA,3.5,54771,cpsc-043
+H2418,Blue Cross Blue Shield of Mississippi,Blue Cross Blue Shield of Mississippi,Blue Cross Blue Shield of Mississippi,MA-PD,MS,3.5,54771,cpsc-044
+H2419,Blue Cross Blue Shield of South Carolina,Blue Cross Blue Shield of South Carolina,Blue Cross Blue Shield of South Carolina,MA-PD,SC,3.5,54771,cpsc-045
+H2420,Blue Cross Blue Shield of Massachusetts,Blue Cross Blue Shield of Massachusetts,Blue Cross Blue Shield of Massachusetts,MA-PD,MA,4.0,54771,cpsc-046
+H2421,Harvard Pilgrim Health Care,Harvard Pilgrim Health Care,Point32Health,MA-PD,MA,4.0,54771,cpsc-047
+H2422,Geisinger Health Plan,Geisinger Health Plan,Geisinger,MA-PD,PA,4.5,80846,cpsc-048
+H2423,UPMC Health Plan,UPMC Health Plan,UPMC,MA-PD,PA,4.0,80847,cpsc-049
+H2424,SelectHealth Inc.,SelectHealth,Intermountain Healthcare,MA-PD,UT,4.0,80848,cpsc-050

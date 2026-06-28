@@ -21,6 +21,14 @@ import {
   HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID,
   HEALTH_PLAN_BOOTSTRAP_SOURCE_NAME,
 } from "../lib/import/healthPlans/types.ts";
+import {
+  CMS_CPSC_CONNECTOR_ID,
+  CMS_MEDICAID_MCO_CONNECTOR_ID,
+  CMS_QHP_CONNECTOR_ID,
+  findDuplicateContractAssignments,
+  getMergedHealthPlanCatalogEntries,
+  importHealthPlanFullCatalog,
+} from "../lib/import/healthPlans/cms/index.ts";
 
 let passed = 0;
 async function check(name: string, fn: () => void | Promise<void>) {
@@ -168,6 +176,75 @@ await check("feature flag on serves 24 health plans from persistent index", asyn
   delete process.env.HEALTH_PLAN_PERSISTENT_SOURCE;
   clearHealthPlanIndex();
   resetCatalogIndex();
+});
+
+console.log("\nHealth plan CMS catalog expansion checks:\n");
+
+await check("default seed path still returns 24 curated plans", () => {
+  assert.equal(parseHealthPlanSeed().length, 24);
+  assert.equal(HEALTH_PLANS_DIRECTORY.length, 24);
+});
+
+await check("full CMS import expands catalog beyond 24 organizations", async () => {
+  clearHealthPlanIndex();
+  const stats = await importHealthPlanFullCatalog();
+  assert.equal(stats.seed.rowsParsed, 24);
+  assert.ok(stats.totalIndexSize > 24, "expected expanded catalog");
+  assert.ok(stats.cms.organizationsMerged > 0, "expected CMS merges into seed");
+  assert.equal(getHealthPlanIndexSize(), stats.totalIndexSize);
+});
+
+await check("expanded catalog includes non-PA regional health plans", async () => {
+  const orgs = getHealthPlanOrganizations();
+  const nonPaRegional = orgs.filter(
+    (org) =>
+      org.buyerPack === "health-plans" &&
+      org.states.some((state) => state !== "PA") &&
+      org.sources.some((source) => source.connector.startsWith("cms-")),
+  );
+  assert.ok(
+    nonPaRegional.length >= 5,
+    `expected several non-PA CMS-backed plans, got ${nonPaRegional.length}`,
+  );
+  const stateCoverage = new Set(orgs.flatMap((org) => org.states));
+  assert.ok(stateCoverage.has("TX"));
+  assert.ok(stateCoverage.has("CA"));
+  assert.ok(stateCoverage.has("FL"));
+  assert.ok(!Array.from(stateCoverage).every((state) => state === "PA"));
+});
+
+await check("imported CMS records retain source provenance", () => {
+  const orgs = getHealthPlanOrganizations();
+  const cmsBacked = orgs.filter((org) =>
+    org.sources.some((source) => source.connector.startsWith("cms-")),
+  );
+  assert.ok(cmsBacked.length > 0);
+  for (const org of cmsBacked) {
+    const cmsSource = org.sources.find((source) =>
+      [CMS_CPSC_CONNECTOR_ID, CMS_QHP_CONNECTOR_ID, CMS_MEDICAID_MCO_CONNECTOR_ID].includes(
+        source.connector,
+      ),
+    );
+    assert.ok(cmsSource, `missing CMS provenance on ${org.canonicalName}`);
+    assert.ok(cmsSource.sourceName);
+    assert.ok(cmsSource.sourceUrl);
+  }
+});
+
+await check("bootstrap seed provenance survives CMS catalog merge", () => {
+  const seeded = getHealthPlanOrganizations().filter((org) =>
+    org.sources.some((source) => source.connector === HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID),
+  );
+  assert.equal(seeded.length, 24);
+  for (const org of seeded) {
+    assert.equal(org.buyerPack, "health-plans");
+  }
+});
+
+await check("duplicate CMS contract ids are not assigned to separate orgs", () => {
+  const entries = getMergedHealthPlanCatalogEntries();
+  const duplicates = findDuplicateContractAssignments(entries);
+  assert.equal(duplicates.length, 0, duplicates.join("; "));
 });
 
 console.log(`\nAll ${passed} health plan checks passed.`);

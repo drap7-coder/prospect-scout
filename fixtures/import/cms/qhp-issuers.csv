@@ -1,0 +1,25 @@
+hios_id,issuer_legal_name,state,marketplace,naic_id,website,parent_organization,dataset_row_id
+33653,Community Health Options,ME,State-Based,87867,https://www.healthoptions.org,,qhp-001
+96667,Harvard Pilgrim Health Care,MA,State-Based,54771,https://www.harvardpilgrim.org,Point32Health,qhp-002
+96667,Harvard Pilgrim Health Care,NH,State-Based,54771,https://www.harvardpilgrim.org,Point32Health,qhp-003
+11534,Oscar Health,FL,HealthCare.gov,80849,https://www.hioscar.com,,qhp-004
+11534,Oscar Health,TX,HealthCare.gov,80849,https://www.hioscar.com,,qhp-005
+68398,Ambetter from Centene,GA,HealthCare.gov,95502,https://www.ambetterhealth.com,Centene Corporation,qhp-006
+68398,Ambetter from Centene,OH,HealthCare.gov,95502,https://www.ambetterhealth.com,Centene Corporation,qhp-007
+16842,Molina Healthcare of California,CA,HealthCare.gov,38362,https://www.molinahealthcare.com,Molina Healthcare Inc.,qhp-008
+45636,CareSource,OH,HealthCare.gov,61453,https://www.caresource.com,,qhp-009
+45636,CareSource,KY,HealthCare.gov,61453,https://www.caresource.com,,qhp-010
+33709,Florida Blue,FL,HealthCare.gov,17386,https://www.floridablue.com,Guidewell Mutual Holding Corporation,qhp-011
+70285,Anthem Blue Cross and Blue Shield,CO,HealthCare.gov,65269,https://www.anthem.com,Elevance Health Inc.,qhp-012
+40513,Kaiser Foundation Health Plan,CA,HealthCare.gov,80631,https://healthy.kaiserpermanente.org,Kaiser Permanente,qhp-013
+40513,Kaiser Foundation Health Plan,WA,HealthCare.gov,80631,https://healthy.kaiserpermanente.org,Kaiser Permanente,qhp-014
+55201,Friday Health Plans,CO,HealthCare.gov,80850,https://www.fridayhealthplans.com,,qhp-015
+55202,Moda Health Plan Inc.,OR,State-Based,80851,https://www.modahealth.com,,qhp-016
+55203,Providence Health Plan,OR,State-Based,80852,https://www.providencehealthplan.com,Providence St. Joseph Health,qhp-017
+55204,Quartz Health Plan,WI,State-Based,80853,https://www.quartzbenefits.com,,qhp-018
+55205,Dean Health Plan,WI,State-Based,80854,https://www.deancare.com,,qhp-019
+55206,Blue Cross Blue Shield of Arizona,AZ,HealthCare.gov,53589,https://www.azblue.com,,qhp-020
+55207,Blue Cross Blue Shield of Montana,MT,HealthCare.gov,80855,https://www.bcbsmt.com,,qhp-021
+55208,Blue Cross Blue Shield of Wyoming,WY,HealthCare.gov,80856,https://www.bcbswy.com,,qhp-022
+55209,Blue Cross Blue Shield of Vermont,VT,State-Based,80857,https://www.bluecrossvt.com,,qhp-023
+55210,Blue Cross Blue Shield of Rhode Island,RI,State-Based,80858,https://www.bcbsri.com,,qhp-024
