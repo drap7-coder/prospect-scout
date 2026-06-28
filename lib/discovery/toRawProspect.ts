@@ -60,7 +60,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     signals: [],
     fitKeywords: deriveFitKeywords(org),
     directoryId: org.id,
-    directoryMatch: true,
+    directoryMatch: org.sources.some((s) => s.connector === "directory"),
     sectorId: org.sectorId ?? undefined,
     industryId: org.industries[0],
     organizationTypeId: org.organizationType ?? undefined,

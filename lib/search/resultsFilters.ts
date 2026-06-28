@@ -1,4 +1,8 @@
 import { organizationMatchesOrgTypeFilter } from "@/lib/discovery/canonicalOrgType";
+import {
+  expandIndustryIds,
+  expandSectorIds,
+} from "@/lib/discovery/match";
 import type { Prospect, SignalSource } from "@/lib/search/types";
 import {
   displaySource,
@@ -90,21 +94,14 @@ const SIGNAL_FILTER_MATCH: Record<
     ),
 };
 
+function sectorMatchesProspect(prospect: Prospect, sectorId: string): boolean {
+  if (!prospect.sectorId) return true;
+  return expandSectorIds(sectorId).includes(prospect.sectorId);
+}
+
 function industryMatchesProspect(prospect: Prospect, industryId: string): boolean {
-  if (prospect.industryId === industryId) return true;
-  if (
-    industryId === "life-sciences" &&
-    prospect.industryId === "medical-device-manufacturing"
-  ) {
-    return true;
-  }
-  if (
-    industryId === "medical-device-manufacturing" &&
-    prospect.industryId === "life-sciences"
-  ) {
-    return true;
-  }
-  return false;
+  if (!prospect.industryId) return true;
+  return expandIndustryIds(industryId).includes(prospect.industryId);
 }
 
 function stateMatchesProspect(prospect: Prospect, stateId: string): boolean {
@@ -226,11 +223,11 @@ export function applyResultsFilters(
   const allowedTargets = allowedTaxonomyTargets(resolved);
 
   return prospects.filter((p) => {
-    if (resolved.sector && p.sectorId && p.sectorId !== resolved.sector) {
+    if (resolved.sector && !sectorMatchesProspect(p, resolved.sector)) {
       return false;
     }
 
-    if (resolved.industry && p.industryId && !industryMatchesProspect(p, resolved.industry)) {
+    if (resolved.industry && !industryMatchesProspect(p, resolved.industry)) {
       return false;
     }
 
