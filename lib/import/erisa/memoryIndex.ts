@@ -7,6 +7,7 @@ import {
   withLatestErisaIntel,
 } from "./organizationFromFiling";
 import { parseErisaQueryConstraints } from "./queryIntent";
+import { resetErisaHydrationCache } from "./hydrateIndex";
 
 interface IndexedErisaOrg {
   organization: Organization;
@@ -74,6 +75,7 @@ export function setErisaIndex(entries: IndexedErisaOrg[]): void {
 
 export function clearErisaIndex(): void {
   setErisaIndex([]);
+  resetErisaHydrationCache();
 }
 
 export function getErisaIndexSize(): number {

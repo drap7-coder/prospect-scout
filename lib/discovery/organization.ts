@@ -218,6 +218,91 @@ function pickBetterString(a: string | null, b: string | null): string | null {
   return a ?? b;
 }
 
+function orgEvidenceConfidence(org: Organization): number {
+  const sourceMax = org.sources.reduce(
+    (max, src) => Math.max(max, src.confidence ?? 0),
+    0,
+  );
+  return Math.max(org.confidence ?? 0, sourceMax);
+}
+
+function mergeTags(a?: string[], b?: string[]): string[] | undefined {
+  const merged = unionUnique(a ?? [], b ?? []);
+  return merged.length > 0 ? merged : undefined;
+}
+
+/** Prefer newer filing year, then higher participant count / confidence. */
+function mergeErisaIntel(
+  a?: ErisaCardIntel,
+  b?: ErisaCardIntel,
+): ErisaCardIntel | undefined {
+  if (!a && !b) return undefined;
+  if (!a) return b;
+  if (!b) return a;
+
+  const yearA = a.latestFilingYear ?? 0;
+  const yearB = b.latestFilingYear ?? 0;
+  const preferA =
+    yearA !== yearB
+      ? yearA > yearB
+      : (a.participantCount ?? 0) >= (b.participantCount ?? 0);
+  const primary = preferA ? a : b;
+  const secondary = preferA ? b : a;
+
+  return {
+    participantCount:
+      Math.max(a.participantCount ?? 0, b.participantCount ?? 0) || undefined,
+    sponsorState: primary.sponsorState ?? secondary.sponsorState,
+    planName: primary.planName ?? secondary.planName,
+    healthWelfarePlan:
+      primary.healthWelfarePlan || secondary.healthWelfarePlan || undefined,
+    fundingArrangement:
+      primary.fundingArrangement ?? secondary.fundingArrangement,
+    latestFilingYear: Math.max(yearA, yearB) || undefined,
+    selfFunded: primary.selfFunded ?? secondary.selfFunded,
+    tags: mergeTags(a.tags, b.tags),
+    sourceLabel: "ERISA Form 5500",
+  };
+}
+
+function mergeMemberEstimate(
+  base: Organization,
+  other: Organization,
+): number | null | undefined {
+  const values = [base.memberEstimate, other.memberEstimate].filter(
+    (value): value is number => value != null && value > 0,
+  );
+  if (values.length === 0) {
+    return base.memberEstimate ?? other.memberEstimate;
+  }
+  return Math.max(...values);
+}
+
+function pickCanonicalOrganizationType(
+  base: Organization,
+  other: Organization,
+): string {
+  if (isDirectorySource(base) && base.canonicalOrganizationType !== "other") {
+    return base.canonicalOrganizationType;
+  }
+  if (isDirectorySource(other) && other.canonicalOrganizationType !== "other") {
+    return other.canonicalOrganizationType;
+  }
+  if (
+    base.canonicalOrganizationType !== "other" &&
+    other.canonicalOrganizationType === "other"
+  ) {
+    return base.canonicalOrganizationType;
+  }
+  if (
+    other.canonicalOrganizationType !== "other" &&
+    base.canonicalOrganizationType === "other"
+  ) {
+    return other.canonicalOrganizationType;
+  }
+  return base.canonicalOrganizationType || other.canonicalOrganizationType;
+}
+
 /** Merge two organization records; prefer directory canonical identity. */
 export function mergeOrganizations(
   existing: Organization,
@@ -237,6 +322,15 @@ export function mergeOrganizations(
     if (!dup) mergedSources.push(src);
   }
 
+  const mergedTags = mergeTags(base.tags, other.tags);
+  const mergedErisaIntel = mergeErisaIntel(base.erisaIntel, other.erisaIntel);
+  const mergedConfidence = Math.max(
+    orgEvidenceConfidence(base),
+    orgEvidenceConfidence(other),
+    base.confidence ?? 0,
+    other.confidence ?? 0,
+  );
+
   return finalizeOrganization({
     id: base.id,
     canonicalName: base.canonicalName || other.canonicalName,
@@ -255,15 +349,17 @@ export function mergeOrganizations(
     regions: unionUnique(base.regions, other.regions),
     ownership: base.ownership ?? other.ownership,
     employeeRange: base.employeeRange ?? other.employeeRange,
-    memberEstimate: base.memberEstimate ?? other.memberEstimate,
+    memberEstimate: mergeMemberEstimate(base, other),
     revenueRange: base.revenueRange ?? other.revenueRange,
-    description: base.description ?? other.description,
+    description: pickBetterString(base.description, other.description),
     sources: mergedSources,
     buyerPack: base.buyerPack ?? other.buyerPack,
     relevance: Math.max(base.relevance ?? 0, other.relevance ?? 0),
-    confidence: Math.max(base.confidence ?? 0, other.confidence ?? 0),
-    canonicalOrganizationType: base.canonicalOrganizationType,
+    confidence: mergedConfidence,
+    canonicalOrganizationType: pickCanonicalOrganizationType(base, other),
     healthPlanType: resolveMergedHealthPlanType(base, other, mergedSources),
+    tags: mergedTags,
+    erisaIntel: mergedErisaIntel,
   });
 }
 

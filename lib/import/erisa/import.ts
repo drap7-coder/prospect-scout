@@ -16,6 +16,7 @@ import {
 } from "./organizationFromFiling";
 import { mergeErisaTags, buildErisaTags } from "./tags";
 import { indexErisaRows } from "./memoryIndex";
+import { markErisaIndexLoaded } from "./hydrateIndex";
 import { ERISA_CONNECTOR_ID, ERISA_SOURCE_NAME } from "./types";
 
 async function findOrganizationIdByEin(ein: string): Promise<string | null> {
@@ -234,6 +235,7 @@ export async function importErisaRows(
   }
 
   indexErisaRows(rows);
+  markErisaIndexLoaded();
   return stats;
 }
 
@@ -269,5 +271,6 @@ export async function refreshErisaIndexFromDb(): Promise<number> {
   }));
 
   indexErisaRows(parsed);
+  markErisaIndexLoaded();
   return parsed.length;
 }

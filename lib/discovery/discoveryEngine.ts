@@ -35,6 +35,10 @@ import {
   computeCoverageStatus,
   type DiscoveryMetadata,
 } from "./coverage";
+import {
+  ensureErisaIndexHydrated,
+  kickoffErisaIndexHydration,
+} from "@/lib/import/erisa/hydrateIndex";
 
 let initialized = false;
 
@@ -57,6 +61,7 @@ export function initDiscoveryEngine(): void {
   registerConnector(businessDirectoryConnector);
   registerConnector(erisaConnector);
   initialized = true;
+  kickoffErisaIndexHydration();
 }
 
 export interface DiscoverOptions extends ParseSearchIntentOptions {
@@ -101,6 +106,7 @@ export async function discoverOrganizations(
   options: DiscoverOptions = {},
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
+  await ensureErisaIndexHydrated();
   getConnectors();
   const intent = parseSearchIntent(query, options);
   const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];

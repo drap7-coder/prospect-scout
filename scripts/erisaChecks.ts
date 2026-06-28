@@ -10,6 +10,7 @@ import {
   clearErisaIndex,
   getErisaIndexSize,
   importErisaCsv,
+  importErisaRows,
   parseErisaQueryConstraints,
   searchErisaIndex,
 } from "../lib/import/erisa/index.ts";
@@ -18,6 +19,43 @@ import { parseSearchIntent } from "../lib/discovery/intent.ts";
 import { runSearch } from "../lib/search/runSearch.ts";
 import { synthesizeIntelligenceCard } from "../lib/intelligence/synthesizeCard.ts";
 import { isDatabaseConfigured } from "../lib/db/index.ts";
+import { dedupeOrganizationsByMergeKeys } from "../lib/discovery/mergeKeys.ts";
+import { directoryRecordToOrganization, mergeOrganizations } from "../lib/discovery/organization.ts";
+import { extractExternalIds } from "../lib/discovery/externalIds.ts";
+import { organizationFromErisaRow } from "../lib/import/erisa/organizationFromFiling.ts";
+import { getAllDirectoryRecords } from "../lib/directories/search.ts";
+
+const TARGET_ERISA_ROW = {
+  sponsorEin: "410215930",
+  sponsorName: "Target Corporation",
+  sponsorState: "MN",
+  sponsorCity: "Minneapolis",
+  planName: "Target Corporation Welfare Benefits Plan",
+  planNumber: "001",
+  filingYear: 2023,
+  participantCount: 350_000,
+  healthWelfarePlan: true,
+  selfFunded: true,
+  fundingArrangement: "self-funded",
+  welfareBenefitTypes: [] as string[],
+  ackId: null,
+};
+
+const KROGER_ERISA_ROW = {
+  sponsorEin: "310345740",
+  sponsorName: "The Kroger Co.",
+  sponsorState: "OH",
+  sponsorCity: "Cincinnati",
+  planName: "Kroger Welfare Benefits Plan",
+  planNumber: "001",
+  filingYear: 2023,
+  participantCount: 430_000,
+  healthWelfarePlan: true,
+  selfFunded: true,
+  fundingArrangement: "self-funded",
+  welfareBenefitTypes: [] as string[],
+  ackId: null,
+};
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(__dirname, "../fixtures/import/erisa/sample-form5500.csv");
@@ -127,6 +165,76 @@ await check("search uses persistent index not live DOL (no network)", () => {
   } else {
     console.log("    (No DATABASE_URL — memory index only, still no live DOL fetch)");
   }
+});
+
+await check("extractExternalIds reads EIN from erisa-{ein} organization ids", () => {
+  const erisaOrg = organizationFromErisaRow(TARGET_ERISA_ROW);
+  assert.equal(erisaOrg.id, "erisa-410215930");
+  assert.equal(extractExternalIds(erisaOrg).ein, "410215930");
+});
+
+await check("mergeOrganizations preserves ERISA intelligence and tags", () => {
+  const targetRecord = getAllDirectoryRecords().find((r) => r.id === "dir-ret-target");
+  assert.ok(targetRecord, "Target directory record");
+  const directoryOrg = directoryRecordToOrganization(targetRecord);
+  const erisaOrg = organizationFromErisaRow(TARGET_ERISA_ROW);
+  const merged = mergeOrganizations(directoryOrg, erisaOrg);
+
+  assert.equal(merged.sectorId, "retail-consumer");
+  assert.ok(merged.industries.includes("retail"));
+  assert.equal(merged.erisaIntel?.participantCount, 350_000);
+  assert.ok(merged.tags?.some((tag) => /Plan Sponsor|Employer/i.test(tag)));
+  assert.ok(merged.sources.some((s) => s.connector === "erisa"));
+  assert.ok(merged.sources.some((s) => s.connector === "directory"));
+});
+
+await check("dedupe merges Target directory and ERISA records into one organization", () => {
+  const targetRecord = getAllDirectoryRecords().find((r) => r.id === "dir-ret-target");
+  assert.ok(targetRecord);
+  const directoryOrg = directoryRecordToOrganization(targetRecord);
+  const erisaOrg = organizationFromErisaRow(TARGET_ERISA_ROW);
+  const merged = dedupeOrganizationsByMergeKeys([directoryOrg, erisaOrg]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]!.canonicalName, "Target Corporation");
+  assert.ok(merged[0]!.erisaIntel?.participantCount != null);
+  assert.equal(merged[0]!.sectorId, "retail-consumer");
+});
+
+await check("Target Corporation Form 5500 search shows ERISA participant data", async () => {
+  await importErisaRows([TARGET_ERISA_ROW]);
+  initDiscoveryEngine();
+  const response = runSearch({
+    query: "Target Corporation Form 5500",
+    targets: "Target Corporation Form 5500",
+  });
+  const target = response.prospects.find((p) => /Target Corporation/i.test(p.name));
+  assert.ok(target, "expected merged Target prospect");
+  assert.equal(target.sectorId, "retail-consumer");
+  assert.ok(target.industryId === "retail" || target.fitKeywords.includes("retail"));
+  assert.ok((target.erisaIntel?.participantCount ?? 0) >= 350_000);
+  assert.ok(
+    target.sourceRecords.some((r) => r.connector === "erisa" || r.label === "ERISA"),
+  );
+});
+
+await check("retail employers over 5000 participants keep retail + ERISA data", async () => {
+  await importErisaRows([KROGER_ERISA_ROW]);
+  initDiscoveryEngine();
+  const result = discoverOrganizationsSync(
+    "retail employers with more than 5000 participants",
+    { connectors: ["directory", "erisa"], maxResults: 500 },
+  );
+  const retailHits = result.organizations.filter(
+    (o) =>
+      o.sectorId === "retail-consumer" &&
+      o.industries.includes("retail") &&
+      (o.erisaIntel?.participantCount ?? o.memberEstimate ?? 0) >= 5000,
+  );
+  assert.ok(retailHits.length > 0, "expected retail employers with ERISA participant counts");
+  const kroger = retailHits.find((o) => /Kroger/i.test(o.canonicalName));
+  assert.ok(kroger, "expected merged Kroger retail + ERISA record");
+  assert.ok(kroger.sources.some((s) => s.connector === "erisa"));
+  assert.ok(kroger.sources.some((s) => s.connector === "directory"));
 });
 
 console.log(`\nAll ${passed} ERISA checks passed.`);
