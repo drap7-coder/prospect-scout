@@ -27,6 +27,7 @@ import {
 } from "./catalogManifest";
 import type { ManufacturerImportPaths, ManufacturerImportStats } from "./types";
 import { defaultManufacturerImportPaths } from "./fixtures";
+import { isDatabaseConfigured } from "@/lib/db";
 
 function seedCatalogEntries() {
   return parseManufacturerSeed().map((row) => {
@@ -121,6 +122,19 @@ export function importNationalManufacturerCatalog(
   paths: ManufacturerImportPaths = resolveManufacturerImportPaths(),
 ): ManufacturerImportStats {
   return importManufacturerCatalog(paths, { includeBootstrapSeed: false });
+}
+
+/** Import and persist manufacturers to Neon when DATABASE_URL is configured. */
+export async function importNationalManufacturerCatalogToDb(
+  paths: ManufacturerImportPaths = resolveManufacturerImportPaths(),
+): Promise<ManufacturerImportStats> {
+  const stats = importNationalManufacturerCatalog(paths);
+  const { persistManufacturerIndexToDb } = await import("./persistToDb");
+  const persisted = await persistManufacturerIndexToDb();
+  if (isDatabaseConfigured() && persisted === 0 && stats.indexSizeAfterImport > 0) {
+    console.warn("[manufacturers] Import succeeded but Neon persistence returned 0 rows");
+  }
+  return stats;
 }
 
 /** Import bootstrap seed plus source datasets (dev/test path). */

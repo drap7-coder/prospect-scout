@@ -77,6 +77,10 @@ export function RuntimeDiagnosticsPanel({ runtime }: { runtime: RuntimeDiagnosti
         </p>
         <StatRow label="ORG_WAREHOUSE env" value={runtime.warehouse.orgWarehouseEnv ?? "(default)"} />
         <StatRow
+          label="DATABASE_URL configured"
+          value={yesNo(runtime.warehouse.databaseConfigured)}
+        />
+        <StatRow
           label="Warehouse enabled"
           value={yesNo(runtime.warehouse.enabled)}
         />
@@ -125,6 +129,7 @@ export function RuntimeDiagnosticsPanel({ runtime }: { runtime: RuntimeDiagnosti
                   <th className="py-2 pr-3 font-medium">Connector</th>
                   <th className="py-2 pr-3 font-medium">Status</th>
                   <th className="py-2 pr-3 font-medium">Organizations</th>
+                  <th className="py-2 pr-3 font-medium">In Neon</th>
                   <th className="py-2 pr-3 font-medium">Import mode</th>
                   <th className="py-2 font-medium">Last import</th>
                 </tr>
@@ -139,6 +144,9 @@ export function RuntimeDiagnosticsPanel({ runtime }: { runtime: RuntimeDiagnosti
                     <td className="py-2 pr-3 capitalize">{connector.status}</td>
                     <td className="py-2 pr-3 tabular-nums">
                       {connector.organizations.toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--muted)]">
+                      {connector.organizationsInDb.toLocaleString()}
                     </td>
                     <td className="py-2 pr-3 text-[var(--muted)]">
                       {connector.importMode ?? "—"}

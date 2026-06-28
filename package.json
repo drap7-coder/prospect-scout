@@ -44,6 +44,7 @@
     "test:organization-model": "node --import tsx scripts/organizationModelChecks.ts",
     "trace:health-plan-search": "node --import tsx scripts/traceHealthPlanSearch.ts",
     "import:warehouse": "node --import tsx scripts/importOrganizationWarehouse.ts",
+    "import:warehouse:neon": "node --import tsx scripts/importWarehouseToNeon.ts",
     "fetch:manufacturers": "node --import tsx scripts/fetchManufacturers.ts",
     "import:manufacturers": "node --import tsx scripts/importManufacturers.ts",
     "test:intelligence": "node --import tsx scripts/intelligenceFrameworkChecks.ts",

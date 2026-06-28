@@ -23,7 +23,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export default async function OrganizationWarehousePage() {
   const warehouse = computeOrganizationWarehouseDiagnostics();
-  const runtime = computeRuntimeDiagnostics();
+  const runtime = await computeRuntimeDiagnostics();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">

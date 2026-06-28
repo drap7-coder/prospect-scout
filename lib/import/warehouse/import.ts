@@ -1,21 +1,13 @@
 import { healthPlansConnectorApi } from "./connectors/healthPlans";
 import { manufacturersConnectorApi } from "./connectors/manufacturers";
-import { PRODUCTION_WAREHOUSE_CONNECTOR_IDS } from "./connectors/registry";
 import type { RegressionFinding } from "@/lib/import/healthPlans/importRegression";
 import type { CmsImportStats } from "@/lib/import/healthPlans/cms/types";
 import type { ManufacturerImportStats } from "@/lib/import/manufacturers/types";
 import type {
   OrganizationWarehouseImportResult,
-  WarehouseConnectorId,
   WarehouseConnectorImportOutcome,
   WarehouseConnectorImportStatus,
 } from "./types";
-
-function connectorApi(id: WarehouseConnectorId) {
-  if (id === "health-plans") return healthPlansConnectorApi;
-  if (id === "manufacturers") return manufacturersConnectorApi;
-  throw new Error(`Unknown warehouse connector: ${id}`);
-}
 
 /**
  * Production: fail import when a required connector fails (WAREHOUSE_STRICT_IMPORT=1).
@@ -53,36 +45,38 @@ async function importHealthPlansConnector(): Promise<{
   }
 }
 
-function importManufacturersConnector(): {
+function importManufacturersConnector(): Promise<{
   outcome: WarehouseConnectorImportOutcome;
   stats: ManufacturerImportStats | null;
-} {
+}> {
   const backup = manufacturersConnectorApi.getOrganizations();
-  try {
-    const stats = manufacturersConnectorApi.importNational();
-    return { outcome: { id: "manufacturers", status: "success" }, stats };
-  } catch (error) {
-    manufacturersConnectorApi.restoreIndex?.(backup);
-    const message = error instanceof Error ? error.message : String(error);
-    const status: WarehouseConnectorImportStatus =
-      backup.length > 0 ? "warning" : "failed";
-    return {
-      outcome: {
-        id: "manufacturers",
-        status,
-        error: message,
-        restoredPreviousIndex: backup.length,
-      },
-      stats: null,
-    };
-  }
+  return (async () => {
+    try {
+      const stats = await manufacturersConnectorApi.importNationalToDb();
+      return { outcome: { id: "manufacturers", status: "success" as const }, stats };
+    } catch (error) {
+      manufacturersConnectorApi.restoreIndex?.(backup);
+      const message = error instanceof Error ? error.message : String(error);
+      const status: WarehouseConnectorImportStatus =
+        backup.length > 0 ? "warning" : "failed";
+      return {
+        outcome: {
+          id: "manufacturers",
+          status,
+          error: message,
+          restoredPreviousIndex: backup.length,
+        },
+        stats: null,
+      };
+    }
+  })();
 }
 
 /** Import all production connectors independently; failed connectors never corrupt others. */
 export async function importOrganizationWarehouse(): Promise<OrganizationWarehouseImportResult> {
   const strictMode = isWarehouseStrictImport();
   const hp = await importHealthPlansConnector();
-  const mfg = importManufacturersConnector();
+  const mfg = await importManufacturersConnector();
   const connectorOutcomes = [hp.outcome, mfg.outcome];
   const failures = connectorOutcomes.filter((o) => o.status === "failed");
   const hadFailures = failures.length > 0;

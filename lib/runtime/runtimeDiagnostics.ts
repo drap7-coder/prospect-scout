@@ -1,6 +1,9 @@
+import { isDatabaseConfigured } from "@/lib/db";
 import { getDeploymentMetadata, type DeploymentMetadata } from "./deploymentMetadata";
 import {
   computeOrganizationWarehouseDiagnostics,
+  ensureOrganizationWarehouseHydrated,
+  getLastWarehouseHydrationResult,
   getOrganizationWarehouseManifest,
   isWarehouseStrictImport,
   PRODUCTION_WAREHOUSE_CONNECTOR_IDS,
@@ -8,27 +11,42 @@ import {
   warehouseConnectorApi,
   WAREHOUSE_CONNECTORS,
 } from "@/lib/import/warehouse";
+import type { WarehouseHydrationResult } from "@/lib/import/warehouse/hydration";
 import { isOrganizationWarehouseEnabled } from "@/lib/import/warehouse/featureFlag";
-import { getHealthPlanHydrationState } from "@/lib/import/healthPlans/hydrateIndex";
+import {
+  getHealthPlanHydrationState,
+  getHealthPlanHydrationError,
+} from "@/lib/import/healthPlans/hydrateIndex";
+import {
+  getManufacturerHydrationState,
+  getManufacturerHydrationError,
+} from "@/lib/import/manufacturers/hydrateIndex";
 import { getHealthPlanCatalogImportManifest } from "@/lib/import/healthPlans/catalogManifest";
 import { getManufacturerCatalogImportManifest } from "@/lib/import/manufacturers/catalogManifest";
 
-export type RuntimeWarehouseConnectorStatus = "loaded" | "empty" | "loading" | "failed";
+export type RuntimeWarehouseConnectorStatus =
+  | "loaded"
+  | "empty"
+  | "loading"
+  | "failed"
+  | "skipped";
 
 export interface RuntimeWarehouseConnector {
-  /** Connector id, e.g. health-plans */
   name: string;
   label: string;
   status: RuntimeWarehouseConnectorStatus;
   organizations: number;
+  organizationsInDb: number;
   lastImport: string | null;
   importMode: string | null;
+  hydrationError: string | null;
 }
 
 export interface RuntimeDiagnostics {
   generatedAt: string;
   deployment: DeploymentMetadata;
   warehouse: {
+    databaseConfigured: boolean;
     orgWarehouseEnv: string | null;
     healthPlanPersistentSourceEnv: string | null;
     enabled: boolean;
@@ -39,12 +57,12 @@ export interface RuntimeDiagnostics {
     healthPlanOrganizations: number;
     manufacturerOrganizations: number;
     duplicateOrganizationIds: number;
-    /** Latest warehouse import timestamp (ISO). */
     lastImport: string | null;
     catalogVersion: string | null;
     catalogMode: string | null;
     registeredConnectors: string[];
     connectors: RuntimeWarehouseConnector[];
+    hydration: WarehouseHydrationResult | null;
   };
   warnings: string[];
 }
@@ -69,35 +87,54 @@ function catalogVersionLabel(): { version: string | null; mode: string | null } 
   const mode =
     healthManifest?.mode ??
     manufacturerManifest?.mode ??
-    null;
+    (process.env.NODE_ENV === "production" ? "production" : null);
 
   return { version: importedAt, mode };
 }
 
-function connectorStatus(
-  organizations: number,
-  hydrationState: "idle" | "loading" | "ready" | "failed",
-): RuntimeWarehouseConnectorStatus {
-  if (organizations > 0) return "loaded";
-  if (hydrationState === "loading") return "loading";
-  if (hydrationState === "failed") return "failed";
-  return "empty";
+function connectorHydrationState(id: string): "idle" | "loading" | "ready" | "failed" {
+  if (id === "health-plans") return getHealthPlanHydrationState();
+  if (id === "manufacturers") return getManufacturerHydrationState();
+  return "idle";
 }
 
-function buildConnectorSnapshots(): RuntimeWarehouseConnector[] {
+function connectorHydrationError(id: string): string | null {
+  if (id === "health-plans") return getHealthPlanHydrationError();
+  if (id === "manufacturers") return getManufacturerHydrationError();
+  return null;
+}
+
+function buildConnectorSnapshots(
+  hydration: WarehouseHydrationResult | null,
+): RuntimeWarehouseConnector[] {
   return PRODUCTION_WAREHOUSE_CONNECTOR_IDS.map((id) => {
     const definition = WAREHOUSE_CONNECTORS[id];
     const summary = warehouseConnectorApi(id).summarize();
-    const hydrationState =
-      id === "health-plans" ? getHealthPlanHydrationState() : "idle";
+    const hydrated = hydration?.connectors.find((connector) => connector.id === id);
+    const organizations = summary.organizationsIndexed;
+    const organizationsInDb = hydrated?.organizationsInDb ?? 0;
+    let status: RuntimeWarehouseConnectorStatus = "empty";
+    if (hydrated?.status) {
+      status = hydrated.status;
+    } else if (organizations > 0) {
+      status = "loaded";
+    } else if (connectorHydrationState(id) === "loading") {
+      status = "loading";
+    } else if (connectorHydrationState(id) === "failed") {
+      status = "failed";
+    }
 
     return {
       name: id,
       label: definition.label,
-      status: connectorStatus(summary.organizationsIndexed, hydrationState),
-      organizations: summary.organizationsIndexed,
+      status,
+      organizations,
+      organizationsInDb,
       lastImport: summary.lastImportAt,
-      importMode: summary.importMode,
+      importMode:
+        summary.importMode ??
+        (organizations > 0 ? "production" : null),
+      hydrationError: hydrated?.error ?? connectorHydrationError(id),
     };
   });
 }
@@ -105,13 +142,25 @@ function buildConnectorSnapshots(): RuntimeWarehouseConnector[] {
 function buildWarnings(input: {
   enabled: boolean;
   activeForSearch: boolean;
+  databaseConfigured: boolean;
   connectors: RuntimeWarehouseConnector[];
   totalOrganizations: number;
+  hydration: WarehouseHydrationResult | null;
   environment: DeploymentMetadata["environment"];
 }): string[] {
   const warnings: string[] = [];
   const healthPlans = input.connectors.find((c) => c.name === "health-plans");
   const manufacturers = input.connectors.find((c) => c.name === "manufacturers");
+
+  if (!input.databaseConfigured && input.enabled) {
+    warnings.push(
+      "DATABASE_URL is not configured. Production warehouse hydration requires Neon; search will fall back to bootstrap catalogs.",
+    );
+  }
+
+  if (input.hydration?.error) {
+    warnings.push(`Warehouse hydration: ${input.hydration.error}`);
+  }
 
   if (!input.enabled && input.environment === "production") {
     warnings.push(
@@ -121,52 +170,71 @@ function buildWarnings(input: {
 
   if (input.enabled && !input.activeForSearch) {
     warnings.push(
-      "Warehouse mode is enabled but the index is empty; search will fall back to bootstrap seed catalogs.",
+      "Warehouse mode is enabled but the index is empty after hydration. Run `npm run import:warehouse` against production Neon, then POST /api/warehouse/import.",
     );
   }
 
-  if (healthPlans?.status === "empty") {
+  if (healthPlans?.organizationsInDb === 0 && input.databaseConfigured) {
     warnings.push(
-      "Health-plans connector index is empty. Run warehouse import or verify Neon hydration.",
+      "Neon has zero health-plans rows. Import CMS catalog to production DATABASE_URL.",
     );
-  } else if (healthPlans?.status === "loading") {
-    warnings.push("Health-plans connector is still hydrating from the database.");
-  } else if (healthPlans?.status === "failed") {
-    warnings.push("Health-plans connector hydration failed; index may be incomplete.");
-  } else if (
+  }
+
+  if (manufacturers?.organizationsInDb === 0 && input.databaseConfigured) {
+    warnings.push(
+      "Neon has zero manufacturers rows. Import manufacturer catalog to production DATABASE_URL.",
+    );
+  }
+
+  if (healthPlans?.status === "failed" && healthPlans.hydrationError) {
+    warnings.push(`Health-plans hydration failed: ${healthPlans.hydrationError}`);
+  }
+
+  if (manufacturers?.status === "failed" && manufacturers.hydrationError) {
+    warnings.push(`Manufacturers hydration failed: ${manufacturers.hydrationError}`);
+  }
+
+  if (
     healthPlans?.status === "loaded" &&
     healthPlans.organizations > 0 &&
     healthPlans.organizations <= 30
   ) {
     warnings.push(
-      `Health-plans connector has ${healthPlans.organizations} organizations (bootstrap seed scale). Full CMS import may not have run.`,
+      `Health-plans connector has ${healthPlans.organizations} organizations (bootstrap seed scale).`,
     );
-  }
-
-  if (manufacturers?.status === "empty") {
-    warnings.push(
-      "Manufacturers connector index is empty. Run warehouse import in this environment.",
-    );
-  }
-
-  if (input.activeForSearch && input.totalOrganizations === 0) {
-    warnings.push("Warehouse index has zero organizations.");
   }
 
   if (!getDeploymentMetadata().gitCommitSha) {
     warnings.push(
-      "Git commit SHA is unavailable. Set VERCEL_GIT_COMMIT_SHA (automatic on Vercel) or GIT_COMMIT_SHA at build time to compare deployments.",
+      "Git commit SHA is unavailable. Set VERCEL_GIT_COMMIT_SHA (automatic on Vercel) or GIT_COMMIT_SHA at build time.",
     );
   }
 
   return warnings;
 }
 
+export interface ComputeRuntimeDiagnosticsOptions {
+  skipHydration?: boolean;
+}
+
 /** Snapshot for /diagnostics and /api/diagnostics/runtime — compare local vs production. */
-export function computeRuntimeDiagnostics(): RuntimeDiagnostics {
+export async function computeRuntimeDiagnostics(
+  options: ComputeRuntimeDiagnosticsOptions = {},
+): Promise<RuntimeDiagnostics> {
   const deployment = getDeploymentMetadata();
+  const databaseConfigured = isDatabaseConfigured();
+
+  let hydration = getLastWarehouseHydrationResult();
+  if (
+    !options.skipHydration &&
+    isOrganizationWarehouseEnabled() &&
+    !shouldUseOrganizationWarehouse()
+  ) {
+    hydration = await ensureOrganizationWarehouseHydrated();
+  }
+
   const warehouse = computeOrganizationWarehouseDiagnostics();
-  const connectors = buildConnectorSnapshots();
+  const connectors = buildConnectorSnapshots(hydration);
   const healthPlanOrganizations =
     connectors.find((c) => c.name === "health-plans")?.organizations ?? 0;
   const manufacturerOrganizations =
@@ -180,6 +248,7 @@ export function computeRuntimeDiagnostics(): RuntimeDiagnostics {
     generatedAt: new Date().toISOString(),
     deployment,
     warehouse: {
+      databaseConfigured,
       orgWarehouseEnv: process.env.ORG_WAREHOUSE ?? null,
       healthPlanPersistentSourceEnv: process.env.HEALTH_PLAN_PERSISTENT_SOURCE ?? null,
       enabled,
@@ -197,12 +266,15 @@ export function computeRuntimeDiagnostics(): RuntimeDiagnostics {
         (id) => WAREHOUSE_CONNECTORS[id].label,
       ),
       connectors,
+      hydration,
     },
     warnings: buildWarnings({
       enabled,
       activeForSearch,
+      databaseConfigured,
       connectors,
       totalOrganizations: warehouse.totalOrganizations,
+      hydration,
       environment: deployment.environment,
     }),
   };

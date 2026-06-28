@@ -1,15 +1,10 @@
-import { healthPlansConnectorApi } from "./connectors/healthPlans";
-import { manufacturersConnectorApi } from "./connectors/manufacturers";
 import type {
   OrganizationWarehouseDiagnostics,
   OrganizationWarehouseManifest,
   WarehouseConnectorSummary,
   WarehouseRuntimeMode,
 } from "./types";
-import {
-  isOrganizationWarehouseEnabled,
-  shouldUseOrganizationWarehouse,
-} from "./featureFlag";
+import { shouldUseOrganizationWarehouse } from "./featureFlag";
 import { countDuplicateOrganizationIds } from "./mergeByVerifiedIds";
 import {
   getWarehouseOrganizations,
@@ -82,18 +77,16 @@ export function computeOrganizationWarehouseDiagnostics(): OrganizationWarehouse
 }
 
 /** Non-blocking hydration for all production warehouse connectors. */
-export function kickoffOrganizationWarehouseHydration(): void {
-  if (!isOrganizationWarehouseEnabled()) return;
-  for (const connectorId of PRODUCTION_WAREHOUSE_CONNECTOR_IDS) {
-    warehouseConnectorApi(connectorId).kickoffHydration?.();
-  }
-}
-
-export async function ensureOrganizationWarehouseHydrated(): Promise<void> {
-  if (!isOrganizationWarehouseEnabled()) return;
-  await healthPlansConnectorApi.ensureHydrated?.();
-  manufacturersConnectorApi.kickoffHydration?.();
-}
+export {
+  kickoffOrganizationWarehouseHydration,
+  ensureOrganizationWarehouseHydrated,
+  getLastWarehouseHydrationResult,
+  getWarehouseHydrationSnapshot,
+} from "./hydration";
+export type {
+  WarehouseHydrationResult,
+  ConnectorHydrationResult,
+} from "./hydration";
 
 export {
   discoverFromOrganizationWarehouse,

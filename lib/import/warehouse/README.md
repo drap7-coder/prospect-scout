@@ -278,6 +278,28 @@ curl -s https://your-app.vercel.app/api/diagnostics/runtime | jq '.deployment.gi
 
 On Vercel, `VERCEL_GIT_COMMIT_SHA` is set automatically. Non-Vercel builds stamp `GIT_COMMIT_SHA` during `npm run build`.
 
+### Production hydration (Neon)
+
+Serverless production **does not** run CMS/SEC import on every cold start. Instead:
+
+1. Set `DATABASE_URL` in Vercel production to your Neon pooled connection string.
+2. Seed Neon once from your machine:
+
+```bash
+DATABASE_URL="postgresql://..." npm run import:warehouse:neon
+```
+
+3. Vercel hydrates the in-memory warehouse index from Neon on the first request (`ensureOrganizationWarehouseHydrated`).
+
+Optional remote import (after setting `WAREHOUSE_ADMIN_SECRET` in Vercel):
+
+```bash
+curl -X POST https://your-app.vercel.app/api/warehouse/import \
+  -H "Authorization: Bearer $WAREHOUSE_ADMIN_SECRET"
+```
+
+If `/api/diagnostics/runtime` shows `databaseConfigured: false` or `organizationsInDb: 0`, hydration cannot succeed until Neon is configured and seeded.
+
 Connector failures must remain **isolated** (per-connector restore) and **visible** (status `failed` / `warning` with error message in import result and diagnostics UI).
 
 ---

@@ -59,7 +59,7 @@ export default async function DiagnosticsPage() {
   const warehouse = computeOrganizationWarehouseDiagnostics();
   const healthPlans = computeHealthPlanCatalogDiagnostics();
   const manufacturers = computeManufacturerConnectorDiagnostics();
-  const runtime = computeRuntimeDiagnostics();
+  const runtime = await computeRuntimeDiagnostics();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">

@@ -6,9 +6,6 @@ import {
   organizationSources,
 } from "@/lib/db/schema";
 import type { Organization } from "@/lib/discovery/organization";
-import { finalizeOrganization } from "@/lib/discovery/organization";
-import type { OrganizationRow } from "@/lib/db/schema/organizations";
-import type { OrganizationSourceRow } from "@/lib/db/schema/organizationSources";
 import type { HealthPlanImportStats, HealthPlanSeedRow } from "./types";
 import { parseHealthPlanSeed } from "./parseSeed";
 import {
@@ -21,46 +18,6 @@ import {
   HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID,
   HEALTH_PLAN_BOOTSTRAP_SOURCE_NAME,
 } from "./types";
-
-function organizationFromDbRow(
-  row: OrganizationRow,
-  sources: OrganizationSourceRow[],
-): Organization {
-  return finalizeOrganization({
-    id: row.id,
-    canonicalName: row.canonicalName,
-    aliases: (row.aliases as string[]) ?? [],
-    website: row.website,
-    domain: row.domain,
-    organizationType: row.organizationType,
-    industries: (row.industries as string[]) ?? [],
-    sectorId: row.sectorId,
-    headquarters: row.headquarters,
-    locations: (row.locations as string[]) ?? [],
-    states: (row.states as string[]) ?? [],
-    regions: (row.regions as string[]) ?? [],
-    ownership: row.ownership,
-    employeeRange: row.employeeRange,
-    memberEstimate: row.memberEstimate,
-    revenueRange: row.revenueRange,
-    description: row.description,
-    sources: sources.map((src) => ({
-      connector: src.connector,
-      sourceId: src.sourceId,
-      sourceName: src.sourceName ?? undefined,
-      sourceUrl: src.sourceUrl ?? undefined,
-      lastUpdated: src.lastUpdated ?? undefined,
-      confidence: src.confidence != null ? Number(src.confidence) : undefined,
-      retrievedAt: src.retrievedAt.toISOString(),
-      evidence: (src.evidence as string[]) ?? [],
-    })),
-    buyerPack: (row.buyerPack as Organization["buyerPack"]) ?? "health-plans",
-    canonicalOrganizationType: row.canonicalOrganizationType,
-    healthPlanType:
-      (row.healthPlanType as Organization["healthPlanType"]) ?? undefined,
-    tags: (row.tags as string[]) ?? [],
-  });
-}
 
 async function findOrganizationIdByExternalId(
   idType: "cms_contract" | "hios" | "naic" | "domain" | "npi",
@@ -261,24 +218,11 @@ export async function importHealthPlanSeed(): Promise<HealthPlanImportStats> {
 
 /** Load health plan organizations from Neon into the in-memory index. */
 export async function refreshHealthPlanIndexFromDb(): Promise<number> {
-  if (!isDatabaseConfigured()) return 0;
-  const db = getDb();
-  const orgRows = await db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.buyerPack, "health-plans"));
-
-  if (orgRows.length === 0) return 0;
-
-  const loaded: Organization[] = [];
-  for (const orgRow of orgRows) {
-    const sources = await db
-      .select()
-      .from(organizationSources)
-      .where(eq(organizationSources.organizationId, orgRow.id));
-    loaded.push(organizationFromDbRow(orgRow, sources));
-  }
-
+  const { loadWarehouseOrganizationsFromDb } = await import(
+    "@/lib/import/warehouse/dbPersistence"
+  );
+  const loaded = await loadWarehouseOrganizationsFromDb("health-plans");
+  if (loaded.length === 0) return 0;
   indexHealthPlanOrganizations(loaded);
   markHealthPlanIndexLoaded();
   return loaded.length;

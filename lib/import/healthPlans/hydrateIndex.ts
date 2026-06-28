@@ -5,6 +5,7 @@ type HydrationState = "idle" | "loading" | "ready" | "failed";
 
 let hydrationState: HydrationState = "idle";
 let hydrationPromise: Promise<void> | null = null;
+let hydrationError: string | null = null;
 
 /** True when the in-memory health plan index is populated or hydration finished. */
 export function isHealthPlanIndexHydrated(): boolean {
@@ -44,11 +45,17 @@ export async function ensureHealthPlanIndexHydrated(): Promise<void> {
         const count = await refreshHealthPlanIndexFromDb();
         hydrationState =
           count > 0 || getHealthPlanIndexSize() > 0 ? "ready" : "idle";
+        if (count === 0 && getHealthPlanIndexSize() === 0) {
+          hydrationError = "No health-plans organizations found in Neon";
+        } else {
+          hydrationError = null;
+        }
         if (hydrationState === "idle") {
           hydrationPromise = null;
         }
       } catch (error) {
-        console.warn("[health-plans] Neon index hydration failed:", error);
+        hydrationError = error instanceof Error ? error.message : String(error);
+        console.error("[health-plans] Neon index hydration failed:", error);
         hydrationState = "failed";
         hydrationPromise = null;
       }
@@ -61,6 +68,15 @@ export async function ensureHealthPlanIndexHydrated(): Promise<void> {
 /** Current hydration state for runtime diagnostics. */
 export function getHealthPlanHydrationState(): HydrationState {
   return hydrationState;
+}
+
+export function getHealthPlanHydrationError(): string | null {
+  return hydrationError;
+}
+
+export function setHealthPlanHydrationError(message: string | null): void {
+  hydrationError = message;
+  if (message) hydrationState = "failed";
 }
 
 /** Non-blocking hydration kickoff for server startup or import scripts. */

@@ -9,6 +9,7 @@ export {
 export {
   importManufacturerCatalog,
   importNationalManufacturerCatalog,
+  importNationalManufacturerCatalogToDb,
   importManufacturerFullCatalog,
   getIndexedManufacturerOrganizations,
 } from "./importManufacturers";
@@ -24,6 +25,9 @@ export {
   markManufacturerIndexLoaded,
   kickoffManufacturerIndexHydration,
   isManufacturerIndexHydrated,
+  ensureManufacturerIndexHydrated,
+  getManufacturerHydrationState,
+  getManufacturerHydrationError,
 } from "./hydrateIndex";
 export {
   shouldUseManufacturerWarehouseCatalog,

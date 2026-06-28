@@ -1,5 +1,6 @@
 import {
   importNationalManufacturerCatalog,
+  importNationalManufacturerCatalogToDb,
   importManufacturerFullCatalog,
   fetchManufacturerWarehouseData,
   getManufacturerOrganizations,
@@ -7,6 +8,7 @@ import {
   computeManufacturerCoverageReport,
   getManufacturerCatalogImportManifest,
   kickoffManufacturerIndexHydration,
+  ensureManufacturerIndexHydrated,
   manufacturerImportMode,
 } from "@/lib/import/manufacturers";
 import { setManufacturerIndex } from "@/lib/import/manufacturers/memoryIndex";
@@ -39,9 +41,11 @@ export const manufacturersConnectorApi = {
   getIndexSize: getManufacturerIndexSize,
   summarize: summarizeManufacturersConnector,
   importNational: importNationalManufacturerCatalog,
+  importNationalToDb: importNationalManufacturerCatalogToDb,
   importFull: importManufacturerFullCatalog,
   fetch: fetchManufacturerWarehouseData,
   computeCoverageReport: computeManufacturerCoverageReport,
   kickoffHydration: kickoffManufacturerIndexHydration,
+  ensureHydrated: ensureManufacturerIndexHydrated,
   restoreIndex: setManufacturerIndex,
 };
