@@ -25,6 +25,19 @@ import { getAllDirectoryRecords } from "@/lib/directories/search";
 import { getHealthPlanOrganizationsForDiscovery } from "@/lib/import/healthPlans/discoverySource";
 import { shouldUsePersistentHealthPlanCatalog } from "@/lib/import/healthPlans/featureFlag";
 import { getHealthPlanIndexSize } from "@/lib/import/healthPlans/memoryIndex";
+import { getManufacturerOrganizationsForDiscovery } from "@/lib/import/manufacturers/discoverySource";
+import { shouldUseManufacturerWarehouseCatalog } from "@/lib/import/manufacturers/featureFlag";
+import { getManufacturerIndexSize } from "@/lib/import/manufacturers/memoryIndex";
+import {
+  getWarehouseOrganizations,
+  getWarehouseCoveredBuyerPacks,
+  getWarehouseIndexSize,
+} from "@/lib/import/warehouse/organizations";
+import { shouldUseOrganizationWarehouse } from "@/lib/import/warehouse/featureFlag";
+import {
+  classificationMatchesIntent,
+  geographyMatchesIntent,
+} from "@/lib/import/warehouse/organizationCapabilities";
 import {
   intentIndustryIds,
   intentSectorIds,
@@ -120,6 +133,65 @@ function loadNormalizedOrganizations(): {
   normalizedCount: number;
   excludedCount: number;
 } {
+  if (shouldUseOrganizationWarehouse()) {
+    return loadWarehousePrimaryOrganizations();
+  }
+  return loadLegacyCatalogOrganizations();
+}
+
+/** Warehouse is the source of truth; bootstrap + bulk JSON only for uncovered org types. */
+function loadWarehousePrimaryOrganizations(): {
+  orgs: Organization[];
+  sourceRecordCount: number;
+  normalizedCount: number;
+  excludedCount: number;
+} {
+  const coveredPacks = getWarehouseCoveredBuyerPacks();
+  const warehouseOrgs = getWarehouseOrganizations();
+  const normalized: Organization[] = [];
+  let excludedCount = 0;
+
+  for (const org of warehouseOrgs) {
+    if (!isValidCatalogRecord(org.canonicalName)) {
+      excludedCount += 1;
+      continue;
+    }
+    normalized.push(finalizeOrganization(org));
+  }
+
+  for (const record of getAllDirectoryRecords()) {
+    if (!isValidCatalogRecord(record.name)) {
+      excludedCount += 1;
+      continue;
+    }
+    normalized.push(finalizeOrganization(directoryRecordToOrganization(record)));
+  }
+
+  for (const org of bulkOrganizations({ coveredPacks })) {
+    if (!isValidCatalogRecord(org.canonicalName)) {
+      excludedCount += 1;
+      continue;
+    }
+    normalized.push(finalizeOrganization(org));
+  }
+
+  const directoryRecords = getAllDirectoryRecords();
+  const bulkSourceCount = bulkOrganizations({ coveredPacks }).length;
+
+  return {
+    orgs: normalized,
+    sourceRecordCount: warehouseOrgs.length + directoryRecords.length + bulkSourceCount,
+    normalizedCount: normalized.length,
+    excludedCount,
+  };
+}
+
+function loadLegacyCatalogOrganizations(): {
+  orgs: Organization[];
+  sourceRecordCount: number;
+  normalizedCount: number;
+  excludedCount: number;
+} {
   const directoryRecords = getAllDirectoryRecords();
   const bulkSourceCount =
     NCES_RECORDS.length +
@@ -132,7 +204,8 @@ function loadNormalizedOrganizations(): {
   const sourceRecordCount =
     directoryRecords.length +
     bulkSourceCount +
-    (shouldUsePersistentHealthPlanCatalog() ? getHealthPlanIndexSize() : 0);
+    (shouldUsePersistentHealthPlanCatalog() ? getHealthPlanIndexSize() : 0) +
+    (shouldUseManufacturerWarehouseCatalog() ? getManufacturerIndexSize() : 0);
 
   const normalized: Organization[] = [];
   let excludedCount = 0;
@@ -155,7 +228,17 @@ function loadNormalizedOrganizations(): {
     }
   }
 
-  for (const org of bulkOrganizations()) {
+  if (shouldUseManufacturerWarehouseCatalog()) {
+    for (const org of getManufacturerOrganizationsForDiscovery()) {
+      if (!isValidCatalogRecord(org.canonicalName)) {
+        excludedCount += 1;
+        continue;
+      }
+      normalized.push(finalizeOrganization(org));
+    }
+  }
+
+  for (const org of bulkOrganizations({})) {
     if (!isValidCatalogRecord(org.canonicalName)) {
       excludedCount += 1;
       continue;
@@ -171,19 +254,34 @@ function loadNormalizedOrganizations(): {
   };
 }
 
-function bulkOrganizations(): Organization[] {
+function bulkOrganizations(options: { coveredPacks?: Set<string> } = {}): Organization[] {
+  const covered =
+    options.coveredPacks ??
+    (shouldUseOrganizationWarehouse() ? getWarehouseCoveredBuyerPacks() : new Set<string>());
+  const skipHealthPlanBulk =
+    covered.has("health-plans") || shouldUsePersistentHealthPlanCatalog();
+  const skipManufacturerBulk =
+    covered.has("manufacturers") || shouldUseManufacturerWarehouseCatalog();
   return [
     ...NCES_RECORDS.map((r) => catalogRecordToOrganization("nces", r)),
     ...SEC_BANK_RECORDS.map((r) => catalogRecordToOrganization("sec", r)),
-    ...SEC_COMPANY_RECORDS.map((r) => catalogRecordToOrganization("sec", r)),
-    ...CMS_RECORDS.map((r) => catalogRecordToOrganization("cms", r)),
-    ...FDA_RECORDS.map((r) => catalogRecordToOrganization("fda", r)),
+    ...SEC_COMPANY_RECORDS.filter(
+      (r) => !(skipManufacturerBulk && r.buyerPack === "manufacturers"),
+    ).map((r) => catalogRecordToOrganization("sec", r)),
+    ...(skipHealthPlanBulk
+      ? []
+      : CMS_RECORDS.map((r) => catalogRecordToOrganization("cms", r))),
+    ...(skipManufacturerBulk
+      ? []
+      : FDA_RECORDS.map((r) => catalogRecordToOrganization("fda", r))),
     ...IRS_NONPROFIT_RECORDS.map((r) =>
       catalogRecordToOrganization("irs-nonprofits", r),
     ),
-    ...ACA_MARKETPLACE_RECORDS.map((r) =>
-      catalogRecordToOrganization(ACA_CONNECTOR_ID, r),
-    ),
+    ...(skipHealthPlanBulk
+      ? []
+      : ACA_MARKETPLACE_RECORDS.map((r) =>
+          catalogRecordToOrganization(ACA_CONNECTOR_ID, r),
+        )),
   ];
 }
 
@@ -278,11 +376,12 @@ function orgMatchesIntent(org: Organization, intent: SearchIntent): boolean {
     return false;
   }
 
-  // Health-plan subtype scoping: only exclude orgs whose subtype is explicitly
-  // a *different* one. Orgs without a known subtype are not dropped (we don't
-  // infer subtypes), so e.g. a Medicare Advantage query never pulls in ACA
-  // Marketplace issuers, but still returns untagged health plans.
-  if (
+  // Classification filter — generic warehouse semantics (replaces health-plan-only subtype guard).
+  if (intent.classificationFilter) {
+    if (!classificationMatchesIntent(org, intent)) {
+      return false;
+    }
+  } else if (
     intent.healthPlanType &&
     org.healthPlanType &&
     org.healthPlanType !== intent.healthPlanType
@@ -290,7 +389,7 @@ function orgMatchesIntent(org: Organization, intent: SearchIntent): boolean {
     return false;
   }
 
-  if (intent.state && org.states.length > 0 && !org.states.includes(intent.state)) {
+  if (intent.state && !geographyMatchesIntent(org, intent)) {
     return false;
   }
 

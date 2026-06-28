@@ -24,10 +24,13 @@ import {
 import {
   CMS_CPSC_CONNECTOR_ID,
   CMS_MEDICAID_MCO_CONNECTOR_ID,
+  CMS_MEDICAID_ENROLLMENT_CONNECTOR_ID,
   CMS_QHP_CONNECTOR_ID,
+  defaultCmsImportPaths,
   findDuplicateContractAssignments,
   getMergedHealthPlanCatalogEntries,
   importHealthPlanFullCatalog,
+  parseCmsQhpCsvFile,
 } from "../lib/import/healthPlans/cms/index.ts";
 import { auditHealthPlanCatalogCoverage } from "../lib/import/healthPlans/cms/coverageAudit.ts";
 
@@ -222,7 +225,7 @@ await check("imported CMS records retain source provenance", () => {
   assert.ok(cmsBacked.length > 0);
   for (const org of cmsBacked) {
     const cmsSource = org.sources.find((source) =>
-      [CMS_CPSC_CONNECTOR_ID, CMS_QHP_CONNECTOR_ID, CMS_MEDICAID_MCO_CONNECTOR_ID].includes(
+      [CMS_CPSC_CONNECTOR_ID, CMS_QHP_CONNECTOR_ID, CMS_MEDICAID_MCO_CONNECTOR_ID, CMS_MEDICAID_ENROLLMENT_CONNECTOR_ID].includes(
         source.connector,
       ),
     );
@@ -248,19 +251,55 @@ await check("duplicate CMS contract ids are not assigned to separate orgs", () =
   assert.equal(duplicates.length, 0, duplicates.join("; "));
 });
 
+await check("QHP aggregation uses HIOS issuer ids (includes service-area issuers)", async () => {
+  const paths = defaultCmsImportPaths();
+  const issuers = parseCmsQhpCsvFile(paths.qhpCsv);
+  assert.ok(issuers.length >= 22, `expected >=22 unique HIOS issuers, got ${issuers.length}`);
+  assert.ok(
+    issuers.some((issuer) => issuer.hiosIssuerId === "99001"),
+    "expected Service Area PUF issuer 99001 in parsed QHP data",
+  );
+
+  clearHealthPlanIndex();
+  await importHealthPlanFullCatalog();
+  const serviceAreaOnly = getHealthPlanOrganizations().find((org) => org.id === "cms-qhp-99001");
+  assert.ok(serviceAreaOnly, "expected Service Area PUF net-new issuer cms-qhp-99001 in catalog");
+});
+
+await check("Medicaid enrollment report merges and adds plan-level organizations", async () => {
+  const orgs = getHealthPlanOrganizations();
+  const enrollmentSourced = orgs.filter((org) =>
+    org.sources.some((s) => s.connector === "cms-medicaid-enrollment"),
+  );
+  assert.ok(
+    enrollmentSourced.length >= 2,
+    `expected enrollment data on catalog orgs, got ${enrollmentSourced.length}`,
+  );
+  const netNewEnrollment = orgs.filter((org) => org.id.startsWith("cms-mco-enroll-"));
+  assert.ok(netNewEnrollment.length >= 2, "expected net-new enrollment plan orgs");
+});
+
 await check("coverage audit reports fixture completeness and national gaps", () => {
-  const audit = auditHealthPlanCatalogCoverage();
+  const audit = auditHealthPlanCatalogCoverage(defaultCmsImportPaths());
   assert.equal(audit.ingestionSummary.mode, "fixture");
   assert.equal(audit.seed.expected, 24);
   assert.equal(audit.seed.imported, 24);
   assert.equal(audit.seed.fixtureImportRate, 100);
-  assert.equal(audit.merge.finalCatalogSize, 56);
-  assert.equal(audit.sources.length, 3);
+  assert.equal(audit.merge.finalCatalogSize, getMergedHealthPlanCatalogEntries().length);
+  assert.ok(audit.merge.finalCatalogSize > 24);
+  assert.equal(audit.sources.length, 4);
   assert.ok(audit.sources.every((source) => source.organizationsParsed > 0));
   assert.ok(audit.merge.totalMerged > 0);
   assert.ok(audit.states.missing.length > 0);
   assert.ok(audit.nationalCompleteness.estimatedCompletenessPercent.high < 100);
   assert.ok(audit.gaps.some((gap) => /fixture/i.test(gap)));
+});
+
+await check("import completes with zero duplicate organization ids", async () => {
+  const orgs = getHealthPlanOrganizations();
+  const ids = orgs.map((org) => org.id);
+  const unique = new Set(ids);
+  assert.equal(ids.length, unique.size);
 });
 
 console.log(`\nAll ${passed} health plan checks passed.`);

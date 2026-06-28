@@ -3,12 +3,12 @@ import { normalizeDirectoryRecord } from "@/lib/directories/types";
 import type { OrganizationRecord } from "@/lib/directories/types";
 import type { Organization } from "@/lib/discovery/organization";
 import { getHealthPlanOrganizations } from "./memoryIndex";
-import { shouldUsePersistentHealthPlanCatalog } from "./featureFlag";
+import { shouldUseBootstrapHealthPlanSeed } from "./featureFlag";
 import { organizationToDirectoryRecord } from "./organizationToDirectoryRecord";
 
 /** Health plan directory records for legacy directory search paths. */
 export function getHealthPlanDirectoryRecords(): OrganizationRecord[] {
-  if (shouldUsePersistentHealthPlanCatalog()) {
+  if (!shouldUseBootstrapHealthPlanSeed()) {
     return getHealthPlanOrganizations().map(organizationToDirectoryRecord);
   }
   return HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord);

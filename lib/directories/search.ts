@@ -5,7 +5,7 @@ import { EMPLOYERS_DIRECTORY } from "./employers";
 import { FINANCIAL_SERVICES_DIRECTORY } from "./financialServices";
 import { HEALTH_PLANS_DIRECTORY } from "./healthPlans";
 import { getHealthPlanDirectoryRecords } from "@/lib/import/healthPlans/discoverySource";
-import { shouldUsePersistentHealthPlanCatalog } from "@/lib/import/healthPlans/featureFlag";
+import { shouldUseBootstrapHealthPlanSeed } from "@/lib/import/healthPlans/featureFlag";
 import { HEALTH_SYSTEMS_DIRECTORY } from "./healthSystems";
 import { MANUFACTURERS_DIRECTORY } from "./manufacturers";
 import { NONPROFITS_DIRECTORY } from "./nonprofits";
@@ -129,9 +129,9 @@ export function getDirectoryForPack(pack: BuyerPackId): OrganizationRecord[] {
 }
 
 export function getAllDirectoryRecords(): OrganizationRecord[] {
-  const healthPlanRecords = shouldUsePersistentHealthPlanCatalog()
-    ? []
-    : HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord);
+  const healthPlanRecords = shouldUseBootstrapHealthPlanSeed()
+    ? HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord)
+    : [];
 
   return [
     ...healthPlanRecords,
@@ -157,11 +157,18 @@ function tokenize(value: string): string[] {
 
 export function inferStateFromQuery(query: string): string | undefined {
   const norm = normalizeText(query);
+
+  const afterIn = query.match(/\bin\s+([a-z]{2})\b/i)?.[1];
+  if (afterIn && Object.values(STATE_NAMES).includes(afterIn.toUpperCase())) {
+    return afterIn.toUpperCase();
+  }
+
   for (const [name, code] of Object.entries(STATE_NAMES)) {
     if (norm.includes(name)) return code;
   }
   const tokens = tokenize(query);
   for (const token of tokens) {
+    if (token.toLowerCase() === "in") continue;
     if (/^[a-z]{2}$/i.test(token) && Object.values(STATE_NAMES).includes(token.toUpperCase())) {
       return token.toUpperCase();
     }

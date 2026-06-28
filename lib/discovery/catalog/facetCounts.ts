@@ -9,6 +9,7 @@ import {
   intentSectorIds,
   orgMatchesAnyIndustry,
 } from "../match";
+import { classificationMatchesIntent } from "@/lib/import/warehouse/organizationCapabilities";
 import { getCatalogIndex } from "./catalogIndex";
 import type { Organization } from "../organization";
 import { TAXONOMY_SECTORS, TAXONOMY_ORGANIZATION_TYPES } from "@/lib/taxonomy";
@@ -84,8 +85,16 @@ function orgMatchesScopedIntent(
     return false;
   }
 
-  // Health-plan subtype scope: exclude only orgs with a different explicit
-  // subtype (untagged plans are never dropped — subtypes are not inferred).
+  // Classification scope: exclude only orgs with a conflicting explicit classification.
+  if (
+    intent.classificationFilter &&
+    org.classifications?.length &&
+    !classificationMatchesIntent(org, intent)
+  ) {
+    return false;
+  }
+
+  // @deprecated healthPlanType shim — prefer classificationFilter
   if (
     intent.healthPlanType &&
     org.healthPlanType &&

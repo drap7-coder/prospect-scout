@@ -7,11 +7,14 @@ export const CMS_QHP_CONNECTOR_ID = "cms-qhp";
 export const CMS_QHP_SOURCE_NAME = "cms-qhp";
 export const CMS_MEDICAID_MCO_CONNECTOR_ID = "cms-medicaid-mco";
 export const CMS_MEDICAID_MCO_SOURCE_NAME = "cms-medicaid-mco";
+export const CMS_MEDICAID_ENROLLMENT_CONNECTOR_ID = "cms-medicaid-enrollment";
+export const CMS_MEDICAID_ENROLLMENT_SOURCE_NAME = "cms-medicaid-enrollment";
 
 export type HealthPlanExternalIdType =
   | "cms_contract"
   | "hios"
   | "naic"
+  | "ein"
   | "npi"
   | "domain"
   | "other";
@@ -52,6 +55,7 @@ export interface CmsCpscOrganization {
 
 /** Parsed ACA/QHP issuer row. */
 export interface CmsQhpRow {
+  hiosIssuerId: string;
   hiosId: string;
   issuerLegalName: string;
   state: string;
@@ -59,6 +63,11 @@ export interface CmsQhpRow {
   naicId?: string;
   website?: string;
   parentOrganization?: string;
+  serviceAreaIds: string[];
+  serviceAreaNames: string[];
+  marketCoverages: string[];
+  coverEntireState: string[];
+  sourcePufs: string[];
   datasetRowId: string;
 }
 
@@ -69,6 +78,23 @@ export interface CmsMedicaidMcoRow {
   parentOrganization: string;
   state: string;
   planType: string;
+  programName?: string;
+  enrollment?: number;
+  reportingPeriod?: string;
+  naicId?: string;
+  datasetRowId: string;
+}
+
+/** Parsed Medicaid enrollment-by-plan row. */
+export interface CmsMedicaidEnrollmentRow {
+  planId: string;
+  organizationName: string;
+  parentOrganization: string;
+  state: string;
+  programName: string;
+  planType: string;
+  enrollment: number;
+  reportingPeriod: string;
   naicId?: string;
   datasetRowId: string;
 }
@@ -83,17 +109,25 @@ export interface CmsImportPaths {
   cpscCsv: string;
   qhpCsv: string;
   medicaidMcoCsv: string;
+  medicaidEnrollmentCsv: string;
 }
 
 export interface CmsImportStats {
   cpscRowsParsed: number;
   qhpRowsParsed: number;
+  qhpIssuersParsed: number;
+  qhpNetNewFromServiceArea: number;
   medicaidRowsParsed: number;
+  medicaidEnrollmentRowsParsed: number;
+  medicaidEnrollmentOrganizations: number;
+  medicaidNetNewFromEnrollment: number;
   candidatesBuilt: number;
   organizationsMerged: number;
   organizationsAdded: number;
   externalIdsAttached: number;
   indexSizeAfterImport: number;
+  identityEnrichmentApplied: number;
+  possibleDuplicatesNeedsReview: number;
 }
 
 export interface HealthPlanFullImportStats {

@@ -8,6 +8,9 @@ import { getProPublicaConnectorStatus } from "@/lib/discovery/connectors/propubl
 import { getAcaMarketplaceConnectorStatus } from "@/lib/discovery/connectors/aca";
 import { computeCatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { parseSearchIntent } from "@/lib/discovery/intent";
+import { computeOrganizationWarehouseDiagnostics } from "@/lib/import/warehouse";
+import { computeHealthPlanCatalogDiagnostics } from "@/lib/import/healthPlans/healthPlanDiagnostics";
+import { computeManufacturerConnectorDiagnostics } from "@/lib/import/manufacturers/diagnostics";
 
 export const metadata = {
   title: "Discovery Diagnostics",
@@ -51,6 +54,9 @@ export default async function DiagnosticsPage() {
     sampleFacets.scopeTotal,
     census.sampleMarketSize?.estimatedEstablishments ?? null,
   );
+  const warehouse = computeOrganizationWarehouseDiagnostics();
+  const healthPlans = computeHealthPlanCatalogDiagnostics();
+  const manufacturers = computeManufacturerConnectorDiagnostics();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -323,6 +329,130 @@ export default async function DiagnosticsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </Section>
+
+        <Section title="Organization Warehouse">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Refreshable national catalogs from public-source connectors. Search reads only from
+            the built warehouse index; seed directories remain dev fallback.
+            {" "}
+            <a href="/warehouse" className="underline hover:text-[var(--foreground)]">
+              Warehouse overview
+            </a>
+            {" · "}
+            <a href="/warehouse/coverage" className="underline hover:text-[var(--foreground)]">
+              Coverage detail
+            </a>
+          </p>
+          <StatRow label="Runtime mode" value={warehouse.runtimeMode} />
+          <StatRow
+            label="Total warehouse organizations"
+            value={warehouse.totalOrganizations}
+          />
+          <StatRow label="Duplicate org ids" value={warehouse.duplicateOrganizationIds} />
+          <StatRow
+            label="Last import"
+            value={
+              warehouse.lastImportAt
+                ? new Date(warehouse.lastImportAt).toLocaleString()
+                : "—"
+            }
+          />
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Production connectors
+            </p>
+            {warehouse.connectors.map((connector) => (
+              <StatRow
+                key={connector.id}
+                label={`${connector.label} (${connector.status})`}
+                value={`${connector.organizationsIndexed} orgs · ${connector.importMode ?? "—"}`}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Health Plans Connector">
+          <StatRow label="CMS import mode" value={healthPlans.cmsImportMode} />
+          <StatRow label="Total health plans" value={healthPlans.totalHealthPlans} />
+          <StatRow label="Medicare Advantage orgs" value={healthPlans.medicareAdvantage} />
+          <StatRow label="Medicaid MCOs" value={healthPlans.medicaidMcos} />
+          <StatRow label="Marketplace issuers" value={healthPlans.marketplaceIssuers} />
+          <StatRow label="BCBS organizations" value={healthPlans.bcbsOrganizations} />
+          <StatRow label="National carriers" value={healthPlans.nationalCarriers} />
+          <StatRow label="Regional carriers" value={healthPlans.regionalCarriers} />
+          <StatRow label="Provider-sponsored plans" value={healthPlans.providerSponsoredPlans} />
+          <StatRow label="States represented" value={healthPlans.statesRepresented} />
+          <StatRow label="Duplicate org ids" value={healthPlans.duplicateOrganizationIds} />
+          <StatRow
+            label="Merged in last import"
+            value={healthPlans.mergeCount ?? "—"}
+          />
+          <StatRow
+            label="Added in last import"
+            value={healthPlans.addedInLastImport ?? "—"}
+          />
+          <StatRow
+            label="Last import"
+            value={
+              healthPlans.lastImportAt
+                ? new Date(healthPlans.lastImportAt).toLocaleString()
+                : "—"
+            }
+          />
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Organizations by source connector
+            </p>
+            {Object.entries(healthPlans.organizationsBySource)
+              .sort((a, b) => b[1] - a[1])
+              .map(([connector, count]) => (
+                <StatRow key={connector} label={connector} value={count} />
+              ))}
+          </div>
+        </Section>
+
+        <Section title="Manufacturers Connector">
+          <StatRow label="Import mode" value={manufacturers.importMode} />
+          <StatRow label="Runtime mode" value={manufacturers.runtimeMode} />
+          <StatRow label="Raw SEC records" value={manufacturers.rawSourceRecords.sec} />
+          <StatRow label="Raw FDA records" value={manufacturers.rawSourceRecords.fda} />
+          <StatRow label="Raw seed records" value={manufacturers.rawSourceRecords.seed} />
+          <StatRow label="Normalized candidates" value={manufacturers.normalizedCandidates} />
+          <StatRow label="Canonical organizations" value={manufacturers.canonicalOrganizations} />
+          <StatRow label="Merged count" value={manufacturers.mergedCount} />
+          <StatRow label="Duplicate org ids" value={manufacturers.duplicateOrganizationIds} />
+          <StatRow label="Indexed count" value={manufacturers.indexedCount} />
+          <StatRow label="Searchable count" value={manufacturers.searchableCount} />
+          <StatRow
+            label="Last import"
+            value={
+              manufacturers.lastImportAt
+                ? new Date(manufacturers.lastImportAt).toLocaleString()
+                : "—"
+            }
+          />
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Organizations by source connector
+            </p>
+            {Object.entries(manufacturers.bySourceConnector)
+              .sort((a, b) => b[1] - a[1])
+              .map(([connector, count]) => (
+                <StatRow key={connector} label={connector} value={count} />
+              ))}
+          </div>
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Count by industry (top 10)
+            </p>
+            {Object.entries(manufacturers.byIndustry)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .map(([industry, count]) => (
+                <StatRow key={industry} label={industry} value={count} />
+              ))}
           </div>
         </Section>
 

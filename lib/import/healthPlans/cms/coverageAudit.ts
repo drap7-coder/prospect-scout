@@ -8,6 +8,7 @@ import {
 } from "../organizationFromRecord";
 import type { HealthPlanExternalId, HealthPlanImportCandidate, CmsImportPaths } from "./types";
 import { defaultCmsImportPaths } from "./fixtures";
+import { resolveCmsImportPaths } from "./resolvePaths";
 import { readCsvFile } from "./parseCsv";
 import { parseCmsCpscRows, aggregateCmsCpscOrganizations } from "./parseCpsc";
 import { parseCmsQhpRows, aggregateCmsQhpIssuers } from "./parseQhp";
@@ -16,8 +17,13 @@ import {
   aggregateCmsMedicaidMcos,
 } from "./parseMedicaidMco";
 import {
+  parseCmsMedicaidEnrollmentRows,
+  aggregateCmsMedicaidEnrollmentPlans,
+} from "./parseMedicaidEnrollment";
+import {
   candidateFromCpscOrganization,
   candidateFromMedicaidMco,
+  candidateFromMedicaidEnrollmentPlan,
   candidateFromQhpIssuer,
 } from "./organizationFromCms";
 import { mergeHealthPlanCatalog } from "./mergeCatalog";
@@ -127,21 +133,34 @@ function sourceCandidates(
   cpsc: HealthPlanImportCandidate[];
   qhp: HealthPlanImportCandidate[];
   medicaid: HealthPlanImportCandidate[];
-  raw: { cpsc: number; qhp: number; medicaid: number };
+  medicaidEnrollment: HealthPlanImportCandidate[];
+  raw: { cpsc: number; qhp: number; medicaid: number; medicaidEnrollment: number };
 } {
   const cpscRaw = readCsvFile(paths.cpscCsv);
   const qhpRaw = readCsvFile(paths.qhpCsv);
   const medicaidRaw = readCsvFile(paths.medicaidMcoCsv);
+  const medicaidEnrollmentRaw = readCsvFile(paths.medicaidEnrollmentCsv);
 
   const cpscOrgs = aggregateCmsCpscOrganizations(parseCmsCpscRows(cpscRaw));
   const qhpIssuers = aggregateCmsQhpIssuers(parseCmsQhpRows(qhpRaw));
   const mcoOrgs = aggregateCmsMedicaidMcos(parseCmsMedicaidMcoRows(medicaidRaw));
+  const enrollmentPlans = aggregateCmsMedicaidEnrollmentPlans(
+    parseCmsMedicaidEnrollmentRows(medicaidEnrollmentRaw),
+  );
 
   return {
     cpsc: cpscOrgs.map((org) => candidateFromCpscOrganization(org)),
     qhp: qhpIssuers.map((issuer) => candidateFromQhpIssuer(issuer)),
     medicaid: mcoOrgs.map((mco) => candidateFromMedicaidMco(mco)),
-    raw: { cpsc: cpscRaw.length, qhp: qhpRaw.length, medicaid: medicaidRaw.length },
+    medicaidEnrollment: enrollmentPlans.map((plan) =>
+      candidateFromMedicaidEnrollmentPlan(plan),
+    ),
+    raw: {
+      cpsc: cpscRaw.length,
+      qhp: qhpRaw.length,
+      medicaid: medicaidRaw.length,
+      medicaidEnrollment: medicaidEnrollmentRaw.length,
+    },
   };
 }
 
@@ -189,7 +208,7 @@ function classifyOrganizationTypes(organizations: Organization[]) {
 
 /** Audit health plan catalog coverage by source, merge, state, and national benchmarks. */
 export function auditHealthPlanCatalogCoverage(
-  paths: CmsImportPaths = defaultCmsImportPaths(),
+  paths: CmsImportPaths = resolveCmsImportPaths(),
 ): HealthPlanCoverageAudit {
   const seedExpected = HEALTH_PLANS_DIRECTORY.length;
   const seed = seedEntries();
@@ -226,6 +245,14 @@ export function auditHealthPlanCatalogCoverage(
       rawRecords: parsed.raw.medicaid,
       organizationsParsed: parsed.medicaid.length,
       candidates: parsed.medicaid,
+    },
+    {
+      sourceId: "cms-medicaid-enrollment",
+      sourceLabel: "Medicaid Managed Care Enrollment by Plan",
+      fixturePath: paths.medicaidEnrollmentCsv,
+      rawRecords: parsed.raw.medicaidEnrollment,
+      organizationsParsed: parsed.medicaidEnrollment.length,
+      candidates: parsed.medicaidEnrollment,
     },
   ];
 
@@ -399,7 +426,12 @@ export function formatHealthPlanCoverageAudit(audit: HealthPlanCoverageAudit): s
 
 /** Verify bundled fixture files exist (for CI / import scripts). */
 export function assertHealthPlanFixtureFiles(paths: CmsImportPaths = defaultCmsImportPaths()): void {
-  for (const file of [paths.cpscCsv, paths.qhpCsv, paths.medicaidMcoCsv]) {
+  for (const file of [
+    paths.cpscCsv,
+    paths.qhpCsv,
+    paths.medicaidMcoCsv,
+    paths.medicaidEnrollmentCsv,
+  ]) {
     readFileSync(file, "utf8");
   }
 }

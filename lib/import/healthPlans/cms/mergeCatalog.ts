@@ -1,11 +1,15 @@
-import {
-  mergeOrganizations,
-  stripCorporateSuffix,
-  type Organization,
-} from "@/lib/discovery/organization";
-import { normalizeOrganizationName } from "@/lib/providers/cms";
+import { mergeOrganizations, type Organization } from "@/lib/discovery/organization";
 import { HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID } from "../types";
 import type { HealthPlanExternalId, HealthPlanImportCandidate } from "./types";
+
+/** External id types that may trigger a merge — never merge on name similarity alone. */
+const VERIFIED_MERGE_ID_TYPES = new Set<HealthPlanExternalId["idType"]>([
+  "cms_contract",
+  "hios",
+  "naic",
+  "ein",
+  "domain",
+]);
 
 type CatalogEntry = {
   organization: Organization;
@@ -70,20 +74,16 @@ export function mergeHealthPlanPair(a: Organization, b: Organization): Organizat
   return mergeOrganizations(b, a);
 }
 
-function parentBrandKey(org: Organization): string | null {
-  const parent = org.description?.replace(/^Part of /i, "").trim();
-  const name = normalizeOrganizationName(org.canonicalName);
-  const parentNorm = parent ? normalizeOrganizationName(parent) : "";
-  if (!parentNorm || parentNorm === name) return null;
-  return `${parentNorm}::${name}`;
-}
-
 function resolveCandidateMatchId(
   candidate: HealthPlanImportCandidate,
   orgById: Map<string, Organization>,
   externalIdIndex: ExternalIdIndex,
 ): string | null {
   for (const ext of candidate.externalIds) {
+    if (!VERIFIED_MERGE_ID_TYPES.has(ext.idType) && ext.idType !== "other") {
+      continue;
+    }
+    if (ext.idType === "other") continue;
     const hit = externalIdIndex.get(externalIdKey(ext.idType, ext.idValue));
     if (hit && orgById.has(hit)) return hit;
   }
@@ -94,18 +94,6 @@ function resolveCandidateMatchId(
     if (hit && orgById.has(hit)) return hit;
   }
 
-  const incomingName = stripCorporateSuffix(candidate.organization.canonicalName);
-  const incomingParent = parentBrandKey(candidate.organization);
-  for (const org of orgById.values()) {
-    const name = stripCorporateSuffix(org.canonicalName);
-    if (name && incomingName && name === incomingName) return org.id;
-    const parentKey = parentBrandKey(org);
-    if (incomingParent && parentKey && incomingParent === parentKey) return org.id;
-    for (const alias of org.aliases) {
-      if (stripCorporateSuffix(alias) === incomingName) return org.id;
-    }
-  }
-
   return null;
 }
 
@@ -114,6 +102,30 @@ export interface MergeCatalogResult {
   catalogEntries: CatalogEntry[];
   mergedCount: number;
   addedCount: number;
+}
+
+/** Collapse catalog entries that share the same organization id. */
+export function dedupeCatalogEntriesByOrganizationId(
+  entries: CatalogEntry[],
+): { entries: CatalogEntry[]; collapsed: number } {
+  const byId = new Map<string, CatalogEntry>();
+  let collapsed = 0;
+
+  for (const entry of entries) {
+    const id = entry.organization.id;
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, entry);
+      continue;
+    }
+    collapsed += 1;
+    byId.set(id, {
+      organization: mergeHealthPlanPair(existing.organization, entry.organization),
+      externalIds: mergeExternalIds(existing.externalIds, entry.externalIds),
+    });
+  }
+
+  return { entries: [...byId.values()], collapsed };
 }
 
 /** Merge CMS import candidates into an existing health plan catalog. */

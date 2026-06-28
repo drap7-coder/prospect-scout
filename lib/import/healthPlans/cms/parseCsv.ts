@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 /** Minimal RFC4180-style CSV parser for CMS fixture files. */
 export function parseCsvText(text: string): Record<string, string>[] {
@@ -74,4 +74,26 @@ export function parseOptionalNumber(value: string | undefined): number | null {
 
 export function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))].sort();
+}
+
+function escapeCsvField(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/** Write normalized CMS import CSV (header row + data rows). */
+export function writeCsvFile(
+  path: string,
+  headers: string[],
+  records: Record<string, string>[],
+): void {
+  const lines = [
+    headers.join(","),
+    ...records.map((record) =>
+      headers.map((header) => escapeCsvField(record[header] ?? "")).join(","),
+    ),
+  ];
+  writeFileSync(path, `${lines.join("\n")}\n`, "utf8");
 }

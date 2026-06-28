@@ -44,6 +44,11 @@ import {
   kickoffHealthPlanIndexHydration,
 } from "@/lib/import/healthPlans/hydrateIndex";
 import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/featureFlag";
+import {
+  discoverFromOrganizationWarehouse,
+  shouldUseOrganizationWarehouse,
+  ensureOrganizationWarehouseHydrated,
+} from "@/lib/import/warehouse";
 
 let initialized = false;
 
@@ -115,13 +120,30 @@ export async function discoverOrganizations(
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
   await ensureErisaIndexHydrated();
-  if (isHealthPlanPersistentSourceEnabled()) {
+  if (shouldUseOrganizationWarehouse()) {
+    await ensureOrganizationWarehouseHydrated();
+  } else if (isHealthPlanPersistentSourceEnabled()) {
     await ensureHealthPlanIndexHydrated();
   }
   getConnectors();
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
+
+  if (shouldUseOrganizationWarehouse()) {
+    const started = performance.now();
+    const warehouseMax = options.maxResults ?? 5000;
+    const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    return {
+      intent,
+      organizations: result.organizations,
+      totalBeforeDedupe: result.totalMatching,
+      totalAfterRank: result.totalAfterFilter,
+      totalReturned: result.totalReturned,
+      latencyMs: Math.round((performance.now() - started) * 100) / 100,
+    };
+  }
+
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   return runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
 }
 
@@ -132,8 +154,23 @@ export function discoverOrganizationsSync(
   initDiscoveryEngine();
   getConnectors();
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
+
+  if (shouldUseOrganizationWarehouse()) {
+    const started = performance.now();
+    const warehouseMax = options.maxResults ?? 5000;
+    const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    return {
+      intent,
+      organizations: result.organizations,
+      totalBeforeDedupe: result.totalMatching,
+      totalAfterRank: result.totalAfterFilter,
+      totalReturned: result.totalReturned,
+      latencyMs: Math.round((performance.now() - started) * 100) / 100,
+    };
+  }
+
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   return runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
 }
 
@@ -216,9 +253,34 @@ export function discoverOrganizationsStaged(
   getConnectors();
 
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
   const started = performance.now();
+
+  if (shouldUseOrganizationWarehouse()) {
+    const warehouseMax = options.maxResults ?? 5000;
+    const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    const metadata: DiscoveryMetadata = {
+      resultCount: result.totalAfterFilter,
+      threshold: DISCOVERY_THRESHOLD,
+      coverageStatus: computeCoverageStatus(result.totalAfterFilter),
+      stagesRun: ["organization-warehouse"],
+      expanded: false,
+      fallbackReason: null,
+      sourceSummary: summarizeOrganizationSources(result.organizations),
+      marketBenchmarkAvailable: marketBenchmarkAvailableForIntent(intent),
+    };
+    return {
+      intent,
+      organizations: result.organizations,
+      totalBeforeDedupe: result.totalMatching,
+      totalAfterRank: result.totalAfterFilter,
+      totalReturned: result.totalReturned,
+      latencyMs: Math.round((performance.now() - started) * 100) / 100,
+      metadata,
+    };
+  }
+
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
 
   const stagesRun: string[] = ["multi-connector-discovery"];
   let result = runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);

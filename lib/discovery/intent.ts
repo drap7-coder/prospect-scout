@@ -6,6 +6,16 @@ import {
   type HealthPlanType,
 } from "./healthPlanType";
 import { parseErisaQueryConstraints } from "@/lib/import/erisa/queryIntent";
+import {
+  inferClassificationFilter,
+  type ClassificationFilter,
+} from "@/lib/import/warehouse/classificationIntent";
+import {
+  HEALTH_PLANS_CLASSIFICATION_NAMESPACE,
+  inferHealthPlanClassificationFromQuery,
+} from "@/lib/import/healthPlans/warehouseMapping";
+
+export type { ClassificationFilter };
 
 /**
  * Structured search intent parsed from free text or explicit filters.
@@ -30,7 +40,14 @@ export interface SearchIntent {
   alternateIndustryIds: string[];
   /** Region bucket id, e.g. "midwest". "any" = no region filter. */
   region: string;
-  /** Optional health-plan subtype implied by the query (e.g. aca_marketplace). */
+  /**
+   * Generic connector classification filter (namespace + ids).
+   * The warehouse matches without interpreting sector-specific id semantics.
+   */
+  classificationFilter: ClassificationFilter | null;
+  /**
+   * @deprecated Use classificationFilter. Retained for backward-compatible APIs.
+   */
   healthPlanType: HealthPlanType | null;
   /** Remaining significant keywords after structured extraction. */
   keywords: string[];
@@ -262,8 +279,26 @@ export function parseSearchIntent(
     organizationTypeId,
   });
 
+  const healthPlanClass = inferHealthPlanClassificationFromQuery(trimmed);
+  const classificationFilter: ClassificationFilter | null =
+    healthPlanClass &&
+    (organizationTypeId === "health-plan" ||
+      industryId === "payers" ||
+      taxonomy.sectorId === "healthcare")
+      ? { namespace: healthPlanClass.namespace, ids: [healthPlanClass.id] }
+      : inferClassificationFilter(trimmed, {
+          query: trimmed,
+          sectorId,
+          industryId,
+          organizationTypeId,
+        });
+
   const healthPlanType =
-    options.healthPlanType ?? inferHealthPlanTypeFromQuery(trimmed) ?? null;
+    options.healthPlanType ??
+    (healthPlanClass?.namespace === HEALTH_PLANS_CLASSIFICATION_NAMESPACE &&
+    isHealthPlanTypeId(healthPlanClass.id)
+      ? healthPlanClass.id
+      : inferHealthPlanTypeFromQuery(trimmed) ?? null);
 
   return applyErisaIntentOverrides({
     query: trimmed,
@@ -275,7 +310,14 @@ export function parseSearchIntent(
     alternateSectorIds: crossSector.alternateSectorIds,
     alternateIndustryIds: crossSector.alternateIndustryIds,
     region,
+    classificationFilter,
     healthPlanType,
     keywords: [...new Set(keywords)],
   });
+}
+
+function isHealthPlanTypeId(value: string): value is HealthPlanType {
+  return ["commercial", "aca_marketplace", "medicare_advantage", "medicaid_managed_care"].includes(
+    value,
+  );
 }

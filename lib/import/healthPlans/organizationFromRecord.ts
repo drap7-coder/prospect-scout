@@ -9,6 +9,11 @@ import {
   HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID,
   HEALTH_PLAN_BOOTSTRAP_SOURCE_NAME,
 } from "./types";
+import {
+  applyHealthPlanWarehouseFields,
+  buildHealthPlanOrganizationFields,
+  type HealthPlanMarketSegmentId,
+} from "./warehouseMapping";
 
 function normalizeCmsContract(contractId: string): string {
   return contractId.trim().toUpperCase();
@@ -46,6 +51,15 @@ export function externalIdsForSeedRow(row: HealthPlanSeedRow): {
   return ids;
 }
 
+function marketSegmentFromTags(tags: string[]): HealthPlanMarketSegmentId {
+  const hay = tags.join(" ").toLowerCase();
+  if (/\baca\b|\bmarketplace\b|\bqhp\b/.test(hay)) return "aca_marketplace";
+  if (/\bmedicaid\b|\bmanaged-medicaid\b/.test(hay)) return "medicaid_managed_care";
+  if (/\bpart d\b|\bpart-d\b/.test(hay)) return "part_d";
+  if (/\bmedicare-advantage\b|\bma\b/.test(hay)) return "medicare_advantage";
+  return "commercial";
+}
+
 /** Normalize a bootstrap seed row into a canonical Organization. */
 export function organizationFromSeedRow(
   row: HealthPlanSeedRow,
@@ -58,6 +72,9 @@ export function organizationFromSeedRow(
   const domain = row.website ? deriveDomain(row.website) : null;
   const aliases = new Set([...row.aliases, ...(existing?.aliases ?? [])]);
   if (row.ticker) aliases.add(row.ticker);
+  const states = [...new Set([...row.statesServed, ...(existing?.states ?? [])])];
+  const regions = [...new Set([...row.regions, ...(existing?.regions ?? [])])];
+  const externalIds = externalIdsForSeedRow(row);
 
   const evidence = [
     "Curated health plan bootstrap seed",
@@ -67,7 +84,7 @@ export function organizationFromSeedRow(
       : null,
   ].filter((value): value is string => Boolean(value));
 
-  return finalizeOrganization({
+  const base = finalizeOrganization({
     id: existing?.id ?? row.id,
     canonicalName: existing?.canonicalName ?? row.name,
     aliases: [...aliases],
@@ -78,8 +95,8 @@ export function organizationFromSeedRow(
     sectorId: row.sectorId ?? "healthcare",
     headquarters: row.headquarters,
     locations: row.headquarters ? [row.headquarters] : [],
-    states: [...new Set([...row.statesServed, ...(existing?.states ?? [])])],
-    regions: [...new Set([...row.regions, ...(existing?.regions ?? [])])],
+    states,
+    regions,
     ownership: row.ownership,
     employeeRange: row.employeeEstimate
       ? String(row.employeeEstimate)
@@ -104,4 +121,17 @@ export function organizationFromSeedRow(
     canonicalOrganizationType: "health-plan",
     tags: mergedTags,
   });
+
+  const warehouseFields = buildHealthPlanOrganizationFields({
+    parentOrganization: row.parentOrganization,
+    states,
+    regions,
+    headquarters: row.headquarters,
+    marketSegment: marketSegmentFromTags(mergedTags),
+    externalIds,
+    national: states.length === 0,
+    tags: mergedTags,
+  });
+
+  return finalizeOrganization(applyHealthPlanWarehouseFields(base, warehouseFields));
 }

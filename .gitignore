@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# CMS production snapshots (refreshed via npm run fetch:health-plans)
+/data/import/cms/production/*.csv
+/data/import/cms/production/manifest.json

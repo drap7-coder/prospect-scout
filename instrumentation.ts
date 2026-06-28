@@ -1,4 +1,4 @@
-/** Server startup hook — hydrate ERISA index from Neon without blocking requests. */
+/** Server startup hook — hydrate warehouse indexes from Neon without blocking requests. */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { kickoffErisaIndexHydration } = await import(
@@ -6,11 +6,10 @@ export async function register() {
     );
     kickoffErisaIndexHydration();
 
-    if (process.env.HEALTH_PLAN_PERSISTENT_SOURCE === "1") {
-      const { kickoffHealthPlanIndexHydration } = await import(
-        "./lib/import/healthPlans/hydrateIndex"
-      );
-      kickoffHealthPlanIndexHydration();
+    const { kickoffOrganizationWarehouseHydration, isOrganizationWarehouseEnabled } =
+      await import("./lib/import/warehouse");
+    if (isOrganizationWarehouseEnabled()) {
+      kickoffOrganizationWarehouseHydration();
     }
   }
 }

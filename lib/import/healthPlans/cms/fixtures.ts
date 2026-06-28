@@ -11,5 +11,6 @@ export function defaultCmsImportPaths(): CmsImportPaths {
     cpscCsv: join(fixtureRoot, "cpsc-contracts.csv"),
     qhpCsv: join(fixtureRoot, "qhp-issuers.csv"),
     medicaidMcoCsv: join(fixtureRoot, "medicaid-mcos.csv"),
+    medicaidEnrollmentCsv: join(fixtureRoot, "medicaid-enrollment.csv"),
   };
 }

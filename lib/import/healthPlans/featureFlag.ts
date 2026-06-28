@@ -1,20 +1,29 @@
-import { isDatabaseConfigured } from "@/lib/db";
+import {
+  isOrganizationWarehouseEnabled,
+  shouldUseOrganizationWarehouse,
+} from "@/lib/import/warehouse/featureFlag";
 import { getHealthPlanIndexSize } from "./memoryIndex";
 
-/** True when HEALTH_PLAN_PERSISTENT_SOURCE=1. */
-export function isHealthPlanPersistentSourceEnabled(): boolean {
-  return process.env.HEALTH_PLAN_PERSISTENT_SOURCE === "1";
-}
-
 /**
- * Use Neon-backed / imported health plan catalog instead of healthPlans.ts.
- * Requires the feature flag and a populated in-memory index (import or hydration).
+ * @deprecated Use isOrganizationWarehouseEnabled from @/lib/import/warehouse
  */
-export function shouldUsePersistentHealthPlanCatalog(): boolean {
-  return isHealthPlanPersistentSourceEnabled() && getHealthPlanIndexSize() > 0;
+export function isHealthPlanPersistentSourceEnabled(): boolean {
+  return isOrganizationWarehouseEnabled();
 }
 
-/** True when persistent mode is requested but Neon is not configured. */
-export function healthPlanPersistentSourceUnavailable(): boolean {
-  return isHealthPlanPersistentSourceEnabled() && !isDatabaseConfigured();
+/** True when the health-plans warehouse connector index is populated. */
+export function shouldUsePersistentHealthPlanCatalog(): boolean {
+  return isOrganizationWarehouseEnabled() && getHealthPlanIndexSize() > 0;
 }
+
+/** Bootstrap seed (healthPlans.ts) — dev fallback when warehouse catalog is unavailable. */
+export function shouldUseBootstrapHealthPlanSeed(): boolean {
+  return !shouldUsePersistentHealthPlanCatalog();
+}
+
+/** @deprecated Neon optional — warehouse index may be memory-only after import. */
+export function healthPlanPersistentSourceUnavailable(): boolean {
+  return isOrganizationWarehouseEnabled() && getHealthPlanIndexSize() === 0;
+}
+
+export { shouldUseOrganizationWarehouse };

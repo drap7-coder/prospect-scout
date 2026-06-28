@@ -1,0 +1,8 @@
+plan_id,organization_name,parent_organization,state,program_name,plan_type,enrollment,reporting_period,naic_id,dataset_row_id
+tx-star-aetna,Aetna,,TX,STAR (Comprehensive MCO),medicaid_managed_care,72966,2024,,enroll-001
+fl-sunshine-enroll,Sunshine Health,Centene Corporation,FL,Statewide Medicaid Managed Care,medicaid_managed_care,2450000,2024,95502,enroll-002
+ca-molina-enroll,Molina Healthcare of California,Molina Healthcare Inc.,CA,Medi-Cal Managed Care,medicaid_managed_care,5200000,2024,38362,enroll-003
+ga-amerigroup,Amerigroup Georgia,Elevance Health,GA,Georgia Families,medicaid_managed_care,890000,2024,65269,enroll-004
+ny-fidelis,Fidelis Care,Centene Corporation,NY,Mainstream Managed Care,medicaid_managed_care,1900000,2024,95502,enroll-005
+wa-apple-health,Community Health Plan of Washington,,WA,Apple Health Managed Care,medicaid_managed_care,340000,2024,,enroll-006
+mn-hennepin-enroll,Hennepin Health,Hennepin County,MN,Minnesota Health Care Programs,medicaid_managed_care,12500,2024,80865,enroll-007

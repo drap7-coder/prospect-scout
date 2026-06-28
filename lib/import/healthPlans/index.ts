@@ -28,6 +28,7 @@ export {
 export {
   isHealthPlanPersistentSourceEnabled,
   shouldUsePersistentHealthPlanCatalog,
+  shouldUseBootstrapHealthPlanSeed,
   healthPlanPersistentSourceUnavailable,
 } from "./featureFlag";
 export {
@@ -35,4 +36,17 @@ export {
   getHealthPlanOrganizationsForDiscovery,
 } from "./discoverySource";
 export { organizationToDirectoryRecord } from "./organizationToDirectoryRecord";
+export {
+  computeHealthPlanCatalogDiagnostics,
+  type HealthPlanCatalogDiagnostics,
+} from "./healthPlanDiagnostics";
+export {
+  getHealthPlanCatalogImportManifest,
+  setHealthPlanCatalogImportManifest,
+  countDuplicateOrganizationIds,
+} from "./catalogManifest";
+export {
+  isOrganizationWarehouseEnabled,
+  shouldUseOrganizationWarehouse,
+} from "@/lib/import/warehouse/featureFlag";
 export * from "./cms";

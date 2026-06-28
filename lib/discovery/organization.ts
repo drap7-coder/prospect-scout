@@ -10,6 +10,18 @@ import {
 } from "./canonicalOrgType";
 import type { HealthPlanType } from "./healthPlanType";
 import type { ErisaCardIntel } from "@/lib/import/erisa/types";
+import type {
+  OrganizationClassification,
+  OrganizationExternalId,
+  OrganizationGeography,
+  SectorAttributes,
+} from "@/lib/organization/model";
+import {
+  dedupeClassifications,
+  dedupeExternalIds,
+  mergeGeography,
+  normalizeWarehouseOrganization,
+} from "@/lib/import/warehouse/organizationCapabilities";
 
 /** Provenance for a field or record from a discovery connector. */
 export interface OrganizationSource {
@@ -33,6 +45,10 @@ export interface OrganizationSource {
  */
 export interface Organization {
   id: string;
+  /** Primary display name (defaults to canonicalName when unset). */
+  displayName?: string;
+  /** Legal entity name when distinct from marketing name. */
+  legalName?: string | null;
   canonicalName: string;
   aliases: string[];
   website: string | null;
@@ -42,33 +58,36 @@ export interface Organization {
   sectorId: string | null;
   headquarters: string | null;
   locations: string[];
-  /** US state codes where the org operates or is headquartered. */
+  /** @deprecated Prefer geography.states — kept for backward compatibility. */
   states: string[];
+  /** @deprecated Prefer geography.regions — kept for backward compatibility. */
   regions: string[];
+  /** Canonical geography model for warehouse search and coverage. */
+  geography?: OrganizationGeography;
+  /** Parent organization id when resolved; free-text parent otherwise. */
+  parentId?: string | null;
+  parentDisplayName?: string | null;
   ownership: "public" | "private" | "nonprofit" | "government" | null;
   employeeRange: string | null;
-  /** Estimated covered lives / members (payers) — distinct from headcount. */
   memberEstimate?: number | null;
   revenueRange: string | null;
   description: string | null;
   sources: OrganizationSource[];
-  /** Internal pipeline anchor (legacy buyer pack). */
   buyerPack: BuyerPackId | null;
-  /** Relevance score from structured ranking (0–100). */
   relevance?: number;
-  /** Confidence that this org matches the query intent (0–1). */
   confidence?: number;
-  /** Single canonical organization type for faceting and display. */
   canonicalOrganizationType: string;
+  /** Connector-scoped classifications (namespace + id). Warehouse does not interpret ids. */
+  classifications?: OrganizationClassification[];
+  /** Connector-specific attributes — opaque to the warehouse core. */
+  sectorAttributes?: SectorAttributes;
+  /** Verified external identifiers indexed for merge and search. */
+  externalIds?: OrganizationExternalId[];
   /**
-   * Optional health-plan subtype (e.g. "aca_marketplace"). Only set when a
-   * source provides it explicitly — never inferred from connector presence.
-   * Refines, but does not replace, canonicalOrganizationType === "health-plan".
+   * @deprecated Use classifications with namespace "health-plans". Synced during finalize for compat.
    */
   healthPlanType?: HealthPlanType;
-  /** Facet tags (e.g. ERISA plan sponsor labels). */
   tags?: string[];
-  /** Latest Form 5500 intelligence when sourced from ERISA import. */
   erisaIntel?: ErisaCardIntel;
 }
 
@@ -120,11 +139,11 @@ export function organizationDedupeKey(org: Organization): string {
   return `name:${stripCorporateSuffix(org.canonicalName)}`;
 }
 
-/** Apply canonical type normalization to a catalog organization. */
+/** Apply canonical type normalization and warehouse field normalization. */
 export function finalizeOrganization(org: Organization): Organization {
   const organizationType =
     normalizeTaxonomyOrganizationType(org.organizationType) ?? org.organizationType;
-  const finalized: Organization = {
+  const withTypes: Organization = {
     ...org,
     organizationType,
     canonicalOrganizationType: normalizeCanonicalOrganizationType({
@@ -132,7 +151,7 @@ export function finalizeOrganization(org: Organization): Organization {
       organizationType,
     }),
   };
-  return finalized;
+  return normalizeWarehouseOrganization(withTypes);
 }
 
 function inferOwnership(record: OrganizationRecord): Organization["ownership"] {
@@ -336,9 +355,25 @@ export function mergeOrganizations(
     base.confidence ?? 0,
     other.confidence ?? 0,
   );
+  const normBase = normalizeWarehouseOrganization(base);
+  const normOther = normalizeWarehouseOrganization(other);
+  const mergedGeography = mergeGeography(
+    normBase.geography ?? { states: base.states, regions: base.regions, headquarters: base.headquarters, national: false },
+    normOther.geography ?? { states: other.states, regions: other.regions, headquarters: other.headquarters, national: false },
+  );
+  const mergedClassifications = dedupeClassifications([
+    ...(normBase.classifications ?? []),
+    ...(normOther.classifications ?? []),
+  ]);
+  const mergedExternalIds = dedupeExternalIds([
+    ...(normBase.externalIds ?? []),
+    ...(normOther.externalIds ?? []),
+  ]);
 
   return finalizeOrganization({
     id: base.id,
+    displayName: base.displayName ?? base.canonicalName,
+    legalName: base.legalName ?? other.legalName ?? base.canonicalName,
     canonicalName: base.canonicalName || other.canonicalName,
     aliases: unionUnique(
       unionUnique(base.aliases, other.aliases),
@@ -351,8 +386,14 @@ export function mergeOrganizations(
     sectorId: base.sectorId ?? other.sectorId,
     headquarters: pickBetterString(base.headquarters, other.headquarters),
     locations: unionUnique(base.locations, other.locations),
-    states: unionUnique(base.states, other.states),
-    regions: unionUnique(base.regions, other.regions),
+    geography: mergedGeography,
+    states: mergedGeography.states,
+    regions: mergedGeography.regions,
+    parentId: base.parentId ?? other.parentId ?? null,
+    parentDisplayName: pickBetterString(base.parentDisplayName ?? null, other.parentDisplayName ?? null),
+    classifications: mergedClassifications,
+    externalIds: mergedExternalIds,
+    sectorAttributes: { ...(normOther.sectorAttributes ?? {}), ...(normBase.sectorAttributes ?? {}) },
     ownership: base.ownership ?? other.ownership,
     employeeRange: base.employeeRange ?? other.employeeRange,
     memberEstimate: mergeMemberEstimate(base, other),
@@ -459,7 +500,21 @@ export function dedupeOrganizationsCanonical(
     }
   }
 
-  return [...new Set(byAliasKey.values())];
+  return dedupeByOrganizationId([...new Set(byAliasKey.values())]);
+}
+
+/** Guarantee one row per organization id (alias pass can leave duplicate ids). */
+export function dedupeByOrganizationId(orgs: Organization[]): Organization[] {
+  const byId = new Map<string, Organization>();
+  for (const org of orgs) {
+    const existing = byId.get(org.id);
+    if (!existing) {
+      byId.set(org.id, org);
+      continue;
+    }
+    byId.set(org.id, mergeOrganizations(existing, org));
+  }
+  return [...byId.values()];
 }
 
 export { normalizeNameKey };
