@@ -16,6 +16,9 @@ export const externalIdTypeEnum = pgEnum("external_id_type", [
   "npi",
   "fda",
   "domain",
+  "cms_contract",
+  "hios",
+  "naic",
   "other",
 ]);
 

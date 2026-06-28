@@ -30,6 +30,8 @@
     "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts",
     "import:erisa": "node --import tsx scripts/importErisaCsv.ts",
     "test:erisa": "node --import tsx scripts/erisaChecks.ts",
+    "import:health-plans": "node --import tsx scripts/importHealthPlans.ts",
+    "test:health-plans": "node --import tsx scripts/healthPlanChecks.ts",
     "test:db": "node --import tsx scripts/dbSchemaChecks.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

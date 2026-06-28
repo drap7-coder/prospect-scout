@@ -15,6 +15,13 @@
       "when": 1,
       "tag": "0001_erisa_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 2,
+      "tag": "0002_health_plan_external_ids",
+      "breakpoints": true
     }
   ]
 }
