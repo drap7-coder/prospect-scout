@@ -4,6 +4,8 @@ import { EDUCATION_DIRECTORY } from "./education";
 import { EMPLOYERS_DIRECTORY } from "./employers";
 import { FINANCIAL_SERVICES_DIRECTORY } from "./financialServices";
 import { HEALTH_PLANS_DIRECTORY } from "./healthPlans";
+import { getHealthPlanDirectoryRecords } from "@/lib/import/healthPlans/discoverySource";
+import { shouldUsePersistentHealthPlanCatalog } from "@/lib/import/healthPlans/featureFlag";
 import { HEALTH_SYSTEMS_DIRECTORY } from "./healthSystems";
 import { MANUFACTURERS_DIRECTORY } from "./manufacturers";
 import { NONPROFITS_DIRECTORY } from "./nonprofits";
@@ -105,7 +107,7 @@ const PROGRAM_PHRASES: Record<string, keyof DirectorySearchCriteria> = {
 export function getDirectoryForPack(pack: BuyerPackId): OrganizationRecord[] {
   switch (pack) {
     case "health-plans":
-      return HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord);
+      return getHealthPlanDirectoryRecords();
     case "health-systems":
       return HEALTH_SYSTEMS_DIRECTORY.map(normalizeDirectoryRecord);
     case "manufacturers":
@@ -127,8 +129,12 @@ export function getDirectoryForPack(pack: BuyerPackId): OrganizationRecord[] {
 }
 
 export function getAllDirectoryRecords(): OrganizationRecord[] {
+  const healthPlanRecords = shouldUsePersistentHealthPlanCatalog()
+    ? []
+    : HEALTH_PLANS_DIRECTORY.map(normalizeDirectoryRecord);
+
   return [
-    ...HEALTH_PLANS_DIRECTORY,
+    ...healthPlanRecords,
     ...HEALTH_SYSTEMS_DIRECTORY,
     ...MANUFACTURERS_DIRECTORY,
     ...EMPLOYERS_DIRECTORY,

@@ -25,3 +25,13 @@ export {
   markHealthPlanIndexLoaded,
   resetHealthPlanHydrationCache,
 } from "./hydrateIndex";
+export {
+  isHealthPlanPersistentSourceEnabled,
+  shouldUsePersistentHealthPlanCatalog,
+  healthPlanPersistentSourceUnavailable,
+} from "./featureFlag";
+export {
+  getHealthPlanDirectoryRecords,
+  getHealthPlanOrganizationsForDiscovery,
+} from "./discoverySource";
+export { organizationToDirectoryRecord } from "./organizationToDirectoryRecord";

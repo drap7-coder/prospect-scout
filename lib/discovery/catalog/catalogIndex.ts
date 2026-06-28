@@ -22,6 +22,9 @@ import {
 } from "../canonicalOrgType";
 import { ANY_REGION } from "@/lib/search/regions";
 import { getAllDirectoryRecords } from "@/lib/directories/search";
+import { getHealthPlanOrganizationsForDiscovery } from "@/lib/import/healthPlans/discoverySource";
+import { shouldUsePersistentHealthPlanCatalog } from "@/lib/import/healthPlans/featureFlag";
+import { getHealthPlanIndexSize } from "@/lib/import/healthPlans/memoryIndex";
 import {
   intentIndustryIds,
   intentSectorIds,
@@ -126,7 +129,10 @@ function loadNormalizedOrganizations(): {
     FDA_RECORDS.length +
     IRS_NONPROFIT_RECORDS.length +
     ACA_MARKETPLACE_RECORDS.length;
-  const sourceRecordCount = directoryRecords.length + bulkSourceCount;
+  const sourceRecordCount =
+    directoryRecords.length +
+    bulkSourceCount +
+    (shouldUsePersistentHealthPlanCatalog() ? getHealthPlanIndexSize() : 0);
 
   const normalized: Organization[] = [];
   let excludedCount = 0;
@@ -137,6 +143,16 @@ function loadNormalizedOrganizations(): {
       continue;
     }
     normalized.push(finalizeOrganization(directoryRecordToOrganization(record)));
+  }
+
+  if (shouldUsePersistentHealthPlanCatalog()) {
+    for (const org of getHealthPlanOrganizationsForDiscovery()) {
+      if (!isValidCatalogRecord(org.canonicalName)) {
+        excludedCount += 1;
+        continue;
+      }
+      normalized.push(finalizeOrganization(org));
+    }
   }
 
   for (const org of bulkOrganizations()) {

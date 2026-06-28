@@ -1,4 +1,6 @@
 import { getAllDirectoryRecords } from "@/lib/directories/search";
+import { getHealthPlanOrganizationsForDiscovery } from "@/lib/import/healthPlans/discoverySource";
+import { shouldUsePersistentHealthPlanCatalog } from "@/lib/import/healthPlans/featureFlag";
 import type { OrganizationRecord } from "@/lib/directories/types";
 import { normalizeDirectoryRecord } from "@/lib/directories/types";
 import type { BuyerPackId } from "@/lib/search/types";
@@ -206,7 +208,11 @@ export function directoryRecordToOrganization(
 
 /** Load all curated directory records as canonical organizations. */
 export function organizationsFromDirectory(): Organization[] {
-  return getAllDirectoryRecords().map(directoryRecordToOrganization);
+  const orgs = getAllDirectoryRecords().map(directoryRecordToOrganization);
+  if (!shouldUsePersistentHealthPlanCatalog()) {
+    return orgs;
+  }
+  return [...orgs, ...getHealthPlanOrganizationsForDiscovery()];
 }
 
 function unionUnique<T>(a: T[], b: T[]): T[] {

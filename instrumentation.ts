@@ -5,5 +5,12 @@ export async function register() {
       "./lib/import/erisa/hydrateIndex"
     );
     kickoffErisaIndexHydration();
+
+    if (process.env.HEALTH_PLAN_PERSISTENT_SOURCE === "1") {
+      const { kickoffHealthPlanIndexHydration } = await import(
+        "./lib/import/healthPlans/hydrateIndex"
+      );
+      kickoffHealthPlanIndexHydration();
+    }
   }
 }

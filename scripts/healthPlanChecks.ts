@@ -11,7 +11,11 @@ import {
   getHealthPlanOrganizations,
   importHealthPlanSeed,
   parseHealthPlanSeed,
+  shouldUsePersistentHealthPlanCatalog,
 } from "../lib/import/healthPlans/index.ts";
+import { organizationsFromDirectory } from "../lib/discovery/organization.ts";
+import { resetCatalogIndex, getCatalogOrganizations } from "../lib/discovery/catalog/catalogIndex.ts";
+import { initDiscoveryEngine } from "../lib/discovery/discoveryEngine.ts";
 import { isDatabaseConfigured } from "../lib/db/index.ts";
 import {
   HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID,
@@ -103,6 +107,67 @@ await check("import uses memory index without live CMS fetch", () => {
   } else {
     console.log("    (No DATABASE_URL — memory index only, no Neon persistence)");
   }
+});
+
+await check("feature flag off keeps healthPlans.ts directory sources", () => {
+  delete process.env.HEALTH_PLAN_PERSISTENT_SOURCE;
+  clearHealthPlanIndex();
+  resetCatalogIndex();
+  assert.equal(shouldUsePersistentHealthPlanCatalog(), false);
+
+  const healthPlans = organizationsFromDirectory().filter(
+    (org) => org.buyerPack === "health-plans",
+  );
+  assert.equal(healthPlans.length, 24);
+  assert.ok(
+    healthPlans.every((org) =>
+      org.sources.some((source) => source.connector === "directory"),
+    ),
+  );
+});
+
+await check("feature flag on serves 24 health plans from persistent index", async () => {
+  process.env.HEALTH_PLAN_PERSISTENT_SOURCE = "1";
+  clearHealthPlanIndex();
+  resetCatalogIndex();
+  await importHealthPlanSeed();
+  assert.equal(shouldUsePersistentHealthPlanCatalog(), true);
+
+  initDiscoveryEngine();
+  resetCatalogIndex();
+  const healthPlans = organizationsFromDirectory().filter(
+    (org) => org.buyerPack === "health-plans",
+  );
+  assert.equal(healthPlans.length, 24);
+  assert.ok(
+    healthPlans.every((org) =>
+      org.sources.some((source) => source.connector === "bootstrap-seed"),
+    ),
+  );
+
+  const catalog = getCatalogOrganizations();
+  const bootstrapSourceIds = new Set<string>();
+  for (const org of catalog) {
+    for (const source of org.sources) {
+      if (source.connector === HEALTH_PLAN_BOOTSTRAP_CONNECTOR_ID) {
+        bootstrapSourceIds.add(source.sourceId);
+      }
+    }
+  }
+  assert.equal(bootstrapSourceIds.size, 24);
+  for (const row of parseHealthPlanSeed()) {
+    assert.ok(
+      catalog.some(
+        (org) =>
+          org.canonicalName === row.name || org.aliases.includes(row.name),
+      ),
+      `catalog missing health plan ${row.name}`,
+    );
+  }
+
+  delete process.env.HEALTH_PLAN_PERSISTENT_SOURCE;
+  clearHealthPlanIndex();
+  resetCatalogIndex();
 });
 
 console.log(`\nAll ${passed} health plan checks passed.`);

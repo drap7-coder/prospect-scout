@@ -39,6 +39,11 @@ import {
   ensureErisaIndexHydrated,
   kickoffErisaIndexHydration,
 } from "@/lib/import/erisa/hydrateIndex";
+import {
+  ensureHealthPlanIndexHydrated,
+  kickoffHealthPlanIndexHydration,
+} from "@/lib/import/healthPlans/hydrateIndex";
+import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/featureFlag";
 
 let initialized = false;
 
@@ -62,6 +67,9 @@ export function initDiscoveryEngine(): void {
   registerConnector(erisaConnector);
   initialized = true;
   kickoffErisaIndexHydration();
+  if (isHealthPlanPersistentSourceEnabled()) {
+    kickoffHealthPlanIndexHydration();
+  }
 }
 
 export interface DiscoverOptions extends ParseSearchIntentOptions {
@@ -107,6 +115,9 @@ export async function discoverOrganizations(
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
   await ensureErisaIndexHydrated();
+  if (isHealthPlanPersistentSourceEnabled()) {
+    await ensureHealthPlanIndexHydrated();
+  }
   getConnectors();
   const intent = parseSearchIntent(query, options);
   const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
