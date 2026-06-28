@@ -24,24 +24,20 @@ import {
 import { formatSourceSummary } from "@/lib/search/sourceSummary";
 import { saveWorkspace } from "@/lib/intelligence/session";
 import {
-  loadResultDensity,
-  saveResultDensity,
-  type ResultDensity,
-} from "@/lib/intelligence/resultDensity";
+  displayModeToDensity,
+  loadResultsDisplayMode,
+  saveResultsDisplayMode,
+  type ResultsDisplayMode,
+} from "@/lib/intelligence/resultsView";
 import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
-import {
-  DEFAULT_RESULT_VIEW,
-  type ResultView,
-} from "@/lib/discovery/discoveryRows";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { DiscoveryCoverageNote } from "@/app/components/DiscoveryCoverageNote";
 import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnosticsPanel";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
-import { ResultViewToggle } from "@/app/components/ResultViewToggle";
-import { DiscoveryView } from "@/app/components/DiscoveryView";
+import { ResultsViewControls } from "@/app/components/ResultsViewControls";
 import { ResultsList } from "@/app/components/ResultsList";
-import { ResultDensityToggle } from "@/app/components/ResultDensityToggle";
+import { ResultsTable } from "@/app/components/ResultsTable";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
   ResultsEmptyState,
@@ -120,8 +116,8 @@ export function ResultsClient() {
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<ResultView>(DEFAULT_RESULT_VIEW);
-  const [density, setDensity] = useState<ResultDensity>("comfortable");
+  const [displayMode, setDisplayMode] = useState<ResultsDisplayMode>("cards");
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
     null,
   );
@@ -291,7 +287,7 @@ export function ResultsClient() {
   }, []);
 
   useEffect(() => {
-    setDensity(loadResultDensity());
+    setDisplayMode(loadResultsDisplayMode());
   }, []);
 
   useEffect(() => {
@@ -386,6 +382,8 @@ export function ResultsClient() {
     allProspects.find((p) => p.id === selectedId) ??
     null;
 
+  const density = displayModeToDensity(displayMode);
+
   function handleSearchSubmit(q: string) {
     const next = resolveSearchState({ ...searchState, query: q });
     setSearchState(next);
@@ -408,9 +406,9 @@ export function ResultsClient() {
     syncUrl(next);
   }
 
-  function handleDensityChange(next: ResultDensity) {
-    setDensity(next);
-    saveResultDensity(next);
+  function handleDisplayModeChange(next: ResultsDisplayMode) {
+    setDisplayMode(next);
+    saveResultsDisplayMode(next);
   }
 
   const matchCatalogSummary =
@@ -430,7 +428,7 @@ export function ResultsClient() {
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
   const coverageSummary = coverage
-    ? ` · coverage ${coverage.coveragePercent}% · confidence ${Math.round(coverage.confidence * 100)}%`
+    ? ` · ${coverage.coveragePercent}% coverage · ${Math.round(coverage.confidence * 100)}% confidence`
     : "";
   const hasQuery = Boolean(searchState.query.trim());
   const showResults =
@@ -438,186 +436,181 @@ export function ResultsClient() {
     (phase === "enriching" || phase === "ready" || phase === "mock-loading");
   const showMockSkeleton =
     phase === "mock-loading" && allProspects.length === 0;
+  const isFilteredSubset = filtered.length !== allProspects.length;
+  const enriching = phase === "enriching";
 
   return (
-    <div className="relative min-h-full overflow-x-hidden bg-[linear-gradient(180deg,#020b16_0%,#052335_18rem,#0b4a53_24rem,#f7f8fa_35rem)]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_50%_0%,rgba(45,212,191,0.18),transparent_32%),radial-gradient(circle_at_82%_8%,rgba(37,99,235,0.18),transparent_24%)]"
-      />
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#020b16]/78 text-white backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-[90rem] items-center justify-between gap-4 px-4 lg:px-8">
-          <Link
-            href="/"
-            className="shrink-0 [&_span:first-child]:text-white"
-          >
-            <ScoutBrand size={32} />
+    <div className="flex min-h-full flex-col bg-surface text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-md">
+        <div className="mx-auto flex h-12 max-w-[90rem] items-center justify-between gap-4 px-4 lg:px-8">
+          <Link href="/" className="shrink-0">
+            <ScoutBrand size={28} />
           </Link>
-          <div className="hidden flex-1 justify-center sm:flex">
-            <ResultsSearchBar
-              value={searchState.query}
-              onSubmit={handleSearchSubmit}
-              compact
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="label-mono hidden text-white/55 md:inline">
-              Results
-            </span>
+          <span className="label-mono hidden text-muted-2 sm:inline">
+            Organization search
+          </span>
+          <div className="flex items-center gap-2">
             <SoundToggle />
             <ThemeToggle />
           </div>
         </div>
-        <div className="border-t border-white/10 px-4 py-3 sm:hidden">
+      </header>
+
+      <div className="results-search-band sticky top-12 z-30 border-b backdrop-blur-md">
+        <div className="mx-auto max-w-[90rem] px-4 py-3 lg:px-8 lg:py-4">
           <ResultsSearchBar
             value={searchState.query}
             onSubmit={handleSearchSubmit}
+            persistent
           />
         </div>
-      </header>
+      </div>
 
-      <div className="relative z-10 mx-auto max-w-[90rem] px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
+      <div className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-4 lg:px-8 lg:py-6">
         {!hasQuery ? (
           <ResultsEmptyState variant="no-query" />
         ) : (
-          <>
-            <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#06141f]/82 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between sm:gap-4 sm:p-5">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-white/80">{summary}</p>
-                {showResults || phase === "ready" ? (
-                  <p className="mt-1 font-mono text-xs text-white/50">
-                    {sourceSummary}
-                    {coverageSummary}
-                    {filtered.length !== allProspects.length ? (
-                      <>
-                        {" "}
-                        ·{" "}
-                        <span className="text-white/70">
-                          {filtered.length} after filters
-                        </span>
-                      </>
-                    ) : null}
-                  </p>
-                ) : null}
-                {discoveryMetadata?.connectorCandidates ? (
-                  <div className="mt-3">
-                    <DiscoveryDiagnosticsPanel
-                      metadata={discoveryMetadata}
-                      displayedCount={filtered.length}
-                    />
+          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+            <ResultsFilterRail
+              state={searchState}
+              onChange={handleFiltersChange}
+              prospects={allProspects}
+              catalogFacets={catalogFacets}
+            />
+
+            <main className="min-w-0 flex-1">
+              <div className="results-toolbar mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                    {filtered.length.toLocaleString()} result
+                    {filtered.length === 1 ? "" : "s"}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted">{summary}</p>
+                  {showResults || phase === "ready" ? (
+                    <p className="mt-1 font-mono text-xs text-muted-2">
+                      {sourceSummary}
+                      {coverageSummary}
+                      {isFilteredSubset ? (
+                        <>
+                          {" "}
+                          · {allProspects.length.toLocaleString()} before filters
+                        </>
+                      ) : null}
+                      {matchCatalogSummary && indexedOrganizations != null ? (
+                        <>
+                          {" "}
+                          · {indexedOrganizations.toLocaleString()} indexed
+                        </>
+                      ) : null}
+                      {marketCoveragePercent != null ? (
+                        <> · {marketCoveragePercent}% market coverage</>
+                      ) : null}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                  <ResultsViewControls
+                    value={displayMode}
+                    onChange={handleDisplayModeChange}
+                  />
+                  <div className="flex items-center gap-2">
+                    <span className="label-mono shrink-0 text-muted-2">Sort</span>
+                    <select
+                      value={sort}
+                      onChange={(e) =>
+                        handleSortChange(e.target.value as ResultsSortKey)
+                      }
+                      className="min-w-[10rem] rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent"
+                      aria-label="Sort results"
+                    >
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ) : hasQuery && phase !== "idle" ? (
-                  <div className="mt-3 overflow-x-auto">
-                    <ProviderStatusBar
-                      statuses={providerStatuses}
-                      planned={plannedProviders}
-                    />
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <ResultViewToggle value={view} onChange={setView} />
-                <ResultDensityToggle value={density} onChange={handleDensityChange} />
-                <div className="flex items-center gap-2">
-                <span className="label-mono shrink-0 text-white/55">Sort</span>
-                <select
-                  value={sort}
-                  onChange={(e) => handleSortChange(e.target.value as ResultsSortKey)}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent sm:flex-none"
-                  aria-label="Sort results"
-                >
-                  {SORT_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex flex-col gap-4 lg:mt-6 lg:flex-row lg:gap-6">
-              <ResultsFilterRail
-                state={searchState}
-                onChange={handleFiltersChange}
-                prospects={allProspects}
-                catalogFacets={catalogFacets}
-              />
-
-              <div className="min-w-0 flex-1">
-                {showMockSkeleton ? <ResultsLoadingState compact /> : null}
-
-                {phase === "error" ? (
-                  <ResultsErrorState
-                    message={error ?? "Search failed."}
-                    onRetry={() => fetchProgressive(searchState)}
+              {hasQuery &&
+              phase !== "idle" &&
+              !discoveryMetadata?.connectorCandidates ? (
+                <div className="mb-4 overflow-x-auto">
+                  <ProviderStatusBar
+                    statuses={providerStatuses}
+                    planned={plannedProviders}
                   />
-                ) : null}
+                </div>
+              ) : null}
 
-                {phase === "ready" && filtered.length === 0 && !showMockSkeleton ? (
-                  allProspects.length === 0 && discoveryMetadata ? (
-                    <DiscoveryCoverageNote metadata={discoveryMetadata} emphasis />
-                  ) : (
-                    <ResultsEmptyState
-                      variant={
-                        allProspects.length === 0 ? "no-results" : "filtered-out"
-                      }
-                    />
-                  )
-                ) : null}
+              {discoveryMetadata?.connectorCandidates ? (
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDiagnostics((v) => !v)}
+                    className="font-mono text-[0.6875rem] text-muted-2 transition hover:text-muted"
+                  >
+                    {showDiagnostics ? "Hide" : "Show"} discovery diagnostics
+                  </button>
+                  {showDiagnostics ? (
+                    <div className="mt-2">
+                      <DiscoveryDiagnosticsPanel
+                        metadata={discoveryMetadata}
+                        displayedCount={filtered.length}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
-                {showResults && filtered.length > 0 ? (
-                  <div className="flex flex-col gap-3 sm:gap-4">
+              {showMockSkeleton ? <ResultsLoadingState compact /> : null}
+
+              {phase === "error" ? (
+                <ResultsErrorState
+                  message={error ?? "Search failed."}
+                  onRetry={() => fetchProgressive(searchState)}
+                />
+              ) : null}
+
+              {phase === "ready" && filtered.length === 0 && !showMockSkeleton ? (
+                allProspects.length === 0 && discoveryMetadata ? (
+                  <DiscoveryCoverageNote metadata={discoveryMetadata} emphasis />
+                ) : (
+                  <ResultsEmptyState
+                    variant={
+                      allProspects.length === 0 ? "no-results" : "filtered-out"
+                    }
+                  />
+                )
+              ) : null}
+
+              {showResults && filtered.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {discoveryMetadata ? (
                     <DiscoveryCoverageNote metadata={discoveryMetadata} />
-                    {matchCatalogSummary ? (
-                      <p className="font-mono text-xs text-muted-2">
-                        Showing{" "}
-                        {matchCatalogSummary.totalReturned.toLocaleString()} of{" "}
-                        {matchCatalogSummary.totalAfterRank.toLocaleString()}{" "}
-                        matches
-                        {indexedOrganizations != null ? (
-                          <>
-                            {" "}
-                            · {indexedOrganizations.toLocaleString()} indexed
-                          </>
-                        ) : null}
-                        {marketSize?.available &&
-                        marketSize.estimatedEstablishments != null ? (
-                          <>
-                            {" "}
-                            ·{" "}
-                            {marketSize.estimatedEstablishments.toLocaleString()}{" "}
-                            est. market
-                          </>
-                        ) : null}
-                        {marketCoveragePercent != null ? (
-                          <> · {marketCoveragePercent}% coverage</>
-                        ) : null}
-                      </p>
-                    ) : null}
+                  ) : null}
 
-                    {view === "discovery" ? (
-                      <DiscoveryView
-                        prospects={filtered}
-                        density={density}
-                        enriching={phase === "enriching"}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                      />
-                    ) : (
-                      <ResultsList
-                        prospects={filtered}
-                        density={density}
-                        enriching={phase === "enriching"}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                      />
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </>
+                  {displayMode === "table" ? (
+                    <ResultsTable
+                      prospects={filtered}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                    />
+                  ) : (
+                    <ResultsList
+                      prospects={filtered}
+                      density={density}
+                      enriching={enriching}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                    />
+                  )}
+                </div>
+              ) : null}
+            </main>
+          </div>
         )}
       </div>
 

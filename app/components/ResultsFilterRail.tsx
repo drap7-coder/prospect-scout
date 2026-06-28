@@ -572,7 +572,7 @@ export function ResultsFilterRail({
       </button>
 
       <aside className={`${mobileOpen ? "block" : "hidden"} lg:block`}>
-        <div className="filters-panel max-h-[min(70vh,32rem)] overflow-y-auto rounded-xl border px-3 py-2 backdrop-blur-xl lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-6rem)]">
+        <div className="filters-panel max-h-[min(70vh,32rem)] overflow-y-auto rounded-xl border px-3 py-2 backdrop-blur-xl lg:sticky lg:top-[8rem] lg:max-h-[calc(100vh-9rem)]">
           <p className="label-mono px-2 pt-2 text-accent-cyan/90">Filters</p>
           <p className="mt-1 px-2 text-[0.6875rem] leading-relaxed text-white/55">
             Selectors re-run search · catalog counts in selectors
