@@ -259,11 +259,24 @@ Per-connector backup/restore prevents one connector failure from wiping another 
 
 | Surface | Location |
 |---------|----------|
+| Deployment & runtime snapshot | `/diagnostics` · `/warehouse` |
+| JSON runtime API | `GET /api/diagnostics/runtime` |
 | Warehouse manifest & summary | `getOrganizationWarehouseManifest()`, `/warehouse` |
 | Connector coverage detail | `computeWarehouseConnectorCoverageDetails()`, `/warehouse/coverage` |
 | Connector import status | `importOrganizationWarehouse()` outcomes per connector |
 | Duplicate org ids | `countDuplicateOrganizationIds()` — must stay **0** |
 | Search pipeline trace | `traceWarehouseSearchPipeline()` |
+
+The runtime API returns git commit, deployment environment, `ORG_WAREHOUSE` status, per-connector org counts, and warnings when the live site may be on bootstrap seed or misconfigured.
+
+Compare local vs production:
+
+```bash
+curl -s http://localhost:3000/api/diagnostics/runtime | jq '.deployment.gitCommitShort, .warehouse'
+curl -s https://your-app.vercel.app/api/diagnostics/runtime | jq '.deployment.gitCommitShort, .warehouse'
+```
+
+On Vercel, `VERCEL_GIT_COMMIT_SHA` is set automatically. Non-Vercel builds stamp `GIT_COMMIT_SHA` during `npm run build`.
 
 Connector failures must remain **isolated** (per-connector restore) and **visible** (status `failed` / `warning` with error message in import result and diagnostics UI).
 

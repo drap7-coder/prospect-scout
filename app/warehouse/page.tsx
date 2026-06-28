@@ -2,6 +2,8 @@ import {
   computeOrganizationWarehouseDiagnostics,
   WAREHOUSE_CONNECTORS,
 } from "@/lib/import/warehouse";
+import { computeRuntimeDiagnostics } from "@/lib/runtime";
+import { RuntimeDiagnosticsPanel } from "@/app/components/RuntimeDiagnosticsPanel";
 
 export const metadata = {
   title: "Organization Warehouse",
@@ -21,6 +23,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export default async function OrganizationWarehousePage() {
   const warehouse = computeOrganizationWarehouseDiagnostics();
+  const runtime = computeRuntimeDiagnostics();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -36,6 +39,8 @@ export default async function OrganizationWarehousePage() {
       </header>
 
       <div className="flex flex-col gap-6">
+        <RuntimeDiagnosticsPanel runtime={runtime} />
+
         <section className="card-float p-5">
           <h2 className="mb-3 text-lg font-medium">Warehouse Summary</h2>
           <StatRow label="Runtime mode" value={warehouse.runtimeMode} />

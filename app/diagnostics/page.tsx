@@ -11,6 +11,8 @@ import { parseSearchIntent } from "@/lib/discovery/intent";
 import { computeOrganizationWarehouseDiagnostics } from "@/lib/import/warehouse";
 import { computeHealthPlanCatalogDiagnostics } from "@/lib/import/healthPlans/healthPlanDiagnostics";
 import { computeManufacturerConnectorDiagnostics } from "@/lib/import/manufacturers/diagnostics";
+import { computeRuntimeDiagnostics } from "@/lib/runtime";
+import { RuntimeDiagnosticsPanel } from "@/app/components/RuntimeDiagnosticsPanel";
 
 export const metadata = {
   title: "Discovery Diagnostics",
@@ -57,6 +59,7 @@ export default async function DiagnosticsPage() {
   const warehouse = computeOrganizationWarehouseDiagnostics();
   const healthPlans = computeHealthPlanCatalogDiagnostics();
   const manufacturers = computeManufacturerConnectorDiagnostics();
+  const runtime = computeRuntimeDiagnostics();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -71,6 +74,8 @@ export default async function DiagnosticsPage() {
       </header>
 
       <div className="flex flex-col gap-6">
+        <RuntimeDiagnosticsPanel runtime={runtime} />
+
         <Section title="Coverage">
           <StatRow label="Total organizations (canonical)" value={report.coverage.total.toLocaleString()} />
           <StatRow label="Catalog confidence" value={`${Math.round(report.coverage.confidence * 100)}%`} />
