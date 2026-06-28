@@ -1178,3 +1178,89 @@ body {
     animation: none;
   }
 }
+
+/* ---- Organization intelligence modules ---- */
+.intel-modules-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.intel-module {
+  border: 1px solid var(--result-card-chip-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--result-card-chip-bg) 80%, transparent);
+  padding: 0.625rem 0.75rem;
+}
+
+.intel-module--compact {
+  padding: 0.5rem 0.625rem;
+}
+
+.intel-module__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.intel-module__icon {
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--accent-cyan) 88%, white);
+}
+
+.intel-module__title {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--result-card-text);
+}
+
+.intel-module__metrics {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.intel-module__metric {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--result-card-text) 88%, transparent);
+}
+
+.intel-module__metric::before {
+  content: "• ";
+  color: color-mix(in srgb, var(--accent-cyan) 70%, transparent);
+}
+
+.intel-module__metric-value {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.intel-module__metric-label {
+  color: var(--result-card-muted);
+}
+
+.intel-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.intel-detail__provenance {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}

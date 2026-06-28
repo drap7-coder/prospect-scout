@@ -12,6 +12,7 @@ import { ExecutiveThesis } from "./executive/ExecutiveThesis";
 import { OrganizationTypeRenderer } from "./executive/OrganizationTypeRenderer";
 import { VerifiedData } from "./executive/VerifiedData";
 import { CardActions } from "./executive/CardActions";
+import { IntelligenceModulesPanel } from "./intelligence/IntelligenceModulesPanel";
 import {
   isNonprofitProspect,
   extractEinFromProspectId,
@@ -104,6 +105,14 @@ export function ResultCard({
       </header>
 
       <ExecutiveThesis thesis={card.thesis} />
+
+      <div onClick={(e) => e.stopPropagation()}>
+        <IntelligenceModulesPanel
+          profile={prospect.organizationIntelligence}
+          compact={isCompact}
+          onSelectModule={() => onViewDetails()}
+        />
+      </div>
 
       <OrganizationTypeRenderer model={card} showActivity={!isCompact} />
 

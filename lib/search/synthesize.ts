@@ -9,6 +9,7 @@ import type {
 } from "@/lib/search/types";
 import { displayOrganizationType, organizationTypeLabel } from "@/lib/taxonomy";
 import { buildMatchReasons } from "@/lib/intelligence/matchReasons";
+import { buildIntelligenceForProspect } from "@/lib/intelligence/framework/buildProfile";
 import { ANY_REGION, regionLabel } from "./regions";
 
 /**
@@ -193,6 +194,8 @@ export function synthesizeProspect(
     ? organizationTypeLabel(prospect.organizationTypeId)
     : displayOrganizationType(prospect.buyerPack);
 
+  const intelligence = buildIntelligenceForProspect(prospect);
+
   return {
     id: prospect.id,
     name: prospect.name,
@@ -227,5 +230,7 @@ export function synthesizeProspect(
     ein: prospect.ein,
     sourceRecords: prospect.sourceRecords ?? [],
     erisaIntel: prospect.erisaIntel,
+    organizationIntelligence: intelligence.organizationIntelligence,
+    relationshipGraph: intelligence.relationshipGraph,
   };
 }

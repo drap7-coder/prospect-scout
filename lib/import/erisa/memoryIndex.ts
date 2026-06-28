@@ -178,3 +178,36 @@ export function resolveErisaOrganizationId(
       : undefined)
   );
 }
+
+/** Resolve Form 5500 filing rows for a prospect / organization id. */
+export function getErisaFilingsForProspect(
+  prospectId: string,
+  ein?: string,
+  options?: { organizationName?: string; erisaIntelPresent?: boolean },
+): import("./types").ErisaCsvRow[] {
+  const direct = orgById.get(prospectId);
+  if (direct) return direct.rows;
+
+  const fromId = prospectId.match(/^erisa-(\d{9})$/);
+  const resolvedEin = ein?.replace(/\D/g, "").slice(0, 9) ?? fromId?.[1];
+  if (resolvedEin) {
+    const orgId = orgIdByEin.get(resolvedEin);
+    if (orgId) return orgById.get(orgId)?.rows ?? [];
+  }
+
+  if (options?.erisaIntelPresent && options.organizationName) {
+    const nameKey = normalizeSponsorNameKey(options.organizationName, null);
+    for (const entry of orgById.values()) {
+      const entryKey = normalizeSponsorNameKey(entry.organization.canonicalName, null);
+      if (entryKey === nameKey) return entry.rows;
+    }
+  }
+
+  return [];
+}
+
+export function getErisaIndexedEntry(
+  organizationId: string,
+): IndexedErisaOrg | undefined {
+  return orgById.get(organizationId);
+}

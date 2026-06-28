@@ -33,6 +33,7 @@
     "import:health-plans": "node --import tsx scripts/importHealthPlans.ts",
     "import:health-plans:full": "node --import tsx scripts/importCmsHealthPlans.ts",
     "test:health-plans": "node --import tsx scripts/healthPlanChecks.ts",
+    "test:intelligence": "node --import tsx scripts/intelligenceFrameworkChecks.ts",
     "test:db": "node --import tsx scripts/dbSchemaChecks.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

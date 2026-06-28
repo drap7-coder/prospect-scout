@@ -8,6 +8,6 @@ export {
   markErisaIndexLoaded,
   resetErisaHydrationCache,
 } from "./hydrateIndex";
-export { searchErisaIndex, getErisaIndexSize, clearErisaIndex, indexErisaRows } from "./memoryIndex";
+export { searchErisaIndex, getErisaIndexSize, clearErisaIndex, indexErisaRows, getErisaFilingsForProspect, getErisaIndexedEntry } from "./memoryIndex";
 export { parseErisaQueryConstraints } from "./queryIntent";
 export { organizationFromErisaRow, buildErisaCardIntel } from "./organizationFromFiling";

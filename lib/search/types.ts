@@ -10,6 +10,8 @@
 import type { HealthPlanType } from "@/lib/discovery/healthPlanType";
 import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
 import type { ErisaCardIntel } from "@/lib/import/erisa/types";
+import type { OrganizationIntelligenceProfile } from "@/lib/intelligence/framework/types";
+import type { OrganizationRelationshipGraph } from "@/lib/intelligence/relationships/types";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -358,6 +360,10 @@ export interface Prospect {
   sourceRecords: ProspectSourceRecord[];
   /** Form 5500 / ERISA plan sponsor intelligence when present. */
   erisaIntel?: ErisaCardIntel;
+  /** Optional intelligence modules synthesized from imported datasets. */
+  organizationIntelligence?: OrganizationIntelligenceProfile;
+  /** Relationship edges contributed by intelligence modules. */
+  relationshipGraph?: OrganizationRelationshipGraph;
 }
 
 /** Response shape returned by `/api/search`. */

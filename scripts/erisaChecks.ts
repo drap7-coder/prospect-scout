@@ -151,10 +151,20 @@ await check("card intelligence includes ERISA Form 5500 details", () => {
   assert.ok(erisaProspect, "expected ERISA prospect with participant count");
   assert.equal(erisaProspect.erisaIntel?.sourceLabel, "ERISA Form 5500");
 
-  const card = synthesizeIntelligenceCard(erisaProspect);
-  assert.ok(
-    card.intelligence.some((b) => /Form 5500|participants|Self-funded/i.test(b.text)),
+  const benefits = erisaProspect.organizationIntelligence?.modules.find(
+    (entry) => entry.id === "benefits",
   );
+  assert.ok(benefits, "expected Benefits Intelligence module on prospect");
+  assert.ok(
+    benefits!.summaryMetrics.some((metric) =>
+      /ERISA plan participants|benefit plan|Latest filing/i.test(
+        `${metric.label} ${metric.value}`,
+      ),
+    ),
+  );
+  assert.ok(benefits!.provenance.some((p) => /ERISA Form 5500/i.test(p.sourceLabel)));
+
+  const card = synthesizeIntelligenceCard(erisaProspect);
   assert.ok(card.dataSources.some((d) => d.id === "erisa" || /ERISA/i.test(d.label)));
 });
 

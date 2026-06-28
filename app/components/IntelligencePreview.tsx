@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Prospect } from "@/lib/search/types";
+import type { IntelligenceModuleId } from "@/lib/intelligence/framework/types";
 import {
   confidenceTone,
   freshnessTone,
@@ -16,6 +17,8 @@ import {
   groupEvidenceBySource,
   prospectFreshness,
 } from "@/lib/intelligence/evidence";
+import { IntelligenceModulesPanel } from "./intelligence/IntelligenceModulesPanel";
+import { IntelligenceModuleDetailPanel } from "./intelligence/IntelligenceModuleDetailPanel";
 
 function confidenceLabel(c: "high" | "medium" | "low"): string {
   if (c === "high") return "High";
@@ -34,6 +37,8 @@ export function IntelligencePreview({
   onClose: () => void;
   variant?: "drawer" | "panel";
 }) {
+  const [selectedModuleId, setSelectedModuleId] = useState<IntelligenceModuleId | null>(null);
+
   useEffect(() => {
     if (!open || variant === "panel") return;
     function onKey(e: KeyboardEvent) {
@@ -42,6 +47,18 @@ export function IntelligencePreview({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose, variant]);
+
+  useEffect(() => {
+    setSelectedModuleId(prospect?.organizationIntelligence?.modules[0]?.id ?? null);
+  }, [prospect?.id, prospect?.organizationIntelligence?.modules]);
+
+  const selectedModule = useMemo(
+    () =>
+      prospect?.organizationIntelligence?.modules.find(
+        (module) => module.id === selectedModuleId,
+      ) ?? null,
+    [prospect?.organizationIntelligence?.modules, selectedModuleId],
+  );
 
   if (!open || !prospect) return null;
 
@@ -112,6 +129,17 @@ export function IntelligencePreview({
             {listReason}
           </p>
         </section>
+
+        {prospect.organizationIntelligence?.modules.length ? (
+          <section className="mt-4 space-y-4">
+            <IntelligenceModulesPanel
+              profile={prospect.organizationIntelligence}
+              selectedModuleId={selectedModuleId}
+              onSelectModule={setSelectedModuleId}
+            />
+            <IntelligenceModuleDetailPanel module={selectedModule} />
+          </section>
+        ) : null}
 
         <section className="mt-4 rounded-xl border border-border/80 bg-background/50 p-4">
           <h3 className="label-mono">Why now</h3>
