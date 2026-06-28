@@ -37,6 +37,7 @@ import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnostics
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultsViewControls } from "@/app/components/ResultsViewControls";
 import { ResultsList } from "@/app/components/ResultsList";
+import { AlphabetBrowseView } from "@/app/components/AlphabetBrowseView";
 import { ResultsTable } from "@/app/components/ResultsTable";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
@@ -102,7 +103,7 @@ export function ResultsClient() {
   const [phase, setPhase] = useState<FetchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [displayMode, setDisplayMode] = useState<ResultsDisplayMode>("cards");
+  const [displayMode, setDisplayMode] = useState<ResultsDisplayMode>("browse");
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
     null,
@@ -518,6 +519,14 @@ export function ResultsClient() {
                   {displayMode === "table" ? (
                     <ResultsTable
                       prospects={filtered}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                    />
+                  ) : displayMode === "browse" ? (
+                    <AlphabetBrowseView
+                      prospects={filtered}
+                      density={density}
+                      enriching={enriching}
                       selectedId={selectedId}
                       onSelect={setSelectedId}
                     />

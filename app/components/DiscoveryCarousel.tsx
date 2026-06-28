@@ -13,6 +13,7 @@ export function DiscoveryCarousel({
   enriching,
   selectedId,
   onSelect,
+  variant = "default",
 }: {
   row: DiscoveryRow;
   rankOf: (id: string) => number;
@@ -20,6 +21,7 @@ export function DiscoveryCarousel({
   enriching: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  variant?: "default" | "alphabet";
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -65,16 +67,32 @@ export function DiscoveryCarousel({
   return (
     <section aria-labelledby={headingId} className="discovery-row">
       <div className="mb-2 flex items-end justify-between gap-3 pr-1">
-        <div className="min-w-0">
-          <h3
-            id={headingId}
-            className="text-sm font-semibold tracking-[-0.01em] text-foreground"
-          >
-            {row.title}
-          </h3>
-          <p className="font-mono text-[0.625rem] text-muted-2">
-            {row.description} · {row.prospects.length}
-          </p>
+        <div className="min-w-0 flex items-end gap-3">
+          {variant === "alphabet" ? (
+            <span
+              aria-hidden
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 font-mono text-lg font-semibold text-accent-cyan"
+            >
+              {row.title}
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            <h3
+              id={headingId}
+              className={
+                variant === "alphabet"
+                  ? "sr-only"
+                  : "text-sm font-semibold tracking-[-0.01em] text-foreground"
+              }
+            >
+              {variant === "alphabet" ? `Letter ${row.title}` : row.title}
+            </h3>
+            <p className="font-mono text-[0.625rem] text-muted-2">
+              {variant === "alphabet"
+                ? row.description
+                : `${row.description} · ${row.prospects.length}`}
+            </p>
+          </div>
         </div>
         <div className="hidden shrink-0 items-center gap-1 md:flex">
           <button

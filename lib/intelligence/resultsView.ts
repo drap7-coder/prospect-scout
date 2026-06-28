@@ -4,40 +4,38 @@ import {
   type ResultDensity,
 } from "./resultDensity";
 
-export type ResultsDisplayMode = "cards" | "compact" | "table";
+export type ResultsDisplayMode = "browse" | "list" | "table";
 
 const STORAGE_KEY = "prospect-scout-results-view";
 
 export const RESULTS_VIEW_OPTIONS: { id: ResultsDisplayMode; label: string }[] =
   [
-    { id: "cards", label: "Cards" },
-    { id: "compact", label: "Compact" },
+    { id: "browse", label: "Browse" },
+    { id: "list", label: "List" },
     { id: "table", label: "Table" },
   ];
 
 export function loadResultsDisplayMode(): ResultsDisplayMode {
-  if (typeof window === "undefined") return "cards";
+  if (typeof window === "undefined") return "browse";
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (
-    stored === "cards" ||
-    stored === "compact" ||
-    stored === "table"
-  ) {
+  if (stored === "browse" || stored === "list" || stored === "table") {
     return stored;
   }
-  return loadResultDensity() === "compact" ? "compact" : "cards";
+  // Legacy keys from prior view toggle.
+  if (stored === "cards" || stored === "compact") return "browse";
+  return loadResultDensity() === "compact" ? "list" : "browse";
 }
 
 export function saveResultsDisplayMode(mode: ResultsDisplayMode): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, mode);
-  if (mode === "cards") {
+  if (mode === "browse") {
     saveResultDensity("comfortable");
-  } else if (mode === "compact") {
+  } else if (mode === "list") {
     saveResultDensity("compact");
   }
 }
 
 export function displayModeToDensity(mode: ResultsDisplayMode): ResultDensity {
-  return mode === "compact" ? "compact" : "comfortable";
+  return mode === "list" ? "compact" : "comfortable";
 }
