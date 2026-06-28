@@ -44,6 +44,7 @@ import {
   kickoffHealthPlanIndexHydration,
 } from "@/lib/import/healthPlans/hydrateIndex";
 import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/featureFlag";
+import { intentUsesWarehouse } from "@/lib/catalog/routing";
 import {
   discoverFromOrganizationWarehouse,
   shouldUseOrganizationWarehouse,
@@ -131,7 +132,7 @@ export async function discoverOrganizations(
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
 
-  if (readiness.useWarehouse) {
+  if (readiness.useWarehouse && intentUsesWarehouse(intent)) {
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
@@ -158,7 +159,7 @@ export function discoverOrganizationsSync(
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
 
-  if (shouldUseOrganizationWarehouse()) {
+  if (shouldUseOrganizationWarehouse() && intentUsesWarehouse(intent)) {
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
@@ -265,7 +266,7 @@ function discoverOrganizationsStagedWithReadiness(
   const started = performance.now();
   const warehouseMeta = warehouseDiscoveryInfo(readiness);
 
-  if (readiness.useWarehouse) {
+  if (readiness.useWarehouse && intentUsesWarehouse(intent)) {
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
     const metadata: DiscoveryMetadata = {
@@ -292,12 +293,18 @@ function discoverOrganizationsStagedWithReadiness(
 
   const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
 
-  const stagesRun: string[] = readiness.status.startsWith("bootstrap")
-    ? ["bootstrap-fallback", "multi-connector-discovery"]
-    : ["multi-connector-discovery"];
+  const stagesRun: string[] =
+    readiness.useWarehouse && !intentUsesWarehouse(intent)
+      ? ["catalog-live-discovery"]
+      : readiness.status.startsWith("bootstrap")
+        ? ["bootstrap-fallback", "multi-connector-discovery"]
+        : ["multi-connector-discovery"];
+  let fallbackReason: string | null =
+    readiness.useWarehouse && !intentUsesWarehouse(intent)
+      ? "Catalog routing: live discovery for this industry (warehouse covers other sectors)"
+      : readiness.reason;
   let result = runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
   let expanded = false;
-  let fallbackReason: string | null = readiness.reason;
 
   if (result.totalAfterRank < DISCOVERY_THRESHOLD) {
     const expansionNote = `Initial discovery returned ${result.totalAfterRank} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;

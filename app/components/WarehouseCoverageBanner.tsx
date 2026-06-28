@@ -1,6 +1,10 @@
 import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
 import type { Prospect } from "@/lib/search/types";
 import {
+  resolveCoverageForIntent,
+  coverageSummary,
+} from "@/lib/catalog";
+import {
   locationLabel,
   orgTypeLabel,
   type SearchState,
@@ -93,6 +97,13 @@ export function WarehouseCoverageBanner({
   const lastUpdated = warehouseLastUpdated(metadata, prospects);
   const warehouseStatus = metadata?.warehouse?.status;
   const activeFilters = activeFilterLabels(searchState);
+  const catalogCoverage = coverageSummary(
+    resolveCoverageForIntent({
+      sectorId: searchState.sector,
+      industryId: searchState.industry,
+      organizationTypeId: searchState.organizationType,
+    }),
+  );
   const typeLabel =
     orgTypeHint ??
     (searchState.organizationType
@@ -132,6 +143,19 @@ export function WarehouseCoverageBanner({
             </span>
           </>
         ) : null}
+        <span className="text-muted-2">·</span>
+        <span
+          className={`inline-flex rounded border px-1.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-wide ${
+            catalogCoverage.status === "warehouse"
+              ? "border-good/40 bg-good/10 text-good"
+              : catalogCoverage.status === "live-discovery"
+                ? "border-warn/40 bg-warn/10 text-warn"
+                : "border-border text-muted-2"
+          }`}
+          title={catalogCoverage.description}
+        >
+          {catalogCoverage.label}
+        </span>
         {warehouseStatus ? (
           <>
             <span className="text-muted-2">·</span>
