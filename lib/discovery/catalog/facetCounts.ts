@@ -30,7 +30,8 @@ export type FacetDimension =
   | "organizationType"
   | "canonicalOrganizationType"
   | "state"
-  | "region";
+  | "region"
+  | "classification";
 
 export interface CatalogFacetCounts {
   /** Total orgs in the indexed catalog (deduplicated). */
@@ -43,6 +44,8 @@ export interface CatalogFacetCounts {
   canonicalOrganizationType: Record<string, number>;
   state: Record<string, number>;
   region: Record<string, number>;
+  /** Keys are `namespace:id`, e.g. "health-plans:medicare_advantage". */
+  classification: Record<string, number>;
 }
 
 function regionMatches(org: Organization, regionId: string): boolean {
@@ -87,6 +90,7 @@ function orgMatchesScopedIntent(
 
   // Classification scope: exclude only orgs with a conflicting explicit classification.
   if (
+    exclude !== "classification" &&
     intent.classificationFilter &&
     org.classifications?.length &&
     !classificationMatchesIntent(org, intent)
@@ -143,6 +147,21 @@ function countByMultiField(
   return counts;
 }
 
+function countByClassifications(orgs: Organization[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const org of orgs) {
+    const classes = org.classifications ?? [];
+    const seen = new Set<string>();
+    for (const c of classes) {
+      const key = `${c.namespace}:${c.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
 /**
  * Compute facet counts from the full canonical catalog index.
  * Each dimension excludes its own filter (standard faceted search).
@@ -165,6 +184,9 @@ export function computeCatalogFacetCounts(intent: SearchIntent): CatalogFacetCou
   );
   const statePool = all.filter((org) => orgMatchesScopedIntent(org, intent, "state"));
   const regionPool = all.filter((org) => orgMatchesScopedIntent(org, intent, "region"));
+  const classificationPool = all.filter((org) =>
+    orgMatchesScopedIntent(org, intent, "classification"),
+  );
 
   return {
     catalogTotal: all.length,
@@ -178,6 +200,7 @@ export function computeCatalogFacetCounts(intent: SearchIntent): CatalogFacetCou
     ),
     state: countByMultiField(statePool, (o) => o.states),
     region: countByMultiField(regionPool, (o) => o.regions),
+    classification: countByClassifications(classificationPool),
   };
 }
 
@@ -204,6 +227,8 @@ export function catalogFacetCount(
       return facets.state[value] ?? 0;
     case "region":
       return facets.region[value] ?? 0;
+    case "classification":
+      return facets.classification[value] ?? 0;
     default:
       return 0;
   }
@@ -221,6 +246,7 @@ export function emptyFacetCounts(): CatalogFacetCounts {
     canonicalOrganizationType: empty,
     state: {},
     region: {},
+    classification: {},
   };
 }
 

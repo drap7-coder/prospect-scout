@@ -10,6 +10,8 @@ export function searchStateToDiscoveryIntent(state: SearchState): SearchIntent {
     industryId: resolved.industry,
     organizationTypeId: resolved.organizationType,
     state: resolved.state,
+    classificationNamespace: resolved.classificationNamespace,
+    classificationId: resolved.classificationId,
     region:
       resolved.location && resolved.location !== "nationwide"
         ? resolved.location

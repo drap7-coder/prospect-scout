@@ -41,6 +41,31 @@ const centeneIndexed = orgs.filter((o) =>
 assert.ok(centeneResults.totalReturned >= centeneIndexed * 0.8);
 assert.ok(centeneResults.totalReturned < orgs.length / 2);
 
+const withProvenance = orgs.filter((o) =>
+  o.classifications?.some((c) => c.provenance?.sourceConnector),
+);
+assert.ok(withProvenance.length > orgs.length * 0.5, "majority of HP orgs have classification provenance");
+
+const paMaIntent = parseSearchIntent("medicare advantage plans in pennsylvania", {
+  state: "PA",
+  classificationNamespace: "health-plans",
+  classificationId: "medicare_advantage",
+});
+const paMaExpected = orgs.filter(
+  (o) =>
+    o.states.includes("PA") &&
+    o.classifications?.some(
+      (c) => c.namespace === "health-plans" && c.id === "medicare_advantage",
+    ),
+).length;
+if (paMaExpected > 0) {
+  const paMaResults = discoverFromOrganizationWarehouse(paMaIntent, { maxResults: 5000 });
+  assert.ok(
+    paMaResults.totalReturned >= paMaExpected * 0.9,
+    `PA MA search ${paMaResults.totalReturned} vs ${paMaExpected}`,
+  );
+}
+
 console.log("Organization model checks passed.");
 console.log(`  TX: ${txResults.totalReturned}/${txActual}`);
 console.log(`  MA: ${maResults.totalReturned}`);

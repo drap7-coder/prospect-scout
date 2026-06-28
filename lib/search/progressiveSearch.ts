@@ -14,6 +14,8 @@ export function searchRequestBody(state: SearchState): Record<string, unknown> {
     sellerContext: resolved.sellerContext,
     ownership: resolved.ownership,
     state: resolved.state,
+    classificationNamespace: resolved.classificationNamespace,
+    classificationId: resolved.classificationId,
     metro: resolved.metro,
     opStates: resolved.operatingStates.join(","),
     sort: resolved.sort,

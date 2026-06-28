@@ -9,6 +9,12 @@ import {
 } from "@/lib/db/schema";
 import type { OrganizationRow } from "@/lib/db/schema/organizations";
 import type { OrganizationSourceRow } from "@/lib/db/schema/organizationSources";
+import { legacyHealthPlanClassifications } from "@/lib/import/healthPlans/cms/classificationsFromCms";
+import type { SectorAttributes, OrganizationClassification } from "@/lib/organization/model";
+import type {
+  OrganizationMetric,
+  OrganizationRelationship,
+} from "@/lib/organization/intelligence";
 
 export interface WarehouseExternalIdInput {
   idType: string;
@@ -16,10 +22,41 @@ export interface WarehouseExternalIdInput {
   sourceConnector?: string;
 }
 
+type DbClassification = OrganizationClassification;
+type DbMetric = OrganizationMetric;
+type DbRelationship = OrganizationRelationship;
+
+function classificationsFromRow(row: OrganizationRow): OrganizationClassification[] {
+  const stored = (row.classifications as DbClassification[] | null) ?? [];
+  if (stored.length > 0) return stored;
+  return legacyHealthPlanClassifications(row.healthPlanType);
+}
+
+function geographyFromRow(row: OrganizationRow): Organization["geography"] {
+  const stored = row.geography as Organization["geography"];
+  if (stored?.states?.length || stored?.national) return stored;
+  const states = (row.states as string[]) ?? [];
+  const regions = (row.regions as string[]) ?? [];
+  if (states.length === 0 && regions.length === 0 && !row.headquarters) {
+    return stored ?? undefined;
+  }
+  return {
+    states,
+    regions,
+    headquarters: row.headquarters ?? null,
+    national: states.length === 0,
+  };
+}
+
 function organizationFromDbRow(
   row: OrganizationRow,
   sources: OrganizationSourceRow[],
 ): Organization {
+  const geography = geographyFromRow(row);
+  const classifications = classificationsFromRow(row);
+  const states = geography?.states?.length ? geography.states : ((row.states as string[]) ?? []);
+  const regions = geography?.regions?.length ? geography.regions : ((row.regions as string[]) ?? []);
+
   return finalizeOrganization({
     id: row.id,
     canonicalName: row.canonicalName,
@@ -31,8 +68,13 @@ function organizationFromDbRow(
     sectorId: row.sectorId ?? null,
     headquarters: row.headquarters ?? null,
     locations: (row.locations as string[]) ?? [],
-    states: (row.states as string[]) ?? [],
-    regions: (row.regions as string[]) ?? [],
+    states,
+    regions,
+    geography,
+    classifications,
+    sectorAttributes: ((row.sectorAttributes as SectorAttributes) ?? {}) as SectorAttributes,
+    metrics: (row.metrics as DbMetric[]) ?? [],
+    relationships: (row.relationships as DbRelationship[]) ?? [],
     ownership: row.ownership ?? null,
     employeeRange: row.employeeRange ?? null,
     memberEstimate: row.memberEstimate ?? null,
@@ -54,6 +96,17 @@ function organizationFromDbRow(
       (row.healthPlanType as Organization["healthPlanType"]) ?? undefined,
     tags: (row.tags as string[]) ?? [],
   });
+}
+
+function intelligencePayload(org: Organization) {
+  const normalized = finalizeOrganization(org);
+  return {
+    geography: normalized.geography ?? null,
+    classifications: normalized.classifications ?? [],
+    sectorAttributes: normalized.sectorAttributes ?? {},
+    metrics: normalized.metrics ?? [],
+    relationships: normalized.relationships ?? [],
+  };
 }
 
 /** Count persisted warehouse organizations for a buyer pack. */
@@ -100,6 +153,7 @@ export async function upsertWarehouseOrganization(
 ): Promise<void> {
   if (!isDatabaseConfigured()) return;
   const db = getDb();
+  const intel = intelligencePayload(org);
 
   await db
     .insert(organizations)
@@ -117,6 +171,11 @@ export async function upsertWarehouseOrganization(
       locations: org.locations,
       states: org.states,
       regions: org.regions,
+      geography: intel.geography,
+      classifications: intel.classifications,
+      sectorAttributes: intel.sectorAttributes,
+      metrics: intel.metrics,
+      relationships: intel.relationships,
       ownership: org.ownership,
       employeeRange: org.employeeRange,
       memberEstimate: org.memberEstimate,
@@ -142,6 +201,11 @@ export async function upsertWarehouseOrganization(
         locations: org.locations,
         states: org.states,
         regions: org.regions,
+        geography: intel.geography,
+        classifications: intel.classifications,
+        sectorAttributes: intel.sectorAttributes,
+        metrics: intel.metrics,
+        relationships: intel.relationships,
         ownership: org.ownership,
         employeeRange: org.employeeRange,
         memberEstimate: org.memberEstimate,

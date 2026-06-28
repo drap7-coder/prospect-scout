@@ -163,6 +163,8 @@ export class HeuristicIntentParser implements IntentParser {
       industryId: input.industryId ?? undefined,
       organizationTypeId: input.organizationTypeId ?? undefined,
       state: input.state ?? undefined,
+      classificationNamespace: input.classificationNamespace ?? undefined,
+      classificationId: input.classificationId ?? undefined,
       region: input.region,
     });
     const sectorId = structured.sectorId;

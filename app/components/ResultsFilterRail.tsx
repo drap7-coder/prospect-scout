@@ -21,6 +21,10 @@ import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { formatStructuredSelectionDisplay } from "@/lib/search/prospectListBuilder";
 import { industriesForSector } from "@/lib/taxonomy";
 import { sourceTone } from "@/lib/intelligence/colors";
+import {
+  classificationFilterKey,
+  HEALTH_PLAN_LOB_FILTERS,
+} from "@/lib/search/classificationFilters";
 
 function FilterSection({
   title,
@@ -226,6 +230,22 @@ export function ResultsFilterRail({
     return catalogFacets.state[stateId] ?? 0;
   }
 
+  function classificationCount(namespace: string, id: string): number {
+    const key = classificationFilterKey(namespace, id);
+    if (catalogFacets) return catalogFacets.classification[key] ?? 0;
+    return refineCount({ classificationNamespace: namespace, classificationId: id });
+  }
+
+  const showHealthPlanLob =
+    state.sector === "healthcare" ||
+    state.industry === "payers" ||
+    state.organizationType === "health-plan" ||
+    HEALTH_PLAN_LOB_FILTERS.some(
+      (f) =>
+        state.classificationNamespace === f.namespace &&
+        state.classificationId === f.id,
+    );
+
   function visible(countValue: number, selected: boolean): boolean {
     return showAllFilters || selected || countValue > 0;
   }
@@ -380,6 +400,54 @@ export function ResultsFilterRail({
               })),
             ]}
           />
+
+          {showHealthPlanLob ? (
+            <FilterSelect
+              label="Line of business"
+              value={
+                state.classificationNamespace && state.classificationId
+                  ? classificationFilterKey(
+                      state.classificationNamespace,
+                      state.classificationId,
+                    )
+                  : ""
+              }
+              onChange={(value) => {
+                if (!value) {
+                  onChange({
+                    classificationNamespace: null,
+                    classificationId: null,
+                  });
+                  return;
+                }
+                const sep = value.indexOf(":");
+                if (sep <= 0) return;
+                onChange({
+                  classificationNamespace: value.slice(0, sep),
+                  classificationId: value.slice(sep + 1),
+                });
+              }}
+              options={[
+                {
+                  value: "",
+                  label: "All lines of business",
+                  count: catalogFacets?.scopeTotal ?? prospects.length,
+                },
+                ...HEALTH_PLAN_LOB_FILTERS.filter((lob) =>
+                  visible(
+                    classificationCount(lob.namespace, lob.id),
+                    state.classificationNamespace === lob.namespace &&
+                      state.classificationId === lob.id,
+                  ),
+                ).map((lob) => ({
+                  value: classificationFilterKey(lob.namespace, lob.id),
+                  label: lob.label,
+                  count: classificationCount(lob.namespace, lob.id),
+                  dimmed: classificationCount(lob.namespace, lob.id) === 0,
+                })),
+              ]}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -519,6 +587,7 @@ export function ResultsFilterRail({
         state.organizationType ||
         state.location ||
         state.state ||
+        state.classificationNamespace ||
         state.ownership ||
         state.companySize ||
         state.freshness ||
@@ -533,6 +602,8 @@ export function ResultsFilterRail({
               organizationType: null,
               location: null,
               state: null,
+              classificationNamespace: null,
+              classificationId: null,
               ownership: null,
               companySize: null,
               freshness: null,
@@ -554,6 +625,7 @@ export function ResultsFilterRail({
     (state.organizationType ? 1 : 0) +
     (state.location ? 1 : 0) +
     (state.state ? 1 : 0) +
+    (state.classificationNamespace && state.classificationId ? 1 : 0) +
     (state.ownership ? 1 : 0) +
     (state.freshness ? 1 : 0) +
     (state.companySize ? 1 : 0) +

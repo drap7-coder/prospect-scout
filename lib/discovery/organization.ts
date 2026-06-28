@@ -16,6 +16,11 @@ import type {
   OrganizationGeography,
   SectorAttributes,
 } from "@/lib/organization/model";
+import type {
+  OrganizationMetric,
+  OrganizationRelationship,
+} from "@/lib/organization/intelligence";
+import { mergeMetrics, mergeRelationships } from "@/lib/organization/intelligence";
 import {
   dedupeClassifications,
   dedupeExternalIds,
@@ -83,6 +88,10 @@ export interface Organization {
   sectorAttributes?: SectorAttributes;
   /** Verified external identifiers indexed for merge and search. */
   externalIds?: OrganizationExternalId[];
+  /** Quantitative metrics (enrollment, covered lives, …) with provenance. */
+  metrics?: OrganizationMetric[];
+  /** Program participation, ownership, vendor contracts — ACO lives here, not in LOB classifications. */
+  relationships?: OrganizationRelationship[];
   /**
    * @deprecated Use classifications with namespace "health-plans". Synced during finalize for compat.
    */
@@ -369,6 +378,11 @@ export function mergeOrganizations(
     ...(normBase.externalIds ?? []),
     ...(normOther.externalIds ?? []),
   ]);
+  const mergedMetrics = mergeMetrics(normBase.metrics, normOther.metrics);
+  const mergedRelationships = mergeRelationships(
+    normBase.relationships,
+    normOther.relationships,
+  );
 
   return finalizeOrganization({
     id: base.id,
@@ -393,6 +407,8 @@ export function mergeOrganizations(
     parentDisplayName: pickBetterString(base.parentDisplayName ?? null, other.parentDisplayName ?? null),
     classifications: mergedClassifications,
     externalIds: mergedExternalIds,
+    metrics: mergedMetrics,
+    relationships: mergedRelationships,
     sectorAttributes: { ...(normOther.sectorAttributes ?? {}), ...(normBase.sectorAttributes ?? {}) },
     ownership: base.ownership ?? other.ownership,
     employeeRange: base.employeeRange ?? other.employeeRange,

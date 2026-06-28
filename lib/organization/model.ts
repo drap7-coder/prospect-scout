@@ -26,6 +26,15 @@ export interface OrganizationClassification {
   /** Stable id within the namespace, e.g. "medicare_advantage", "pharma". */
   id: string;
   label?: string;
+  /** Source provenance for this classification assertion. */
+  provenance?: {
+    sourceConnector: string;
+    sourceId?: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    refreshedAt?: string;
+    confidence?: number;
+  };
 }
 
 /** Verified external identifier attached to an organization record. */

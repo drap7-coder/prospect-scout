@@ -20,8 +20,14 @@ import { normalizeContractId } from "./parseCsv";
 import {
   applyHealthPlanWarehouseFields,
   buildHealthPlanOrganizationFields,
-  type HealthPlanMarketSegmentId,
 } from "../warehouseMapping";
+import {
+  classificationsFromCpscOrganization,
+  classificationsFromMedicaidEnrollmentRow,
+  classificationsFromMedicaidMcoRow,
+  classificationsFromQhpRow,
+} from "./classificationsFromCms";
+import type { OrganizationMetric } from "@/lib/organization/intelligence";
 
 function externalId(
   idType: HealthPlanExternalId["idType"],
@@ -30,24 +36,21 @@ function externalId(
   return { idType, idValue };
 }
 
-function cpscMarketSegment(org: CmsCpscOrganization): HealthPlanMarketSegmentId {
-  if (org.tags?.includes("part-d")) return "part_d";
-  return "medicare_advantage";
-}
-
 function finalizeHealthPlanOrganization(
   base: Organization,
   externalIds: HealthPlanExternalId[],
   fields: Omit<Parameters<typeof buildHealthPlanOrganizationFields>[0], "externalIds">,
   healthPlanType?: HealthPlanImportCandidate["healthPlanType"],
+  metrics?: OrganizationMetric[],
 ): HealthPlanImportCandidate {
   const warehouseFields = buildHealthPlanOrganizationFields({
     ...fields,
     externalIds,
   });
-  const organization = finalizeOrganization(
-    applyHealthPlanWarehouseFields(base, warehouseFields),
-  );
+  const organization = finalizeOrganization({
+    ...applyHealthPlanWarehouseFields(base, warehouseFields),
+    metrics: metrics?.length ? metrics : base.metrics,
+  });
   return {
     organization,
     externalIds,
@@ -116,9 +119,8 @@ export function candidateFromCpscOrganization(
       states: organization.states,
       regions: organization.regions,
       headquarters: organization.headquarters,
-      marketSegment: cpscMarketSegment(org),
-      marketSegmentLabel:
-        cpscMarketSegment(org) === "part_d" ? "Part D" : "Medicare Advantage",
+      classifications: classificationsFromCpscOrganization(org),
+      marketSegment: "medicare_advantage",
       national: organization.states.length === 0,
       tags: organization.tags,
     },
@@ -213,8 +215,19 @@ export function candidateFromQhpIssuer(
     {
       parentOrganization: issuer.parentOrganization,
       states: organization.states,
-      marketSegment: "aca_marketplace",
-      marketSegmentLabel: "ACA Marketplace",
+      classifications: classificationsFromQhpRow({
+        hiosIssuerId: issuer.hiosIssuerId,
+        hiosId: issuer.hiosIds[0] ?? issuer.hiosIssuerId,
+        issuerLegalName: issuer.issuerLegalName,
+        state: issuer.states[0] ?? "",
+        marketplace: issuer.marketplace,
+        serviceAreaIds: issuer.serviceAreaIds ?? [],
+        serviceAreaNames: issuer.serviceAreaNames ?? [],
+        marketCoverages: issuer.marketCoverages ?? [],
+        coverEntireState: [],
+        sourcePufs: issuer.sourcePufs ?? [],
+        datasetRowId: issuer.datasetRowIds[0] ?? issuer.id,
+      }),
       tags: organization.tags,
     },
     "aca_marketplace",
@@ -288,8 +301,14 @@ export function candidateFromMedicaidMco(
     {
       parentOrganization: mco.parentOrganization,
       states: organization.states,
-      marketSegment: "medicaid_managed_care",
-      marketSegmentLabel: "Medicaid MCO",
+      classifications: classificationsFromMedicaidMcoRow({
+        mcoId: mco.mcoIds[0] ?? mco.id,
+        organizationName: mco.organizationName,
+        parentOrganization: mco.parentOrganization,
+        state: mco.states[0] ?? "",
+        planType: mco.planType,
+        datasetRowId: mco.datasetRowIds[0] ?? mco.id,
+      }),
       tags: organization.tags,
     },
     "medicaid_managed_care",
@@ -366,17 +385,48 @@ export function candidateFromMedicaidEnrollmentPlan(
     tags: [...new Set([...(existing?.tags ?? []), "medicaid", "enrollment"])],
   };
 
+  const enrollmentMetrics: OrganizationMetric[] =
+    plan.enrollment > 0
+      ? [
+          {
+            id: "enrollment",
+            namespace: "health-plans",
+            value: plan.enrollment,
+            unit: "lives",
+            asOfDate: plan.reportingPeriod,
+            label: "Medicaid enrollment",
+            provenance: {
+              sourceConnector: CMS_MEDICAID_ENROLLMENT_CONNECTOR_ID,
+              sourceName: CMS_MEDICAID_ENROLLMENT_SOURCE_NAME,
+              sourceId: plan.planId,
+              refreshedAt: new Date().toISOString(),
+              confidence: 0.9,
+            },
+          },
+        ]
+      : [];
+
   return finalizeHealthPlanOrganization(
     organization,
     externalIds,
     {
       parentOrganization: plan.parentOrganization,
       states: organization.states,
-      marketSegment: "medicaid_managed_care",
-      marketSegmentLabel: "Medicaid Enrollment Plan",
+      classifications: classificationsFromMedicaidEnrollmentRow({
+        planId: plan.planId,
+        organizationName: plan.organizationName,
+        parentOrganization: plan.parentOrganization,
+        state: plan.states[0] ?? "",
+        programName: plan.programNames[0] ?? "",
+        planType: plan.planType,
+        enrollment: plan.enrollment,
+        reportingPeriod: plan.reportingPeriod,
+        datasetRowId: plan.datasetRowIds[0] ?? plan.id,
+      }),
       tags: organization.tags,
     },
     "medicaid_managed_care",
+    enrollmentMetrics,
   );
 }
 

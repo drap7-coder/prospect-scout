@@ -51,8 +51,9 @@ export function buildHealthPlanOrganizationFields(input: {
   states: string[];
   regions?: string[];
   headquarters?: string | null;
-  marketSegment: HealthPlanMarketSegmentId;
+  marketSegment?: HealthPlanMarketSegmentId;
   marketSegmentLabel?: string;
+  classifications?: OrganizationClassification[];
   externalIds?: HealthPlanExternalId[];
   national?: boolean;
   tags?: string[];
@@ -60,6 +61,13 @@ export function buildHealthPlanOrganizationFields(input: {
   const parentDisplayName = input.parentOrganization?.trim() || null;
   const states = [...new Set(input.states)];
   const national = input.national ?? states.length === 0;
+
+  const classifications =
+    input.classifications?.length
+      ? input.classifications
+      : input.marketSegment
+        ? [healthPlanClassification(input.marketSegment, input.marketSegmentLabel)]
+        : [];
 
   return {
     parentDisplayName,
@@ -69,11 +77,11 @@ export function buildHealthPlanOrganizationFields(input: {
       headquarters: input.headquarters ?? null,
       national,
     },
-    classifications: [
-      healthPlanClassification(input.marketSegment, input.marketSegmentLabel),
-    ],
+    classifications,
     sectorAttributes: {
-      linesOfBusiness: [input.marketSegment],
+      linesOfBusiness: classifications
+        .filter((c) => c.namespace === HEALTH_PLANS_CLASSIFICATION_NAMESPACE)
+        .map((c) => c.id),
       ...(input.tags?.length ? { sourceTags: input.tags } : {}),
     },
     externalIds: externalIdsFromHealthPlanImport(input.externalIds ?? []),

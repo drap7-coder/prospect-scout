@@ -23,12 +23,18 @@ import {
   taxonomyTargetsForSector,
 } from "@/lib/taxonomy";
 import {
+  classificationFilterKey,
+  classificationFilterLabel,
+  parseClassificationFilterKey,
+} from "@/lib/search/classificationFilters";
+import {
   CANONICAL_ORG_TYPES,
   canonicalOrgTypeLabel,
   isCanonicalOrgTypeId,
   normalizeCanonicalOrgTypeId,
   taxonomyTargetForCanonicalOrgType,
 } from "@/lib/discovery/canonicalOrgType";
+import { inferHealthPlanClassificationFromQuery } from "@/lib/import/healthPlans/warehouseMapping";
 
 /** Structured search state for universal organization discovery. */
 export interface SearchState {
@@ -47,6 +53,10 @@ export interface SearchState {
   ownership: string | null;
   /** US state postal code filter, e.g. OH. */
   state: string | null;
+  /** Warehouse classification namespace, e.g. "health-plans". */
+  classificationNamespace: string | null;
+  /** Classification id within namespace, e.g. "medicare_advantage". */
+  classificationId: string | null;
   /** City or metro area (builder / query hint). */
   metro: string | null;
   /** Additional operating states from builder. */
@@ -68,6 +78,8 @@ export const EMPTY_SEARCH_STATE: SearchState = {
   sellerContext: null,
   ownership: null,
   state: null,
+  classificationNamespace: null,
+  classificationId: null,
   metro: null,
   operatingStates: [],
   sort: null,
@@ -171,6 +183,9 @@ export function parseSearchStateFromParams(
     legacyIndustryToSectorId(params.get("industry"));
   const industry = normalizeIndustryParam(params.get("industry"), sector);
 
+  const classificationParam = params.get("classification");
+  const parsedClassification = parseClassificationFilterKey(classificationParam);
+
   return {
     query: params.get("q") ?? "",
     sector,
@@ -186,6 +201,8 @@ export function parseSearchStateFromParams(
     sellerContext: params.get("seller"),
     ownership: params.get("ownership"),
     state: params.get("state"),
+    classificationNamespace: parsedClassification?.namespace ?? null,
+    classificationId: parsedClassification?.id ?? null,
     metro: params.get("metro"),
     operatingStates: parseList(params.get("opStates")),
     sort: params.get("sort"),
@@ -207,6 +224,12 @@ export function searchStateToParams(state: SearchState): URLSearchParams {
   if (state.sellerContext?.trim()) p.set("seller", state.sellerContext.trim());
   if (state.ownership) p.set("ownership", state.ownership);
   if (state.state) p.set("state", state.state);
+  if (state.classificationNamespace && state.classificationId) {
+    p.set(
+      "classification",
+      classificationFilterKey(state.classificationNamespace, state.classificationId),
+    );
+  }
   if (state.metro?.trim()) p.set("metro", state.metro.trim());
   if (state.operatingStates.length) p.set("opStates", state.operatingStates.join(","));
   if (state.sort && state.sort !== "score") p.set("sort", state.sort);
@@ -259,6 +282,12 @@ export function inferSearchStateFromQuery(query: string): Partial<SearchState> {
     inferred.state = stateMap[stateMatch[1]] ?? null;
   }
 
+  const hpClass = inferHealthPlanClassificationFromQuery(query);
+  if (hpClass) {
+    inferred.classificationNamespace = hpClass.namespace;
+    inferred.classificationId = hpClass.id;
+  }
+
   return inferred;
 }
 
@@ -284,6 +313,9 @@ export function resolveSearchState(state: SearchState): SearchState {
     sources: state.sources?.length ? state.sources : (inferred.sources ?? []),
     ownership: state.ownership ?? inferred.ownership ?? null,
     state: state.state ?? inferred.state ?? null,
+    classificationNamespace:
+      state.classificationNamespace ?? inferred.classificationNamespace ?? null,
+    classificationId: state.classificationId ?? inferred.classificationId ?? null,
     metro: state.metro ?? null,
     operatingStates: state.operatingStates?.length ? state.operatingStates : [],
     sort: state.sort ?? null,
@@ -320,6 +352,8 @@ export function searchStateToRawInput(state: SearchState): RawSearchInput {
     industryId: resolved.industry,
     organizationTypeId: resolved.organizationType,
     state: resolved.state,
+    classificationNamespace: resolved.classificationNamespace,
+    classificationId: resolved.classificationId,
   };
 }
 
@@ -355,6 +389,14 @@ export function describeSearch(state: SearchState): string {
     parts.push(`in ${locationLabel(resolved.location)}`);
   }
 
+  if (resolved.classificationNamespace && resolved.classificationId) {
+    const label = classificationFilterLabel(
+      resolved.classificationNamespace,
+      resolved.classificationId,
+    );
+    if (label) parts.push(`· ${label}`);
+  }
+
   if (parts.length === 1 && !resolved.query.trim()) {
     return `Showing organizations · ${parts[0]}`;
   }
@@ -376,6 +418,8 @@ export function searchFetchFingerprint(state: SearchState): string {
     resolved.organizationType ?? "",
     resolved.location ?? "",
     resolved.state ?? "",
+    resolved.classificationNamespace ?? "",
+    resolved.classificationId ?? "",
     resolved.metro ?? "",
     resolved.operatingStates.join(","),
     resolved.sellerContext?.trim() ?? "",

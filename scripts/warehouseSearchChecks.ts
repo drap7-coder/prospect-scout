@@ -9,11 +9,16 @@ import { importNationalManufacturerCatalog } from "../lib/import/manufacturers/i
 import { getHealthPlanIndexSize } from "../lib/import/healthPlans/memoryIndex.ts";
 import { resetCatalogIndex } from "../lib/discovery/catalog/catalogIndex.ts";
 import { parseSearchIntent } from "../lib/discovery/intent.ts";
-import { discoverOrganizationsSync, discoverOrganizationsStaged, discoverOrganizationsStagedAsync } from "../lib/discovery/discoveryEngine.ts";
+import {
+  discoverOrganizationsSync,
+  discoverOrganizationsStaged,
+  discoverOrganizationsStagedAsync,
+} from "../lib/discovery/discoveryEngine.ts";
 import { runSearch, runSearchAsync } from "../lib/search/runSearch.ts";
 import { traceWarehouseSearchPipeline } from "../lib/import/warehouse/discover.ts";
 import { countDuplicateOrganizationIds } from "../lib/import/warehouse/mergeByVerifiedIds.ts";
 import { getWarehouseOrganizations } from "../lib/import/warehouse/organizations.ts";
+import { discoverFromOrganizationWarehouse } from "../lib/import/warehouse/discover.ts";
 
 process.env.ORG_WAREHOUSE = "1";
 
@@ -62,5 +67,67 @@ assert.ok(
 assert.ok(
   searchAsync.discovery?.metadata?.stagesRun?.includes("organization-warehouse"),
 );
+
+// Manufacturer in Ohio — warehouse path still works
+const ohioMfgIntent = parseSearchIntent("manufacturer in Ohio", {
+  organizationTypeId: "manufacturer",
+  state: "OH",
+});
+const ohioMfg = discoverFromOrganizationWarehouse(ohioMfgIntent, { maxResults: 5000 });
+assert.ok(ohioMfg.totalReturned > 0, "manufacturer in Ohio should return warehouse results");
+
+// Classification filters when CMS data exists
+const hpOrgs = getWarehouseOrganizations().filter((o) => o.buyerPack === "health-plans");
+const maIndexed = hpOrgs.filter((o) =>
+  o.classifications?.some((c) => c.namespace === "health-plans" && c.id === "medicare_advantage"),
+).length;
+if (maIndexed > 0) {
+  const maIntent = parseSearchIntent("medicare advantage", {
+    classificationNamespace: "health-plans",
+    classificationId: "medicare_advantage",
+  });
+  const maResults = discoverFromOrganizationWarehouse(maIntent, { maxResults: 5000 });
+  assert.equal(maResults.totalReturned, maIndexed, "Medicare Advantage filter matches indexed count");
+}
+
+const medicaidIndexed = hpOrgs.filter((o) =>
+  o.classifications?.some(
+    (c) => c.namespace === "health-plans" && c.id === "medicaid_managed_care",
+  ),
+).length;
+if (medicaidIndexed > 0) {
+  const medicaidIntent = parseSearchIntent("health plan", {
+    organizationTypeId: "health-plan",
+    classificationNamespace: "health-plans",
+    classificationId: "medicaid_managed_care",
+  });
+  const medicaidResults = discoverFromOrganizationWarehouse(medicaidIntent, { maxResults: 5000 });
+  assert.ok(
+    medicaidResults.totalReturned >= medicaidIndexed * 0.95,
+    `Medicaid filter returned ${medicaidResults.totalReturned} of ${medicaidIndexed}`,
+  );
+}
+
+const acaIndexed = hpOrgs.filter((o) =>
+  o.classifications?.some((c) => c.namespace === "health-plans" && c.id === "aca_marketplace"),
+).length;
+if (acaIndexed > 0) {
+  const acaIntent = parseSearchIntent("health plan", {
+    organizationTypeId: "health-plan",
+    classificationNamespace: "health-plans",
+    classificationId: "aca_marketplace",
+  });
+  const acaResults = discoverFromOrganizationWarehouse(acaIntent, { maxResults: 5000 });
+  assert.ok(
+    acaResults.totalReturned >= acaIndexed * 0.95,
+    `ACA filter returned ${acaResults.totalReturned} of ${acaIndexed}`,
+  );
+}
+
+// Classifications preserve source provenance
+const withProv = hpOrgs.filter((o) =>
+  o.classifications?.some((c) => c.provenance?.sourceConnector),
+);
+assert.ok(withProv.length > 0, "health plan classifications should include provenance");
 
 console.log(`\nAll warehouse search checks passed (${warehouseHp} health plans searchable).`);

@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     sellerContext: body.sellerContext ?? null,
     ownership: body.ownership ?? null,
     state: body.state ?? null,
+    classificationNamespace: body.classificationNamespace ?? null,
+    classificationId: body.classificationId ?? null,
     metro: body.metro ?? null,
     operatingStates: body.operatingStates ?? [],
     sort: body.sort ?? null,

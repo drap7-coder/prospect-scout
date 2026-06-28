@@ -1,6 +1,7 @@
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { externalIds, organizationSources, organizations } from "@/lib/db/schema";
+import { externalIds, organizationSources } from "@/lib/db/schema";
 import type { Organization } from "@/lib/discovery/organization";
+import { upsertWarehouseOrganization } from "@/lib/import/warehouse/dbPersistence";
 import {
   getHealthPlanOrganizations,
   getHealthPlanIndexSize,
@@ -64,57 +65,14 @@ async function upsertCmsCandidate(candidate: HealthPlanImportCandidate): Promise
   const db = getDb();
   const org = candidate.organization;
 
-  await db
-    .insert(organizations)
-    .values({
-      id: org.id,
-      canonicalName: org.canonicalName,
-      aliases: org.aliases,
-      website: org.website,
-      domain: org.domain,
-      organizationType: org.organizationType,
-      canonicalOrganizationType: org.canonicalOrganizationType,
-      industries: org.industries,
-      sectorId: org.sectorId,
-      headquarters: org.headquarters,
-      locations: org.locations,
-      states: org.states,
-      regions: org.regions,
-      ownership: org.ownership,
-      employeeRange: org.employeeRange,
-      memberEstimate: org.memberEstimate,
-      revenueRange: org.revenueRange,
-      description: org.description,
-      buyerPack: org.buyerPack,
-      healthPlanType: org.healthPlanType ?? null,
-      tags: org.tags ?? [],
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: organizations.id,
-      set: {
-        canonicalName: org.canonicalName,
-        aliases: org.aliases,
-        website: org.website,
-        domain: org.domain,
-        organizationType: org.organizationType,
-        canonicalOrganizationType: org.canonicalOrganizationType,
-        industries: org.industries,
-        sectorId: org.sectorId,
-        headquarters: org.headquarters,
-        locations: org.locations,
-        states: org.states,
-        regions: org.regions,
-        ownership: org.ownership,
-        employeeRange: org.employeeRange,
-        memberEstimate: org.memberEstimate,
-        description: org.description,
-        buyerPack: org.buyerPack,
-        healthPlanType: org.healthPlanType ?? null,
-        tags: org.tags ?? [],
-        updatedAt: new Date(),
-      },
-    });
+  await upsertWarehouseOrganization(
+    org,
+    candidate.externalIds.map((ext) => ({
+      idType: ext.idType,
+      idValue: ext.idValue,
+      sourceConnector: org.sources[0]?.connector,
+    })),
+  );
 
   for (const source of org.sources) {
     await db

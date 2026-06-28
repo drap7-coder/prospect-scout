@@ -30,6 +30,8 @@ function buildInput(
     sellerContext?: string;
     ownership?: string;
     state?: string | null;
+    classificationNamespace?: string | null;
+    classificationId?: string | null;
     metro?: string;
     opStates?: string;
     sort?: string;
@@ -67,6 +69,8 @@ function buildInput(
     body.sources?.length ||
     body.ownership ||
     body.state ||
+    body.classificationNamespace ||
+    body.classificationId ||
     body.metro ||
     body.opStates
   ) {
@@ -83,6 +87,8 @@ function buildInput(
       sellerContext: body.sellerContext ?? (sells || null),
       ownership: body.ownership ?? null,
       state: body.state ?? null,
+      classificationNamespace: body.classificationNamespace ?? null,
+      classificationId: body.classificationId ?? null,
       metro: body.metro ?? null,
       operatingStates: body.opStates
         ? body.opStates.split(",").map((s) => s.trim()).filter(Boolean)

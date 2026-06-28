@@ -66,6 +66,8 @@ export interface ParseSearchIntentOptions {
   state?: string | null;
   region?: string | null;
   healthPlanType?: HealthPlanType | null;
+  classificationNamespace?: string | null;
+  classificationId?: string | null;
 }
 
 /** When the query names a broad category (not a sub-industry), avoid narrow industry inference. */
@@ -280,8 +282,16 @@ export function parseSearchIntent(
   });
 
   const healthPlanClass = inferHealthPlanClassificationFromQuery(trimmed);
+  const explicitClassification: ClassificationFilter | null =
+    options.classificationNamespace && options.classificationId
+      ? {
+          namespace: options.classificationNamespace,
+          ids: [options.classificationId],
+        }
+      : null;
   const classificationFilter: ClassificationFilter | null =
-    healthPlanClass &&
+    explicitClassification ??
+    (healthPlanClass &&
     (organizationTypeId === "health-plan" ||
       industryId === "payers" ||
       taxonomy.sectorId === "healthcare")
@@ -291,7 +301,7 @@ export function parseSearchIntent(
           sectorId,
           industryId,
           organizationTypeId,
-        });
+        }));
 
   const healthPlanType =
     options.healthPlanType ??

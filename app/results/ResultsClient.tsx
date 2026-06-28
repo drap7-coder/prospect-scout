@@ -32,6 +32,7 @@ import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { DiscoveryCoverageNote } from "@/app/components/DiscoveryCoverageNote";
+import { WarehouseCoverageBanner } from "@/app/components/WarehouseCoverageBanner";
 import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnosticsPanel";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultsViewControls } from "@/app/components/ResultsViewControls";
@@ -385,6 +386,22 @@ export function ResultsClient() {
             />
 
             <main className="min-w-0 flex-1">
+              {hasQuery && (discoveryMetadata || matchCatalogSummary) ? (
+                <WarehouseCoverageBanner
+                  displayedCount={filtered.length}
+                  warehouseTotal={
+                    discoveryTotals?.totalAfterRank ?? allProspects.length
+                  }
+                  searchState={searchState}
+                  metadata={discoveryMetadata}
+                  orgTypeLabel={
+                    searchState.organizationType === "health-plan"
+                      ? "health plans"
+                      : undefined
+                  }
+                />
+              ) : null}
+
               <div className="results-toolbar mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                   <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">

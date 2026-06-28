@@ -44,6 +44,71 @@ export const organizations = pgTable(
     buyerPack: text("buyer_pack"),
     healthPlanType: text("health_plan_type"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    geography: jsonb("geography").$type<{
+      states: string[];
+      regions: string[];
+      headquarters: string | null;
+      national: boolean;
+    } | null>(),
+    classifications: jsonb("classifications")
+      .$type<
+        {
+          namespace: string;
+          id: string;
+          label?: string;
+          provenance?: {
+            sourceConnector: string;
+            sourceId?: string;
+            sourceName?: string;
+            sourceUrl?: string;
+            refreshedAt?: string;
+            confidence?: number;
+          };
+        }[]
+      >()
+      .notNull()
+      .default([]),
+    sectorAttributes: jsonb("sector_attributes")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    metrics: jsonb("metrics")
+      .$type<
+        {
+          id: string;
+          namespace: string;
+          value: number;
+          unit?: string;
+          asOfDate?: string;
+          label?: string;
+          provenance?: {
+            sourceConnector: string;
+            sourceId?: string;
+            refreshedAt?: string;
+            confidence?: number;
+          };
+        }[]
+      >()
+      .notNull()
+      .default([]),
+    relationships: jsonb("relationships")
+      .$type<
+        {
+          type: string;
+          programNamespace: string;
+          targetOrgId?: string;
+          targetDisplayName?: string;
+          role: string;
+          provenance?: {
+            sourceConnector: string;
+            sourceId?: string;
+            refreshedAt?: string;
+            confidence?: number;
+          };
+        }[]
+      >()
+      .notNull()
+      .default([]),
     relevance: numeric("relevance", { precision: 5, scale: 2 }),
     confidence: numeric("confidence", { precision: 4, scale: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true })

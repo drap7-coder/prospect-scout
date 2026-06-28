@@ -136,6 +136,8 @@ export interface RawSearchInput {
   industryId?: string | null;
   organizationTypeId?: string | null;
   state?: string | null;
+  classificationNamespace?: string | null;
+  classificationId?: string | null;
 }
 
 /**
