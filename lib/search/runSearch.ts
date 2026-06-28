@@ -178,12 +178,14 @@ function buildCoverageMetadata(
     resultCount,
     threshold: DISCOVERY_THRESHOLD,
     coverageStatus: computeCoverageStatus(resultCount),
-    stagesRun: staged?.stagesRun ?? [discoveryIntent ? "catalog" : "directory"],
+    stagesRun: staged?.stagesRun ?? [discoveryIntent ? "multi-connector-discovery" : "directory"],
     expanded: staged?.expanded ?? false,
     fallbackReason: staged?.fallbackReason ?? null,
     sourceSummary: Object.keys(sourceSummary).length
       ? sourceSummary
       : (staged?.sourceSummary ?? {}),
+    connectorCandidates: staged?.connectorCandidates,
+    mergedUnique: staged?.mergedUnique,
     marketBenchmarkAvailable: staged?.marketBenchmarkAvailable ?? false,
   };
 }

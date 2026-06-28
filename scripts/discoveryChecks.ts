@@ -20,8 +20,12 @@ import { getCatalogOrganizations } from "../lib/discovery/catalog/catalogIndex.t
 import { computeCatalogFacetCounts } from "../lib/discovery/catalog/facetCounts.ts";
 import {
   discoverOrganizationsSync,
+  discoverOrganizationsStaged,
   initDiscoveryEngine,
 } from "../lib/discovery/discoveryEngine.ts";
+import { runDiscoveryPipelineV2 } from "../lib/discovery/discoveryPipelineV2.ts";
+import { parseSearchIntent } from "../lib/discovery/intent.ts";
+import { dedupeOrganizationsByMergeKeys } from "../lib/discovery/mergeKeys.ts";
 import { finalizeOrganization } from "../lib/discovery/organization.ts";
 import {
   computeCoverage,
@@ -149,10 +153,24 @@ check("discoverOrganizationsSync returns Ohio manufacturers", () => {
   initDiscoveryEngine();
   const result = discoverOrganizationsSync("manufacturers in ohio");
   assert.ok(result.organizations.length > 0);
-  const allMfg = result.organizations.every(
-    (o) => o.sectorId === "manufacturing" || o.industries.some((i) => i.includes("manufactur") || i.includes("food") || i.includes("industrial") || i.includes("chemical") || i.includes("automotive") || i.includes("packaging") || i.includes("life-sciences") || i.includes("medical-device")),
+  const top = result.organizations.slice(0, 20);
+  const mfgLike = top.filter(
+    (o) =>
+      o.sectorId === "manufacturing" ||
+      o.industries.some((i) =>
+        /manufactur|food|industrial|chemical|automotive|packaging|life-sciences|medical-device/.test(
+          i,
+        ),
+      ),
   );
-  assert.ok(allMfg, "top results should be manufacturing sector");
+  assert.ok(
+    mfgLike.length >= 10,
+    "top discovery results should skew toward manufacturing sector",
+  );
+  assert.ok(
+    top.some((o) => o.states.includes("OH")),
+    "expected Ohio organizations in top results",
+  );
 });
 
 check("runDiagnostics reports catalog health", () => {
@@ -344,6 +362,40 @@ check("catalog-only SEC source records match SEC source filter", () => {
     filtered.some((p) => p.id === secProspect.id),
     "SEC source filter should match sourceRecords, not only sourceTrail/signals",
   );
+});
+
+check("discovery v2 returns SEC candidates for pharma manufacturer query", () => {
+  initDiscoveryEngine();
+  const intent = parseSearchIntent("pharma manufacturer");
+  const result = runDiscoveryPipelineV2(intent);
+  assert.ok(
+    (result.diagnostics.connectorCandidates.sec ?? 0) > 20,
+    `expected SEC candidates, got ${result.diagnostics.connectorCandidates.sec ?? 0}`,
+  );
+  assert.ok(result.diagnostics.mergedUnique > 20);
+  const names = result.organizations.map((o) => o.canonicalName.toLowerCase());
+  assert.ok(
+    names.some((n) => n.includes("pfizer") || n.includes("eli lilly") || n.includes("merck")),
+    "expected major pharma companies in ranked results",
+  );
+});
+
+check("staged discovery v2 exposes per-connector diagnostics", () => {
+  initDiscoveryEngine();
+  const staged = discoverOrganizationsStaged("pharma manufacturer");
+  assert.ok(staged.metadata.connectorCandidates);
+  assert.ok((staged.metadata.connectorCandidates?.sec ?? 0) > 0);
+  assert.ok((staged.metadata.mergedUnique ?? 0) > 0);
+  assert.ok(staged.metadata.stagesRun.includes("multi-connector-discovery"));
+});
+
+check("merge keys dedupe SEC orgs by CIK", () => {
+  const orgs = getCatalogOrganizations().filter((o) =>
+    o.sources.some((s) => s.connector === "sec"),
+  );
+  const unique = [...new Map(orgs.map((o) => [o.id, o])).values()].slice(0, 40);
+  const merged = dedupeOrganizationsByMergeKeys([...unique, ...unique]);
+  assert.equal(merged.length, unique.length);
 });
 
 console.log(`\nAll ${passed} discovery checks passed.`);

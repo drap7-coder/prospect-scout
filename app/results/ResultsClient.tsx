@@ -36,6 +36,7 @@ import {
 } from "@/lib/discovery/discoveryRows";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { DiscoveryCoverageNote } from "@/app/components/DiscoveryCoverageNote";
+import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnosticsPanel";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultViewToggle } from "@/app/components/ResultViewToggle";
 import { DiscoveryView } from "@/app/components/DiscoveryView";
@@ -498,7 +499,14 @@ export function ResultsClient() {
                     ) : null}
                   </p>
                 ) : null}
-                {hasQuery && phase !== "idle" ? (
+                {discoveryMetadata?.connectorCandidates ? (
+                  <div className="mt-3">
+                    <DiscoveryDiagnosticsPanel
+                      metadata={discoveryMetadata}
+                      displayedCount={filtered.length}
+                    />
+                  </div>
+                ) : hasQuery && phase !== "idle" ? (
                   <div className="mt-3 overflow-x-auto">
                     <ProviderStatusBar
                       statuses={providerStatuses}
