@@ -27,14 +27,22 @@
     "test:aca": "node --import tsx scripts/acaMarketplaceChecks.ts",
     "test:fallback": "node --import tsx scripts/fallbackDiscoveryChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",
-    "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts"
+    "ingest:catalog": "node --import tsx scripts/ingestCatalogData.ts",
+    "test:db": "node --import tsx scripts/dbSchemaChecks.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
     "next": "^15.5.19",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.31.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
