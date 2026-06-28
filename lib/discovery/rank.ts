@@ -1,4 +1,5 @@
 import type { Organization } from "./organization";
+import { organizationMatchesQueryText } from "./queryDiscovery";
 import type { SearchIntent } from "./intent";
 import { ANY_REGION } from "@/lib/search/regions";
 import { organizationMatchesOrgTypeFilter } from "./canonicalOrgType";
@@ -71,9 +72,15 @@ const AUTHORITATIVE_CONNECTORS = new Set([
   "cms",
   "fda",
   "irs-nonprofits",
+  "aca-marketplace",
+  "rss",
+  "public-web",
+  "wikipedia",
+  "state-registry",
+  "business-directory",
 ]);
 
-const ENRICHMENT_CONNECTORS = new Set(["rss", "public-web"]);
+const ENRICHMENT_CONNECTORS = new Set<string>();
 
 function sourceTierAdjustment(org: Organization): {
   scoreDelta: number;
@@ -254,6 +261,11 @@ export function filterIncompatibleOrganizations(
   );
 
   return orgs.filter((org) => {
+    const queryMatched = organizationMatchesQueryText(org, intent);
+    if (queryMatched && !org.matchReasons.includes("sector:incompatible")) {
+      return true;
+    }
+
     if (org.matchReasons.includes("sector:incompatible")) return false;
 
     if (
@@ -307,6 +319,9 @@ export function filterIncompatibleOrganizations(
     }
 
     if (hasStructured && org.relevance < MIN_RELEVANCE_STRUCTURED) {
+      if (organizationMatchesQueryText(org, intent) && org.relevance >= 40) {
+        return true;
+      }
       return false;
     }
 

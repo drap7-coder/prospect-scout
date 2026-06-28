@@ -25,7 +25,11 @@ export interface DiscoveryMetadata {
   fallbackReason: string | null;
   /** Connector → count of returned orgs citing that source. */
   sourceSummary: Record<string, number>;
-  /** Whether a Census market benchmark exists for this query scope. */
+  /** Per-connector candidate counts before merge (Discovery Engine v2). */
+  connectorCandidates?: Record<string, number>;
+  /** Unique organizations after cross-connector merge. */
+  mergedUnique?: number;
+  /** Market benchmark exists for this query scope. */
   marketBenchmarkAvailable: boolean;
 }
 

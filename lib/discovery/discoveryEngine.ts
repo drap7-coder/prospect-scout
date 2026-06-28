@@ -9,17 +9,25 @@ import {
   rssConnector,
   publicWebConnector,
 } from "./connectors/providerAdapters";
-import { dedupeOrganizations } from "./organization";
+import {
+  wikipediaConnector,
+  stateRegistryConnector,
+  businessDirectoryConnector,
+} from "./connectors/discoveryV2Connectors";
+import {
+  runDiscoveryPipelineV2,
+  DISCOVERY_V2_CONNECTOR_IDS,
+} from "./discoveryPipelineV2";
+import { discoverFromCatalogIndex } from "./catalog/catalogIndex";
+import { dedupeOrganizations, type Organization } from "./organization";
 import { parseSearchIntent, type ParseSearchIntentOptions } from "./intent";
+import type { SearchIntent } from "./intent";
 import {
   rankOrganizations,
   filterIncompatibleOrganizations,
   limitResults,
   type RankedOrganization,
 } from "./rank";
-import { discoverFromCatalogIndex } from "./catalog/catalogIndex";
-import type { Organization } from "./organization";
-import type { SearchIntent } from "./intent";
 import { ANY_REGION } from "@/lib/search/regions";
 import {
   DISCOVERY_THRESHOLD,
@@ -29,16 +37,8 @@ import {
 
 let initialized = false;
 
-/** Authoritative listing connectors — RSS/public-web excluded by default. */
-export const LISTING_CONNECTOR_IDS = [
-  "directory",
-  "cms",
-  "aca-marketplace",
-  "sec",
-  "fda",
-  "irs-nonprofits",
-  "nces",
-] as const;
+/** @deprecated Use DISCOVERY_V2_CONNECTOR_IDS — kept for backward compatibility. */
+export const LISTING_CONNECTOR_IDS = DISCOVERY_V2_CONNECTOR_IDS;
 
 /** Register all discovery connectors (idempotent). */
 export function initDiscoveryEngine(): void {
@@ -51,6 +51,9 @@ export function initDiscoveryEngine(): void {
   registerConnector(irsNonprofitConnector);
   registerConnector(rssConnector);
   registerConnector(publicWebConnector);
+  registerConnector(wikipediaConnector);
+  registerConnector(stateRegistryConnector);
+  registerConnector(businessDirectoryConnector);
   initialized = true;
 }
 
@@ -62,36 +65,32 @@ export interface DiscoverOptions extends ParseSearchIntentOptions {
 export interface DiscoverResult {
   intent: ReturnType<typeof parseSearchIntent>;
   organizations: RankedOrganization[];
-  /** Candidates from catalog index before dedupe. */
   totalBeforeDedupe: number;
-  /** After ranking + quality filter, before pagination cap. */
   totalAfterRank: number;
-  /** Returned after limitResults (pagination cap). */
   totalReturned: number;
   latencyMs: number;
 }
 
-function runDiscoveryPipeline(
-  intent: ReturnType<typeof parseSearchIntent>,
+function runDiscoveryPipelineV2Wrapped(
+  intent: SearchIntent,
   connectorIds: readonly string[],
   maxResults: number,
-): DiscoverResult {
+  skipQualityFilter = false,
+): DiscoverResult & { diagnostics: ReturnType<typeof runDiscoveryPipelineV2>["diagnostics"] } {
   const started = performance.now();
-
-  const candidates = discoverFromCatalogIndex(intent, [...connectorIds]);
-  const totalBeforeDedupe = candidates.length;
-  const deduped = dedupeOrganizations(candidates);
-  const ranked = rankOrganizations(deduped, intent);
-  const filtered = filterIncompatibleOrganizations(ranked, intent);
-  const limited = limitResults(filtered, maxResults);
-
+  const result = runDiscoveryPipelineV2(intent, {
+    connectorIds,
+    maxResults,
+    skipQualityFilter,
+  });
   return {
     intent,
-    organizations: limited,
-    totalBeforeDedupe,
-    totalAfterRank: filtered.length,
-    totalReturned: limited.length,
+    organizations: result.organizations,
+    totalBeforeDedupe: result.totalBeforeDedupe,
+    totalAfterRank: result.totalAfterRank,
+    totalReturned: result.totalReturned,
     latencyMs: Math.round((performance.now() - started) * 100) / 100,
+    diagnostics: result.diagnostics,
   };
 }
 
@@ -101,12 +100,10 @@ export async function discoverOrganizations(
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
   getConnectors();
-
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
-
-  return runDiscoveryPipeline(intent, connectorIds, maxResults);
+  return runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
 }
 
 export function discoverOrganizationsSync(
@@ -115,12 +112,10 @@ export function discoverOrganizationsSync(
 ): DiscoverResult {
   initDiscoveryEngine();
   getConnectors();
-
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
-
-  return runDiscoveryPipeline(intent, connectorIds, maxResults);
+  return runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
 }
 
 export interface StagedDiscoverResult extends DiscoverResult {
@@ -152,7 +147,6 @@ const BENCHMARK_INDUSTRIES = new Set([
   "software",
 ]);
 
-/** Whether a Census market benchmark scope exists for this intent (sync, no network). */
 function marketBenchmarkAvailableForIntent(intent: SearchIntent): boolean {
   if (intent.industryId && BENCHMARK_INDUSTRIES.has(intent.industryId)) return true;
   if (intent.sectorId && BENCHMARK_SECTORS.has(intent.sectorId)) return true;
@@ -161,19 +155,11 @@ function marketBenchmarkAvailableForIntent(intent: SearchIntent): boolean {
   );
 }
 
-/**
- * Progressively relaxed intents for fallback expansion. Geography of a selected
- * state and the organization-type / health-plan-subtype guards are always
- * preserved so the domain stays pure (e.g. a health-plan search never widens to
- * hospitals or PBMs).
- */
 function buildRelaxedIntents(intent: SearchIntent): SearchIntent[] {
   const out: SearchIntent[] = [];
   const hasTypeGuard = Boolean(intent.organizationTypeId);
 
-  if (intent.city) {
-    out.push({ ...intent, city: null });
-  }
+  if (intent.city) out.push({ ...intent, city: null });
   if (intent.industryId || intent.alternateIndustryIds.length > 0) {
     out.push({
       ...intent,
@@ -182,7 +168,6 @@ function buildRelaxedIntents(intent: SearchIntent): SearchIntent[] {
       alternateIndustryIds: [],
     });
   }
-  // Only drop the sector guard when org type still pins the domain.
   if (hasTypeGuard && (intent.sectorId || intent.industryId)) {
     out.push({
       ...intent,
@@ -193,23 +178,16 @@ function buildRelaxedIntents(intent: SearchIntent): SearchIntent[] {
       alternateSectorIds: [],
     });
   }
-  // Widen geography only when no specific state was requested.
   if (intent.region !== ANY_REGION && !intent.state) {
     const last = out[out.length - 1] ?? intent;
     out.push({ ...last, region: ANY_REGION });
   }
-
   return out;
 }
 
-function uniqueByIdCount(orgs: Organization[]): number {
-  return new Set(orgs.map((o) => o.id)).size;
-}
-
 /**
- * Staged discovery: catalog first, then domain-safe fallback expansion when the
- * initial pass is below threshold. Never fabricates organizations and never
- * blocks on network calls. Returns coverage metadata for the API/UI.
+ * Staged discovery v2: every connector contributes candidates independently,
+ * then merge → dedupe → rank. Falls back to relaxed intent when below threshold.
  */
 export function discoverOrganizationsStaged(
   query: string,
@@ -219,59 +197,57 @@ export function discoverOrganizationsStaged(
   getConnectors();
 
   const intent = parseSearchIntent(query, options);
-  const connectorIds = options.connectors ?? [...LISTING_CONNECTOR_IDS];
+  const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
   const maxResults = options.maxResults ?? 500;
   const started = performance.now();
 
-  const stagesRun: string[] = ["catalog"];
-  let pool = discoverFromCatalogIndex(intent, connectorIds);
-  const catalogCount = uniqueByIdCount(pool);
-
+  const stagesRun: string[] = ["multi-connector-discovery"];
+  let result = runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
   let expanded = false;
   let fallbackReason: string | null = null;
 
-  if (catalogCount < DISCOVERY_THRESHOLD) {
-    fallbackReason = `Catalog returned ${catalogCount} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;
+  if (result.totalAfterRank < DISCOVERY_THRESHOLD) {
+    fallbackReason = `Initial discovery returned ${result.totalAfterRank} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;
     for (const relaxed of buildRelaxedIntents(intent)) {
-      const more = discoverFromCatalogIndex(relaxed, connectorIds);
-      if (more.length > 0) pool = pool.concat(more);
-      if (uniqueByIdCount(pool) >= DISCOVERY_THRESHOLD) break;
+      const relaxedResult = runDiscoveryPipelineV2Wrapped(
+        relaxed,
+        connectorIds,
+        maxResults,
+        true,
+      );
+      if (relaxedResult.totalAfterRank > result.totalAfterRank) {
+        result = relaxedResult;
+        expanded = true;
+        stagesRun.push("relaxed-intent", "merge-rank");
+      }
+      if (result.totalAfterRank >= DISCOVERY_THRESHOLD) break;
     }
-    expanded = uniqueByIdCount(pool) > catalogCount;
-    if (expanded) stagesRun.push("connector-expansion", "merge-rank");
   }
 
-  const deduped = dedupeOrganizations(pool);
-  const ranked = rankOrganizations(deduped, intent);
-  // Relaxed passes already enforce org-type/state purity; only hard-filter the
-  // unexpanded catalog pass to preserve existing single-stage behavior.
-  const filtered = expanded
-    ? ranked
-    : filterIncompatibleOrganizations(ranked, intent);
-  const limited = limitResults(filtered, maxResults);
-
   const marketBenchmarkAvailable = marketBenchmarkAvailableForIntent(intent);
-  if (filtered.length === 0 && marketBenchmarkAvailable) {
+  if (result.totalAfterRank === 0 && marketBenchmarkAvailable) {
     stagesRun.push("market-benchmark");
   }
 
   const metadata: DiscoveryMetadata = {
-    resultCount: filtered.length,
+    resultCount: result.totalAfterRank,
     threshold: DISCOVERY_THRESHOLD,
-    coverageStatus: computeCoverageStatus(filtered.length),
+    coverageStatus: computeCoverageStatus(result.totalAfterRank),
     stagesRun,
     expanded,
     fallbackReason,
-    sourceSummary: summarizeOrganizationSources(limited),
+    sourceSummary: summarizeOrganizationSources(result.organizations),
+    connectorCandidates: result.diagnostics.connectorCandidates,
+    mergedUnique: result.diagnostics.mergedUnique,
     marketBenchmarkAvailable,
   };
 
   return {
-    intent,
-    organizations: limited,
-    totalBeforeDedupe: pool.length,
-    totalAfterRank: filtered.length,
-    totalReturned: limited.length,
+    intent: result.intent,
+    organizations: result.organizations,
+    totalBeforeDedupe: result.totalBeforeDedupe,
+    totalAfterRank: result.totalAfterRank,
+    totalReturned: result.totalReturned,
     latencyMs: Math.round((performance.now() - started) * 100) / 100,
     metadata,
   };
@@ -290,4 +266,26 @@ function summarizeOrganizationSources(
     }
   }
   return counts;
+}
+
+/** Legacy catalog-only pipeline (tests / diagnostics). */
+export function discoverFromCatalogOnly(
+  intent: SearchIntent,
+  connectorIds: readonly string[],
+  maxResults: number,
+): DiscoverResult {
+  const started = performance.now();
+  const candidates = discoverFromCatalogIndex(intent, [...connectorIds]);
+  const deduped = dedupeOrganizations(candidates);
+  const ranked = rankOrganizations(deduped, intent);
+  const filtered = filterIncompatibleOrganizations(ranked, intent);
+  const limited = limitResults(filtered, maxResults);
+  return {
+    intent,
+    organizations: limited,
+    totalBeforeDedupe: candidates.length,
+    totalAfterRank: filtered.length,
+    totalReturned: limited.length,
+    latencyMs: Math.round((performance.now() - started) * 100) / 100,
+  };
 }
