@@ -24,10 +24,14 @@ import { formatSourceSummary } from "@/lib/search/sourceSummary";
 import { saveWorkspace } from "@/lib/intelligence/session";
 import {
   displayModeToDensity,
+  loadBrowseLens,
   loadResultsDisplayMode,
+  saveBrowseLens,
   saveResultsDisplayMode,
   type ResultsDisplayMode,
 } from "@/lib/intelligence/resultsView";
+import type { BrowseLensId } from "@/lib/browse/types";
+import { defaultBrowseLens } from "@/lib/browse/buildBrowseRows";
 import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
@@ -37,7 +41,12 @@ import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnostics
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
 import { ResultsViewControls } from "@/app/components/ResultsViewControls";
 import { ResultsList } from "@/app/components/ResultsList";
-import { AlphabetBrowseView } from "@/app/components/AlphabetBrowseView";
+import {
+  BrowseExperience,
+  buildBrowseContext,
+  resolveBrowseLenses,
+} from "@/app/components/BrowseExperience";
+import { BrowseLensSelector } from "@/app/components/BrowseLensSelector";
 import { ResultsTable } from "@/app/components/ResultsTable";
 import { ResultsLoadingState } from "@/app/components/ResultsLoadingState";
 import {
@@ -104,6 +113,7 @@ export function ResultsClient() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<ResultsDisplayMode>("browse");
+  const [browseLens, setBrowseLens] = useState<BrowseLensId>(defaultBrowseLens());
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [catalogFacets, setCatalogFacets] = useState<CatalogFacetCounts | null>(
     null,
@@ -196,6 +206,7 @@ export function ResultsClient() {
 
   useEffect(() => {
     setDisplayMode(loadResultsDisplayMode());
+    setBrowseLens(loadBrowseLens());
   }, []);
 
   useEffect(() => {
@@ -291,6 +302,28 @@ export function ResultsClient() {
     null;
 
   const density = displayModeToDensity(displayMode);
+
+  const browseContext = useMemo(
+    () => buildBrowseContext(filtered, searchState),
+    [filtered, searchState],
+  );
+  const availableBrowseLenses = useMemo(
+    () => resolveBrowseLenses(browseContext, filtered),
+    [browseContext, filtered],
+  );
+
+  useEffect(() => {
+    if (!availableBrowseLenses.some((l) => l.id === browseLens)) {
+      const next = availableBrowseLenses[0]?.id ?? defaultBrowseLens();
+      setBrowseLens(next);
+      saveBrowseLens(next);
+    }
+  }, [availableBrowseLenses, browseLens]);
+
+  function handleBrowseLensChange(next: BrowseLensId) {
+    setBrowseLens(next);
+    saveBrowseLens(next);
+  }
 
   function handleSearchSubmit(q: string) {
     const next = resolveSearchState({ ...searchState, query: q });
@@ -395,6 +428,7 @@ export function ResultsClient() {
                   }
                   searchState={searchState}
                   metadata={discoveryMetadata}
+                  prospects={allProspects}
                   orgTypeLabel={
                     searchState.organizationType === "health-plan"
                       ? "health plans"
@@ -523,13 +557,21 @@ export function ResultsClient() {
                       onSelect={setSelectedId}
                     />
                   ) : displayMode === "browse" ? (
-                    <AlphabetBrowseView
-                      prospects={filtered}
-                      density={density}
-                      enriching={enriching}
-                      selectedId={selectedId}
-                      onSelect={setSelectedId}
-                    />
+                    <>
+                      <BrowseLensSelector
+                        lenses={availableBrowseLenses}
+                        value={browseLens}
+                        onChange={handleBrowseLensChange}
+                      />
+                      <BrowseExperience
+                        prospects={filtered}
+                        searchState={searchState}
+                        browseLens={browseLens}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        onApplyFilter={handleFiltersChange}
+                      />
+                    </>
                   ) : (
                     <ResultsList
                       prospects={filtered}

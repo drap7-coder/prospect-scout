@@ -79,6 +79,11 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     discoveryConfidence: org.confidence,
     sourceRecords: sourceRecordsFromOrgSources(org.sources),
     erisaIntel: org.erisaIntel,
+    classifications: org.classifications,
+    geographyNational: org.geography?.national,
+    regionBuckets: org.regions,
+    tags: org.tags,
+    parentDisplayName: org.parentDisplayName ?? undefined,
   };
 }
 

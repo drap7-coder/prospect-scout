@@ -232,5 +232,10 @@ export function synthesizeProspect(
     erisaIntel: prospect.erisaIntel,
     organizationIntelligence: intelligence.organizationIntelligence,
     relationshipGraph: intelligence.relationshipGraph,
+    classifications: prospect.classifications,
+    geographyNational: prospect.geographyNational,
+    regionBuckets: prospect.regionBuckets,
+    tags: prospect.tags,
+    parentDisplayName: prospect.parentDisplayName,
   };
 }

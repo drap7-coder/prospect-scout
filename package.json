@@ -25,6 +25,7 @@
     "test:exec": "node --import tsx scripts/executiveCardChecks.ts",
     "test:discovery-rows": "node --import tsx scripts/discoveryRowsChecks.ts",
     "test:alphabet-rows": "node --import tsx scripts/alphabetRowsChecks.ts",
+    "test:browse-rows": "node --import tsx scripts/browseRowsChecks.ts",
     "test:aca": "node --import tsx scripts/acaMarketplaceChecks.ts",
     "test:fallback": "node --import tsx scripts/fallbackDiscoveryChecks.ts",
     "test:benchmark": "node --import tsx scripts/benchmarkChecks.ts",

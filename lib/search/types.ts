@@ -12,6 +12,7 @@ import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
 import type { ErisaCardIntel } from "@/lib/import/erisa/types";
 import type { OrganizationIntelligenceProfile } from "@/lib/intelligence/framework/types";
 import type { OrganizationRelationshipGraph } from "@/lib/intelligence/relationships/types";
+import type { OrganizationClassification } from "@/lib/organization/model";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -238,6 +239,15 @@ export interface RawProspect {
   sourceRecords?: ProspectSourceRecord[];
   /** Form 5500 / ERISA plan sponsor intelligence when present. */
   erisaIntel?: ErisaCardIntel;
+  /** Warehouse classifications (namespace + id) from connector imports. */
+  classifications?: OrganizationClassification[];
+  /** National-scope geography flag from warehouse. */
+  geographyNational?: boolean;
+  /** Region bucket ids from warehouse geography. */
+  regionBuckets?: string[];
+  /** Connector source tags when available. */
+  tags?: string[];
+  parentDisplayName?: string;
 }
 
 /** Provenance record for a data connector backing this organization. */
@@ -366,6 +376,12 @@ export interface Prospect {
   organizationIntelligence?: OrganizationIntelligenceProfile;
   /** Relationship edges contributed by intelligence modules. */
   relationshipGraph?: OrganizationRelationshipGraph;
+  /** Warehouse classifications for browse and filtering. */
+  classifications?: OrganizationClassification[];
+  geographyNational?: boolean;
+  regionBuckets?: string[];
+  tags?: string[];
+  parentDisplayName?: string;
 }
 
 /** Response shape returned by `/api/search`. */

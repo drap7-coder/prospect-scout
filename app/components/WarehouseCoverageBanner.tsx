@@ -1,4 +1,5 @@
 import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
+import type { Prospect } from "@/lib/search/types";
 import {
   locationLabel,
   orgTypeLabel,
@@ -43,9 +44,27 @@ function warehouseSourceLabel(metadata: DiscoveryMetadata | null | undefined): s
     (metadata.sourceSummary["cms-qhp"] ?? 0) +
     (metadata.sourceSummary["cms-medicaid-mco"] ?? 0) +
     (metadata.sourceSummary["cms-medicaid-enrollment"] ?? 0);
-  if (cmsCount > 0) return "CMS warehouse";
-  if (metadata.stagesRun.includes("organization-warehouse")) return "Organization warehouse";
+  if (cmsCount > 0) return "CMS Warehouse";
+  if (metadata.stagesRun.includes("organization-warehouse")) return "Organization Warehouse";
   return null;
+}
+
+function warehouseLastUpdated(
+  metadata: DiscoveryMetadata | null | undefined,
+  prospects: Prospect[] | undefined,
+): string | null {
+  const hydration = metadata?.warehouse?.hydrationAttemptedAt;
+  if (hydration) return hydration.slice(0, 10);
+
+  let max: string | null = null;
+  for (const p of prospects ?? []) {
+    for (const src of p.sourceRecords ?? []) {
+      if (src.lastUpdated && (!max || src.lastUpdated > max)) {
+        max = src.lastUpdated;
+      }
+    }
+  }
+  return max;
 }
 
 /**
@@ -57,18 +76,21 @@ export function WarehouseCoverageBanner({
   warehouseTotal,
   searchState,
   metadata,
+  prospects,
   orgTypeLabel: orgTypeHint,
 }: {
   displayedCount: number;
   warehouseTotal: number | null;
   searchState: SearchState;
   metadata: DiscoveryMetadata | null | undefined;
+  prospects?: Prospect[];
   orgTypeLabel?: string;
 }) {
   if (!warehouseTotal && !metadata?.warehouse) return null;
 
   const total = warehouseTotal ?? metadata?.warehouse?.indexSize ?? null;
   const source = warehouseSourceLabel(metadata);
+  const lastUpdated = warehouseLastUpdated(metadata, prospects);
   const warehouseStatus = metadata?.warehouse?.status;
   const activeFilters = activeFilterLabels(searchState);
   const typeLabel =
@@ -100,6 +122,14 @@ export function WarehouseCoverageBanner({
           <>
             <span className="text-muted-2">·</span>
             <span className="font-mono text-xs text-muted-2">Source: {source}</span>
+          </>
+        ) : null}
+        {lastUpdated ? (
+          <>
+            <span className="text-muted-2">·</span>
+            <span className="font-mono text-xs text-muted-2">
+              Last updated {lastUpdated}
+            </span>
           </>
         ) : null}
         {warehouseStatus ? (
