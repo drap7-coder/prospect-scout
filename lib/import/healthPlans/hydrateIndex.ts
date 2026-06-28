@@ -58,6 +58,11 @@ export async function ensureHealthPlanIndexHydrated(): Promise<void> {
   await hydrationPromise;
 }
 
+/** Current hydration state for runtime diagnostics. */
+export function getHealthPlanHydrationState(): HydrationState {
+  return hydrationState;
+}
+
 /** Non-blocking hydration kickoff for server startup or import scripts. */
 export function kickoffHealthPlanIndexHydration(): void {
   if (isHealthPlanIndexHydrated() || !isDatabaseConfigured()) return;

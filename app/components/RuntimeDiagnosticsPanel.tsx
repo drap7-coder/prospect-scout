@@ -105,14 +105,55 @@ export function RuntimeDiagnosticsPanel({ runtime }: { runtime: RuntimeDiagnosti
         <StatRow
           label="Last warehouse import"
           value={
-            runtime.warehouse.lastImportAt
-              ? new Date(runtime.warehouse.lastImportAt).toLocaleString()
+            runtime.warehouse.lastImport
+              ? new Date(runtime.warehouse.lastImport).toLocaleString()
               : "—"
           }
         />
         <StatRow label="Catalog version" value={runtime.warehouse.catalogVersion ?? "—"} />
         <StatRow label="Catalog mode" value={runtime.warehouse.catalogMode ?? "—"} />
         <StatRow label="Strict import" value={yesNo(runtime.warehouse.strictImport)} />
+
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+            Connectors
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--muted)]">
+                <tr>
+                  <th className="py-2 pr-3 font-medium">Connector</th>
+                  <th className="py-2 pr-3 font-medium">Status</th>
+                  <th className="py-2 pr-3 font-medium">Organizations</th>
+                  <th className="py-2 pr-3 font-medium">Import mode</th>
+                  <th className="py-2 font-medium">Last import</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runtime.warehouse.connectors.map((connector) => (
+                  <tr key={connector.name} className="border-b border-[var(--border)]">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium">{connector.label}</div>
+                      <div className="text-xs text-[var(--muted)]">{connector.name}</div>
+                    </td>
+                    <td className="py-2 pr-3 capitalize">{connector.status}</td>
+                    <td className="py-2 pr-3 tabular-nums">
+                      {connector.organizations.toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-3 text-[var(--muted)]">
+                      {connector.importMode ?? "—"}
+                    </td>
+                    <td className="py-2 tabular-nums text-[var(--muted)]">
+                      {connector.lastImport
+                        ? new Date(connector.lastImport).toLocaleString()
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {runtime.warnings.length > 0 ? (
