@@ -240,6 +240,10 @@ export function ResultsFilterRail({
     state.sector === "healthcare" ||
     state.industry === "payers" ||
     state.organizationType === "health-plan" ||
+    /\b(health plan|health plans|medicare|medicaid|payer|insurer|mco|qhp|aca)\b/i.test(
+      state.query,
+    ) ||
+    prospects.some((p) => p.buyerPack === "health-plans") ||
     HEALTH_PLAN_LOB_FILTERS.some(
       (f) =>
         state.classificationNamespace === f.namespace &&
@@ -433,13 +437,7 @@ export function ResultsFilterRail({
                   label: "All lines of business",
                   count: catalogFacets?.scopeTotal ?? prospects.length,
                 },
-                ...HEALTH_PLAN_LOB_FILTERS.filter((lob) =>
-                  visible(
-                    classificationCount(lob.namespace, lob.id),
-                    state.classificationNamespace === lob.namespace &&
-                      state.classificationId === lob.id,
-                  ),
-                ).map((lob) => ({
+                ...HEALTH_PLAN_LOB_FILTERS.map((lob) => ({
                   value: classificationFilterKey(lob.namespace, lob.id),
                   label: lob.label,
                   count: classificationCount(lob.namespace, lob.id),

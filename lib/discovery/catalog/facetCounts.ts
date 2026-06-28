@@ -9,11 +9,18 @@ import {
   intentSectorIds,
   orgMatchesAnyIndustry,
 } from "../match";
-import { classificationMatchesIntent } from "@/lib/import/warehouse/organizationCapabilities";
+import {
+  classificationMatchesIntent,
+  normalizeWarehouseOrganization,
+} from "@/lib/import/warehouse/organizationCapabilities";
 import { getCatalogIndex } from "./catalogIndex";
 import type { Organization } from "../organization";
 import { TAXONOMY_SECTORS, TAXONOMY_ORGANIZATION_TYPES } from "@/lib/taxonomy";
 import { US_STATE_FILTERS } from "@/lib/search/searchState";
+import {
+  HEALTH_PLAN_LOB_FILTERS,
+  classificationFilterKey,
+} from "@/lib/search/classificationFilters";
 
 const REGION_ALIASES: Record<string, string[]> = {
   midwest: ["midwest", "great-lakes", "upper-midwest"],
@@ -150,7 +157,7 @@ function countByMultiField(
 function countByClassifications(orgs: Organization[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const org of orgs) {
-    const classes = org.classifications ?? [];
+    const classes = normalizeWarehouseOrganization(org).classifications ?? [];
     const seen = new Set<string>();
     for (const c of classes) {
       const key = `${c.namespace}:${c.id}`;
@@ -275,6 +282,12 @@ export function hydrateFacetCounts(facets: CatalogFacetCounts): CatalogFacetCoun
     }
   }
 
+  const classification = { ...facets.classification };
+  for (const lob of HEALTH_PLAN_LOB_FILTERS) {
+    const key = classificationFilterKey(lob.namespace, lob.id);
+    if (classification[key] === undefined) classification[key] = 0;
+  }
+
   return {
     ...facets,
     sector,
@@ -282,6 +295,7 @@ export function hydrateFacetCounts(facets: CatalogFacetCounts): CatalogFacetCoun
     organizationType,
     canonicalOrganizationType,
     state,
+    classification,
   };
 }
 
