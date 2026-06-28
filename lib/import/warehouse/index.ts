@@ -82,7 +82,10 @@ export {
   ensureOrganizationWarehouseHydrated,
   getLastWarehouseHydrationResult,
   getWarehouseHydrationSnapshot,
+  resetWarehouseHydrationStateForTests,
 } from "./hydration";
+export { resolveOrganizationWarehouseReadiness } from "./readiness";
+export type { WarehouseReadiness, WarehouseDiscoveryStatus } from "./readiness";
 export type {
   WarehouseHydrationResult,
   ConnectorHydrationResult,

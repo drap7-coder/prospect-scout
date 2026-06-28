@@ -47,8 +47,11 @@ import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/fe
 import {
   discoverFromOrganizationWarehouse,
   shouldUseOrganizationWarehouse,
-  ensureOrganizationWarehouseHydrated,
+  isOrganizationWarehouseEnabled,
+  resolveOrganizationWarehouseReadiness,
+  type WarehouseReadiness,
 } from "@/lib/import/warehouse";
+import type { WarehouseDiscoveryInfo } from "./coverage";
 
 let initialized = false;
 
@@ -120,16 +123,15 @@ export async function discoverOrganizations(
 ): Promise<DiscoverResult> {
   initDiscoveryEngine();
   await ensureErisaIndexHydrated();
-  if (shouldUseOrganizationWarehouse()) {
-    await ensureOrganizationWarehouseHydrated();
-  } else if (isHealthPlanPersistentSourceEnabled()) {
+  const readiness = await resolveOrganizationWarehouseReadiness();
+  if (!readiness.useWarehouse && isHealthPlanPersistentSourceEnabled()) {
     await ensureHealthPlanIndexHydrated();
   }
   getConnectors();
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
 
-  if (shouldUseOrganizationWarehouse()) {
+  if (readiness.useWarehouse) {
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
@@ -241,11 +243,17 @@ function buildRelaxedIntents(intent: SearchIntent): SearchIntent[] {
   return out;
 }
 
-/**
- * Staged discovery v2: every connector contributes candidates independently,
- * then merge → dedupe → rank. Falls back to relaxed intent when below threshold.
- */
-export function discoverOrganizationsStaged(
+function warehouseDiscoveryInfo(readiness: WarehouseReadiness): WarehouseDiscoveryInfo {
+  return {
+    status: readiness.status,
+    indexSize: readiness.indexSize,
+    hydrationAttemptedAt: readiness.hydrationAttemptedAt,
+    reason: readiness.reason,
+  };
+}
+
+function discoverOrganizationsStagedWithReadiness(
+  readiness: WarehouseReadiness,
   query: string,
   options: DiscoverOptions = {},
 ): StagedDiscoverResult {
@@ -255,8 +263,9 @@ export function discoverOrganizationsStaged(
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
   const started = performance.now();
+  const warehouseMeta = warehouseDiscoveryInfo(readiness);
 
-  if (shouldUseOrganizationWarehouse()) {
+  if (readiness.useWarehouse) {
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
     const metadata: DiscoveryMetadata = {
@@ -268,6 +277,7 @@ export function discoverOrganizationsStaged(
       fallbackReason: null,
       sourceSummary: summarizeOrganizationSources(result.organizations),
       marketBenchmarkAvailable: marketBenchmarkAvailableForIntent(intent),
+      warehouse: warehouseMeta,
     };
     return {
       intent,
@@ -282,13 +292,18 @@ export function discoverOrganizationsStaged(
 
   const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
 
-  const stagesRun: string[] = ["multi-connector-discovery"];
+  const stagesRun: string[] = readiness.status.startsWith("bootstrap")
+    ? ["bootstrap-fallback", "multi-connector-discovery"]
+    : ["multi-connector-discovery"];
   let result = runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);
   let expanded = false;
-  let fallbackReason: string | null = null;
+  let fallbackReason: string | null = readiness.reason;
 
   if (result.totalAfterRank < DISCOVERY_THRESHOLD) {
-    fallbackReason = `Initial discovery returned ${result.totalAfterRank} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;
+    const expansionNote = `Initial discovery returned ${result.totalAfterRank} of ${DISCOVERY_THRESHOLD} target results; expanded with relaxed geography and industry filters.`;
+    fallbackReason = fallbackReason
+      ? `${fallbackReason} ${expansionNote}`
+      : expansionNote;
     for (const relaxed of buildRelaxedIntents(intent)) {
       const relaxedResult = runDiscoveryPipelineV2Wrapped(
         relaxed,
@@ -321,6 +336,7 @@ export function discoverOrganizationsStaged(
     connectorCandidates: result.diagnostics.connectorCandidates,
     mergedUnique: result.diagnostics.mergedUnique,
     marketBenchmarkAvailable,
+    warehouse: warehouseMeta,
   };
 
   return {
@@ -332,6 +348,52 @@ export function discoverOrganizationsStaged(
     latencyMs: Math.round((performance.now() - started) * 100) / 100,
     metadata,
   };
+}
+
+/**
+ * Request-time staged discovery — awaits warehouse hydration before routing.
+ */
+export async function discoverOrganizationsStagedAsync(
+  query: string,
+  options: DiscoverOptions = {},
+): Promise<StagedDiscoverResult> {
+  initDiscoveryEngine();
+  await ensureErisaIndexHydrated();
+  const readiness = await resolveOrganizationWarehouseReadiness();
+  return discoverOrganizationsStagedWithReadiness(readiness, query, options);
+}
+
+/**
+ * Staged discovery v2: every connector contributes candidates independently,
+ * then merge → dedupe → rank. Falls back to relaxed intent when below threshold.
+ *
+ * Sync path for tests/scripts with a pre-hydrated in-memory index only.
+ * Production search must use {@link discoverOrganizationsStagedAsync}.
+ */
+export function discoverOrganizationsStaged(
+  query: string,
+  options: DiscoverOptions = {},
+): StagedDiscoverResult {
+  const readiness: WarehouseReadiness = shouldUseOrganizationWarehouse()
+    ? {
+        useWarehouse: true,
+        status: "warehouse-hydrated",
+        indexSize: 0,
+        hydrationAttemptedAt: null,
+        reason: null,
+        hydration: null,
+      }
+    : {
+        useWarehouse: false,
+        status: isOrganizationWarehouseEnabled() ? "bootstrap-fallback" : "disabled",
+        indexSize: 0,
+        hydrationAttemptedAt: null,
+        reason: isOrganizationWarehouseEnabled()
+          ? "Warehouse index empty in this process (hydration not awaited)"
+          : null,
+        hydration: null,
+      };
+  return discoverOrganizationsStagedWithReadiness(readiness, query, options);
 }
 
 function summarizeOrganizationSources(

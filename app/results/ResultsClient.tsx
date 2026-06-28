@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Prospect, SearchQuery, SearchResponse } from "@/lib/search/types";
-import { mergeProspectLists } from "@/lib/search/mergeProspects";
+import type { Prospect, SearchResponse } from "@/lib/search/types";
 import type { ProviderBadgeKey } from "@/lib/search/providerPlan";
 import type { LiveProviderKey } from "@/lib/search/providerPlan";
 import { searchRequestBody } from "@/lib/search/progressiveSearch";
@@ -46,14 +45,13 @@ import {
 import { IntelligencePreview } from "@/app/components/IntelligencePreview";
 import {
   initialProviderStatuses,
-  markProvidersLoading,
   ProviderStatusBar,
 } from "@/app/components/ProviderStatusBar";
 import { ScoutBrand } from "@/app/components/ScoutLogo";
 import { SoundToggle } from "@/app/components/SoundToggle";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 
-type FetchPhase = "idle" | "mock-loading" | "ready" | "enriching" | "error";
+type FetchPhase = "idle" | "search-loading" | "ready" | "enriching" | "error";
 
 type BadgeKey = "mock" | ProviderBadgeKey;
 
@@ -64,23 +62,10 @@ type ProviderBadgeStatus =
   | "unavailable"
   | "skipped";
 
-interface MockPhaseResponse {
-  query: SearchQuery;
-  prospects: Prospect[];
-  coverage: SearchResponse["coverage"];
-  discovery?: SearchResponse["discovery"];
-  phase: "mock";
+interface FullPhaseResponse extends SearchResponse {
+  phase: "full";
   plannedProviders: ProviderBadgeKey[];
   secondaryProviders: LiveProviderKey[];
-}
-
-interface ProviderPhaseResponse {
-  phase: "provider";
-  provider: LiveProviderKey;
-  status: "ready" | "unavailable" | "skipped";
-  prospects: Prospect[];
-  coverage: SearchResponse["coverage"];
-  ms: number;
 }
 
 const SORT_OPTIONS: { key: ResultsSortKey; label: string }[] = [
@@ -155,7 +140,7 @@ export function ResultsClient() {
     const ac = new AbortController();
     abortRef.current = ac;
 
-    setPhase("mock-loading");
+    setPhase("search-loading");
     setError(null);
     setSelectedId(null);
     setAllProspects([]);
@@ -167,118 +152,39 @@ export function ResultsClient() {
     const baseBody = searchRequestBody(state);
 
     try {
-      const mockRes = await fetch("/api/search", {
+      const fullRes = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...baseBody, phase: "mock" }),
+        body: JSON.stringify({ ...baseBody, phase: "full" }),
         signal: ac.signal,
       });
 
-      if (!mockRes.ok) {
-        const data = (await mockRes.json().catch(() => null)) as {
+      if (!fullRes.ok) {
+        const data = (await fullRes.json().catch(() => null)) as {
           error?: string;
         } | null;
         throw new Error(data?.error ?? "Search failed. Please try again.");
       }
 
-      const mockData = (await mockRes.json()) as MockPhaseResponse;
+      const fullData = (await fullRes.json()) as FullPhaseResponse;
       if (ac.signal.aborted) return;
 
-      setAllProspects(mockData.prospects);
-      setCoverage(mockData.coverage);
-      setDiscoveryTotals(mockData.discovery ?? null);
-      setPlannedProviders(mockData.plannedProviders);
-      setPhase("enriching");
+      setAllProspects(fullData.prospects);
+      setCoverage(fullData.coverage);
+      setDiscoveryTotals(fullData.discovery ?? null);
+      setPlannedProviders(fullData.plannedProviders);
       setProviderStatuses(
-        markProvidersLoading(
-          initialProviderStatuses(mockData.plannedProviders),
-          mockData.plannedProviders,
-        ),
+        Object.fromEntries(
+          fullData.plannedProviders.map((provider) => [provider, "ready" as const]),
+        ) as Record<BadgeKey, ProviderBadgeStatus>,
       );
+      setPhase("ready");
 
       saveWorkspace({
-        query: mockData.query,
-        prospects: mockData.prospects,
+        query: fullData.query,
+        prospects: fullData.prospects,
         savedAt: Date.now(),
       });
-
-      const primary = mockData.plannedProviders;
-      const secondary = mockData.secondaryProviders ?? [];
-
-      await Promise.allSettled(
-        primary.map(async (provider) => {
-          try {
-            const res = await fetch("/api/search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...baseBody,
-                phase: "provider",
-                provider,
-              }),
-              signal: ac.signal,
-            });
-            if (!res.ok || ac.signal.aborted) return;
-
-            const data = (await res.json()) as ProviderPhaseResponse;
-            if (ac.signal.aborted) return;
-
-            setAllProspects((prev) => {
-              const merged = mergeProspectLists(prev, data.prospects);
-              saveWorkspace({
-                query: mockData.query,
-                prospects: merged,
-                savedAt: Date.now(),
-              });
-              return merged;
-            });
-
-            setProviderStatuses((s) => ({
-              ...s,
-              [provider]:
-                data.status === "skipped" ? "skipped" : data.status,
-            }));
-          } catch (err) {
-            if (ac.signal.aborted) return;
-            if (err instanceof DOMException && err.name === "AbortError") {
-              return;
-            }
-            setProviderStatuses((s) => ({
-              ...s,
-              [provider]: "unavailable",
-            }));
-          }
-        }),
-      );
-
-      if (ac.signal.aborted) return;
-
-      for (const provider of secondary) {
-        try {
-          const res = await fetch("/api/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...baseBody,
-              phase: "provider",
-              provider,
-            }),
-            signal: ac.signal,
-          });
-          if (!res.ok || ac.signal.aborted) continue;
-
-          const data = (await res.json()) as ProviderPhaseResponse;
-          if (ac.signal.aborted) continue;
-
-          setAllProspects((prev) => mergeProspectLists(prev, data.prospects));
-        } catch {
-          /* public web is best-effort */
-        }
-      }
-
-      if (!ac.signal.aborted) {
-        setPhase("ready");
-      }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -433,11 +339,11 @@ export function ResultsClient() {
   const hasQuery = Boolean(searchState.query.trim());
   const showResults =
     allProspects.length > 0 &&
-    (phase === "enriching" || phase === "ready" || phase === "mock-loading");
+    (phase === "search-loading" || phase === "ready" || phase === "enriching");
   const showMockSkeleton =
-    phase === "mock-loading" && allProspects.length === 0;
+    phase === "search-loading" && allProspects.length === 0;
   const isFilteredSubset = filtered.length !== allProspects.length;
-  const enriching = phase === "enriching";
+  const enriching = false;
 
   return (
     <div className="flex min-h-full flex-col bg-surface text-foreground">

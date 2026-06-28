@@ -41,6 +41,7 @@
     "test:health-plans": "node --import tsx scripts/healthPlanChecks.ts",
     "test:manufacturers": "node --import tsx scripts/manufacturerChecks.ts",
     "test:warehouse-search": "node --import tsx scripts/warehouseSearchChecks.ts",
+    "test:warehouse-hydration": "node --import tsx scripts/warehouseHydrationReliabilityChecks.ts",
     "test:organization-model": "node --import tsx scripts/organizationModelChecks.ts",
     "trace:health-plan-search": "node --import tsx scripts/traceHealthPlanSearch.ts",
     "import:warehouse": "node --import tsx scripts/importOrganizationWarehouse.ts",

@@ -221,3 +221,9 @@ export function kickoffOrganizationWarehouseHydration(): void {
   if (!isOrganizationWarehouseEnabled()) return;
   void ensureOrganizationWarehouseHydrated();
 }
+
+/** Reset hydration cache (tests only — simulates a cold serverless instance). */
+export function resetWarehouseHydrationStateForTests(): void {
+  lastHydrationResult = null;
+  hydrationPromise = null;
+}

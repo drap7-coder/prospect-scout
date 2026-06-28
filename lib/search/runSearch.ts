@@ -6,7 +6,11 @@ import type {
 import { getBuyerPack } from "@/lib/packs";
 import { searchDirectory } from "@/lib/directories/search";
 import { directoryRecordsToRawProspects } from "@/lib/directories/toRawProspect";
-import { discoverOrganizationsStaged } from "@/lib/discovery/discoveryEngine";
+import {
+  discoverOrganizationsStaged,
+  discoverOrganizationsStagedAsync,
+} from "@/lib/discovery/discoveryEngine";
+import type { StagedDiscoverResult } from "@/lib/discovery/discoveryEngine";
 import { getCatalogIndex } from "@/lib/discovery/catalog/catalogIndex";
 import { catalogOrganizations } from "@/lib/discovery/diagnostics";
 import { rankedOrganizationsToRawProspects } from "@/lib/discovery/toRawProspect";
@@ -43,45 +47,112 @@ function hasDiscoveryIntent(input: RawSearchInput, queryText: string): boolean {
   );
 }
 
-/**
- * Orchestrates the full search pipeline:
- *   raw input -> parse intent -> discovery engine (structured) OR directory
- *   -> (mock fallback) -> exclude targets -> build signals -> score -> sort.
- */
-export function runSearch(input: RawSearchInput): SearchResponse {
-  const query = parseIntent(input);
-  const { profile } = query;
-  const plan = planSources(query);
-  const pack = getBuyerPack(profile.targetBuyer);
+type DiscoverStagedFn = (
+  query: string,
+  options: {
+    sectorId?: string | null;
+    industryId?: string | null;
+    organizationTypeId?: string | null;
+    state?: string | null;
+    region?: string | null;
+  },
+) => StagedDiscoverResult | Promise<StagedDiscoverResult>;
 
+function buildDiscoveryOptions(
+  profile: ReturnType<typeof parseIntent>["profile"],
+) {
+  return {
+    sectorId: profile.sectorId,
+    industryId: profile.industryId,
+    organizationTypeId: profile.organizationTypeId,
+    state: profile.state,
+    region: profile.region !== ANY_REGION ? profile.region : null,
+  };
+}
+
+/** Awaits warehouse hydration before discovery. Use in production API routes. */
+export async function runSearchAsync(input: RawSearchInput): Promise<SearchResponse> {
+  const discovery = await discoverStage(input, discoverOrganizationsStagedAsync);
+  return assembleSearchResponse(input, discovery);
+}
+
+/** Sync search for scripts/tests with a pre-hydrated in-memory warehouse index. */
+export function runSearch(input: RawSearchInput): SearchResponse {
+  const discovery = discoverStageSync(input, discoverOrganizationsStaged);
+  return assembleSearchResponse(input, discovery);
+}
+
+function discoverStageSync(
+  input: RawSearchInput,
+  discover: DiscoverStagedFn,
+): DiscoveryStageResult {
+  const query = parseIntent(input);
+  const profile = query.profile;
   const queryText =
     (input.query ?? input.targets ?? "").trim() ||
     buildDirectoryQuery(input, profile.region);
+  const discoveryIntent = hasDiscoveryIntent(input, queryText);
+
+  if (!discoveryIntent) {
+    return { query, discoveryIntent, staged: null };
+  }
+
+  const staged = discover(queryText, buildDiscoveryOptions(profile));
+  if (staged instanceof Promise) {
+    throw new Error("discoverStageSync called with async discover function");
+  }
+  return { query, discoveryIntent, staged };
+}
+
+async function discoverStage(
+  input: RawSearchInput,
+  discover: DiscoverStagedFn,
+): Promise<DiscoveryStageResult> {
+  const query = parseIntent(input);
+  const profile = query.profile;
+  const queryText =
+    (input.query ?? input.targets ?? "").trim() ||
+    buildDirectoryQuery(input, profile.region);
+  const discoveryIntent = hasDiscoveryIntent(input, queryText);
+
+  if (!discoveryIntent) {
+    return { query, discoveryIntent, staged: null };
+  }
+
+  const staged = await discover(queryText, buildDiscoveryOptions(profile));
+  return { query, discoveryIntent, staged };
+}
+
+interface DiscoveryStageResult {
+  query: ReturnType<typeof parseIntent>;
+  discoveryIntent: boolean;
+  staged: StagedDiscoverResult | null;
+}
+
+function assembleSearchResponse(
+  input: RawSearchInput,
+  { query, discoveryIntent, staged }: DiscoveryStageResult,
+): SearchResponse {
+  const { profile } = query;
+  const plan = planSources(query);
+  const pack = getBuyerPack(profile.targetBuyer);
 
   let candidates: RawProspect[] = [];
   let searchedRecords = 0;
   let discoveryMeta: SearchResponse["discovery"];
   let stagedMetadata: DiscoveryMetadata | undefined;
-  const discoveryIntent = hasDiscoveryIntent(input, queryText);
 
-  if (discoveryIntent) {
-    const discovery = discoverOrganizationsStaged(queryText, {
-      sectorId: profile.sectorId,
-      industryId: profile.industryId,
-      organizationTypeId: profile.organizationTypeId,
-      state: profile.state,
-      region: profile.region !== ANY_REGION ? profile.region : null,
-    });
-    searchedRecords = discovery.totalBeforeDedupe;
-    stagedMetadata = discovery.metadata;
+  if (staged) {
+    searchedRecords = staged.totalBeforeDedupe;
+    stagedMetadata = staged.metadata;
     discoveryMeta = {
-      totalAfterRank: discovery.totalAfterRank,
-      totalReturned: discovery.totalReturned,
+      totalAfterRank: staged.totalAfterRank,
+      totalReturned: staged.totalReturned,
       catalogTotal: getCatalogIndex().orgs.length,
-      metadata: discovery.metadata,
+      metadata: staged.metadata,
     };
-    if (discovery.organizations.length > 0) {
-      candidates = rankedOrganizationsToRawProspects(discovery.organizations);
+    if (staged.organizations.length > 0) {
+      candidates = rankedOrganizationsToRawProspects(staged.organizations);
     }
   }
 
@@ -97,8 +168,6 @@ export function runSearch(input: RawSearchInput): SearchResponse {
     );
   }
 
-  // Mock prospects are illustrative, not real organizations — never surface them
-  // for catalog/discovery-intent searches (graceful fallback must not fabricate).
   if (candidates.length === 0 && !discoveryIntent) {
     candidates = getMockProspects(plan);
   }
@@ -154,10 +223,6 @@ export function runSearch(input: RawSearchInput): SearchResponse {
   };
 }
 
-/**
- * Final coverage metadata reflecting the prospects actually returned (including
- * any directory fallback), reusing staged-discovery hints where available.
- */
 function buildCoverageMetadata(
   prospects: { sourceRecords?: { connector: string }[] }[],
   staged: DiscoveryMetadata | undefined,
@@ -187,5 +252,6 @@ function buildCoverageMetadata(
     connectorCandidates: staged?.connectorCandidates,
     mergedUnique: staged?.mergedUnique,
     marketBenchmarkAvailable: staged?.marketBenchmarkAvailable ?? false,
+    warehouse: staged?.warehouse,
   };
 }

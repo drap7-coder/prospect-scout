@@ -11,6 +11,22 @@ export type DiscoveryCoverageStatus =
   | "partial"
   | "expanding";
 
+/** Warehouse resolution for a single search/discovery request. */
+export type WarehouseDiscoveryStatus =
+  | "warehouse-hydrated"
+  | "hydration-failed"
+  | "warehouse-empty"
+  | "bootstrap-intentional"
+  | "bootstrap-fallback"
+  | "disabled";
+
+export interface WarehouseDiscoveryInfo {
+  status: WarehouseDiscoveryStatus;
+  indexSize: number;
+  hydrationAttemptedAt: string | null;
+  reason: string | null;
+}
+
 export interface DiscoveryMetadata {
   /** Named organizations returned after ranking (before pagination cap). */
   resultCount: number;
@@ -31,6 +47,8 @@ export interface DiscoveryMetadata {
   mergedUnique?: number;
   /** Market benchmark exists for this query scope. */
   marketBenchmarkAvailable: boolean;
+  /** Organization warehouse resolution for this request (when applicable). */
+  warehouse?: WarehouseDiscoveryInfo;
 }
 
 export const DISCOVERY_THRESHOLD = 10;

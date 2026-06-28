@@ -25,6 +25,11 @@ export function shouldUseOrganizationWarehouse(): boolean {
   return isOrganizationWarehouseEnabled() && warehouseIndexSize() > 0;
 }
 
+/**
+ * Sync check only — may be false on cold serverless instances before hydration.
+ * Production search must call resolveOrganizationWarehouseReadiness() first.
+ */
+
 /** Bootstrap seed directories when warehouse catalog is unavailable. */
 export function shouldUseBootstrapSeedCatalog(): boolean {
   return !shouldUseOrganizationWarehouse();

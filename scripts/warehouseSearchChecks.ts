@@ -9,8 +9,8 @@ import { importNationalManufacturerCatalog } from "../lib/import/manufacturers/i
 import { getHealthPlanIndexSize } from "../lib/import/healthPlans/memoryIndex.ts";
 import { resetCatalogIndex } from "../lib/discovery/catalog/catalogIndex.ts";
 import { parseSearchIntent } from "../lib/discovery/intent.ts";
-import { discoverOrganizationsSync, discoverOrganizationsStaged } from "../lib/discovery/discoveryEngine.ts";
-import { runSearch } from "../lib/search/runSearch.ts";
+import { discoverOrganizationsSync, discoverOrganizationsStaged, discoverOrganizationsStagedAsync } from "../lib/discovery/discoveryEngine.ts";
+import { runSearch, runSearchAsync } from "../lib/search/runSearch.ts";
 import { traceWarehouseSearchPipeline } from "../lib/import/warehouse/discover.ts";
 import { countDuplicateOrganizationIds } from "../lib/import/warehouse/mergeByVerifiedIds.ts";
 import { getWarehouseOrganizations } from "../lib/import/warehouse/organizations.ts";
@@ -26,7 +26,9 @@ const intent = parseSearchIntent("health plan");
 const trace = traceWarehouseSearchPipeline(intent);
 const sync = discoverOrganizationsSync("health plan", { maxResults: 5000 });
 const staged = discoverOrganizationsStaged("health plan", { maxResults: 5000 });
+const stagedAsync = await discoverOrganizationsStagedAsync("health plan", { maxResults: 5000 });
 const search = runSearch({ query: "health plan", sells: "", targets: "health plan" });
+const searchAsync = await runSearchAsync({ query: "health plan", sells: "", targets: "health plan" });
 
 console.log("Warehouse search pipeline trace:");
 for (const stage of trace.stages) {
@@ -45,8 +47,20 @@ assert.ok(
   `staged returned ${staged.totalReturned} of ${warehouseHp}`,
 );
 assert.ok(
+  stagedAsync.totalReturned >= warehouseHp * 0.95,
+  `async staged returned ${stagedAsync.totalReturned} of ${warehouseHp}`,
+);
+assert.equal(stagedAsync.metadata.stagesRun[0], "organization-warehouse");
+assert.ok(
   search.prospects.length >= warehouseHp * 0.95,
   `UI search returned ${search.prospects.length} of ${warehouseHp}`,
+);
+assert.ok(
+  searchAsync.prospects.length >= warehouseHp * 0.95,
+  `async UI search returned ${searchAsync.prospects.length} of ${warehouseHp}`,
+);
+assert.ok(
+  searchAsync.discovery?.metadata?.stagesRun?.includes("organization-warehouse"),
 );
 
 console.log(`\nAll warehouse search checks passed (${warehouseHp} health plans searchable).`);

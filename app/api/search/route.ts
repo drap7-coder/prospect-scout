@@ -155,7 +155,7 @@ export async function POST(request: Request) {
 
   if (phase === "mock") {
     const start = Date.now();
-    const result = runSearchMockOnly(input);
+    const result = await runSearchMockOnly(input);
     const plan = planSources(result.query);
     const primary = plannedPrimaryProviders(plan);
     const secondary = plannedSecondaryProviders(plan);
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const base = runSearchMockOnly(input);
+    const base = await runSearchMockOnly(input);
     const plan = planSources(base.query);
     const allowed = [
       ...plannedPrimaryProviders(plan),
@@ -210,5 +210,11 @@ export async function POST(request: Request) {
   }
 
   const result = await runSearchWithProviders(input);
-  return NextResponse.json(result);
+  const plan = planSources(result.query);
+  return NextResponse.json({
+    ...result,
+    phase: "full",
+    plannedProviders: plannedPrimaryProviders(plan),
+    secondaryProviders: plannedSecondaryProviders(plan),
+  });
 }

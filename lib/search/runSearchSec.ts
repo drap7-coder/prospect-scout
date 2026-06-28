@@ -7,7 +7,7 @@ import type {
   SearchResponse,
 } from "@/lib/search/types";
 import { getBuyerPack } from "@/lib/packs";
-import { runSearch } from "./runSearch";
+import { runSearchAsync } from "./runSearch";
 import { planSources } from "./sourcePlanner";
 import { scoreProspect } from "./score";
 import { synthesizeProspect } from "./synthesize";
@@ -67,15 +67,15 @@ import {
 export async function runSearchWithProviders(
   input: RawSearchInput,
 ): Promise<SearchResponse> {
-  const base = runSearchMockOnly(input);
+  const base = await runSearchAsync(input);
   const plan = planSources(base.query);
   const { enrichWithLiveProviders } = await import("./providerPhase");
   return enrichWithLiveProviders(base, plan);
 }
 
-/** Fast local/mock phase — no live provider network calls. */
-export function runSearchMockOnly(input: RawSearchInput): SearchResponse {
-  return runSearch(input);
+/** Fast local discovery phase — awaits warehouse hydration; no live provider network calls. */
+export async function runSearchMockOnly(input: RawSearchInput): Promise<SearchResponse> {
+  return runSearchAsync(input);
 }
 
 /** Derives an org/company hint from the (original) free-text input. */
