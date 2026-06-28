@@ -26,3 +26,9 @@ export {
   getIndexedHealthPlanOrganizations,
   getMergedHealthPlanCatalogEntries,
 } from "./importCms";
+export {
+  auditHealthPlanCatalogCoverage,
+  formatHealthPlanCoverageAudit,
+  NATIONAL_COVERAGE_BENCHMARKS,
+} from "./coverageAudit";
+export type { HealthPlanCoverageAudit, HealthPlanSourceCoverage } from "./coverageAudit";

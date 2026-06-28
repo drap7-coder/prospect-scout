@@ -32,6 +32,7 @@
     "test:erisa": "node --import tsx scripts/erisaChecks.ts",
     "import:health-plans": "node --import tsx scripts/importHealthPlans.ts",
     "import:health-plans:full": "node --import tsx scripts/importCmsHealthPlans.ts",
+    "audit:health-plans": "node --import tsx scripts/healthPlanCoverageAudit.ts",
     "test:health-plans": "node --import tsx scripts/healthPlanChecks.ts",
     "test:intelligence": "node --import tsx scripts/intelligenceFrameworkChecks.ts",
     "test:db": "node --import tsx scripts/dbSchemaChecks.ts",

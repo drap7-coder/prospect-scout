@@ -29,6 +29,7 @@ import {
   getMergedHealthPlanCatalogEntries,
   importHealthPlanFullCatalog,
 } from "../lib/import/healthPlans/cms/index.ts";
+import { auditHealthPlanCatalogCoverage } from "../lib/import/healthPlans/cms/coverageAudit.ts";
 
 let passed = 0;
 async function check(name: string, fn: () => void | Promise<void>) {
@@ -245,6 +246,21 @@ await check("duplicate CMS contract ids are not assigned to separate orgs", () =
   const entries = getMergedHealthPlanCatalogEntries();
   const duplicates = findDuplicateContractAssignments(entries);
   assert.equal(duplicates.length, 0, duplicates.join("; "));
+});
+
+await check("coverage audit reports fixture completeness and national gaps", () => {
+  const audit = auditHealthPlanCatalogCoverage();
+  assert.equal(audit.ingestionSummary.mode, "fixture");
+  assert.equal(audit.seed.expected, 24);
+  assert.equal(audit.seed.imported, 24);
+  assert.equal(audit.seed.fixtureImportRate, 100);
+  assert.equal(audit.merge.finalCatalogSize, 56);
+  assert.equal(audit.sources.length, 3);
+  assert.ok(audit.sources.every((source) => source.organizationsParsed > 0));
+  assert.ok(audit.merge.totalMerged > 0);
+  assert.ok(audit.states.missing.length > 0);
+  assert.ok(audit.nationalCompleteness.estimatedCompletenessPercent.high < 100);
+  assert.ok(audit.gaps.some((gap) => /fixture/i.test(gap)));
 });
 
 console.log(`\nAll ${passed} health plan checks passed.`);
