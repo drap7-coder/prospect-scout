@@ -226,5 +226,6 @@ export function synthesizeProspect(
     discoveryConfidence: prospect.discoveryConfidence,
     ein: prospect.ein,
     sourceRecords: prospect.sourceRecords ?? [],
+    erisaIntel: prospect.erisaIntel,
   };
 }

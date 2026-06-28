@@ -166,6 +166,32 @@ function synthesizeIntelligenceBullets(
     }
   }
 
+  if (prospect.erisaIntel) {
+    const e = prospect.erisaIntel;
+    if (e.participantCount != null && e.participantCount >= 1000) {
+      add(
+        `Form 5500 plan covers ${e.participantCount.toLocaleString()} participants (${e.latestFilingYear ?? "recent"} filing).`,
+        90,
+      );
+    } else if (e.participantCount != null) {
+      add(
+        `ERISA plan sponsor with ${e.participantCount.toLocaleString()} reported participants.`,
+        82,
+      );
+    }
+    if (e.selfFunded) {
+      add("Self-funded employer health & welfare plan on record.", 86);
+    } else if (e.healthWelfarePlan) {
+      add("Health & welfare benefits plan reported on Form 5500.", 80);
+    }
+    if (e.planName) {
+      add(`Plan: ${e.planName}.`, 70);
+    }
+    if (e.fundingArrangement) {
+      add(`Funding arrangement: ${e.fundingArrangement}.`, 65);
+    }
+  }
+
   const orgType = resolveOrgType(prospect);
   const industry = resolveIndustry(prospect);
   if (orgType && prospect.stateCode && isSubstantiveLocation(prospect.location)) {
@@ -293,6 +319,7 @@ function buildDataSources(
     "sec",
     "cms",
     "fda",
+    "erisa",
     "irs-nonprofits",
     "propublica",
     "census",

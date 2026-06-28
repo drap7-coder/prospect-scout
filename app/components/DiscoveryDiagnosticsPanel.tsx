@@ -15,6 +15,7 @@ const CONNECTOR_ORDER = [
   "aca-marketplace",
   "state-registry",
   "business-directory",
+  "erisa",
 ];
 
 function labelFor(id: string): string {
@@ -31,6 +32,7 @@ function labelFor(id: string): string {
     "aca-marketplace": "ACA Marketplace",
     "state-registry": "State Registry",
     "business-directory": "Business Directory",
+    erisa: "ERISA",
   };
   return labels[id] ?? id;
 }

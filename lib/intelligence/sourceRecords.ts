@@ -35,6 +35,11 @@ const CONNECTOR_META: Record<
     label: "FDA",
     sourceUrl: "https://open.fda.gov/",
   },
+  erisa: {
+    label: "ERISA",
+    sourceUrl:
+      "https://www.dol.gov/agencies/ebsa/about-ebsa/our-activities/public-disclosure/foia/form-5500-datasets",
+  },
   "irs-nonprofits": {
     label: "IRS",
     sourceUrl: "https://projects.propublica.org/nonprofits/",

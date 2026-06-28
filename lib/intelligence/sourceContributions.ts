@@ -21,6 +21,7 @@ export function sourceContributionDescription(
     "public-web": "Supplemental web presence and public company references.",
     web: "Supplemental web presence and public company references.",
     wikipedia: "Reference profile and organizational context.",
+    erisa: "Form 5500 plan sponsor, participant counts, funding arrangement, and welfare plan flags.",
   };
 
   for (const [prefix, desc] of Object.entries(map)) {
@@ -50,6 +51,7 @@ export function sourceDisplayLabel(connector: string): string {
     cms: "CMS",
     "aca-marketplace": "CMS Marketplace",
     fda: "FDA",
+    erisa: "ERISA",
     "irs-nonprofits": "IRS",
     propublica: "ProPublica",
     "propublica-nonprofit-explorer": "ProPublica",

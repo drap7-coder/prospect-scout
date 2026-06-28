@@ -17,6 +17,7 @@ export const SOURCE_SUMMARY_LABELS: Record<string, string> = {
   CMS: "CMS",
   SEC: "SEC",
   FDA: "FDA",
+  ERISA: "ERISA",
   RSS: "RSS",
   "Public Web": "Public Web",
   Mock: "Directory",

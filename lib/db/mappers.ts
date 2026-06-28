@@ -30,6 +30,7 @@ export function organizationToRow(org: Organization): NewOrganizationRow {
     description: org.description,
     buyerPack: org.buyerPack,
     healthPlanType: org.healthPlanType ?? null,
+    tags: org.tags ?? [],
     relevance: org.relevance != null ? String(org.relevance) : null,
     confidence: org.confidence != null ? String(org.confidence) : null,
   };

@@ -11,6 +11,7 @@ function connectorToSummaryLabel(connector: string): keyof typeof SOURCE_SUMMARY
   if (id === "directory") return "Directory";
   if (id === "sec") return "SEC";
   if (id === "fda") return "FDA";
+  if (id === "erisa") return "ERISA";
   if (id === "cms" || id === "aca-marketplace") return "CMS";
   if (id === "rss") return "RSS";
   if (
@@ -55,6 +56,7 @@ export function countBySource(prospects: Prospect[]): Record<string, number> {
     CMS: 0,
     SEC: 0,
     FDA: 0,
+    ERISA: 0,
     RSS: 0,
     "Public Web": 0,
     Mock: 0,

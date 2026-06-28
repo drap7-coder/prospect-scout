@@ -9,6 +9,7 @@
 
 import type { HealthPlanType } from "@/lib/discovery/healthPlanType";
 import type { DiscoveryMetadata } from "@/lib/discovery/coverage";
+import type { ErisaCardIntel } from "@/lib/import/erisa/types";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -231,6 +232,8 @@ export interface RawProspect {
   ein?: string;
   /** Connector provenance from discovery catalog. */
   sourceRecords?: ProspectSourceRecord[];
+  /** Form 5500 / ERISA plan sponsor intelligence when present. */
+  erisaIntel?: ErisaCardIntel;
 }
 
 /** Provenance record for a data connector backing this organization. */
@@ -353,6 +356,8 @@ export interface Prospect {
   ein?: string;
   /** Connector provenance with metadata for rich source badges. */
   sourceRecords: ProspectSourceRecord[];
+  /** Form 5500 / ERISA plan sponsor intelligence when present. */
+  erisaIntel?: ErisaCardIntel;
 }
 
 /** Response shape returned by `/api/search`. */

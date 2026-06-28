@@ -36,7 +36,7 @@ function hasDiscoveryIntent(input: RawSearchInput, queryText: string): boolean {
       input.industryId ||
       input.organizationTypeId ||
       input.state ||
-      /\b(manufactur|bank|credit union|universit|college|nonprofit|charit|foundation|retail|grocer|government|municipal|school|health ?plan|health ?system|hospital|clinic|provider|payer|insurer|insurance|mco|medicare|medicaid|aca|obamacare|marketplace|exchange|qhp|pbm|pharmacy benefit|pharma|biotech|device|food|beverage|aerospace|logistics|software|fintech)\b/i.test(
+      /\b(manufactur|employer|self[- ]?fund|5500|erisa|plan sponsor|benefits buyer|bank|credit union|universit|college|nonprofit|charit|foundation|retail|grocer|government|municipal|school|health ?plan|health ?system|hospital|clinic|provider|payer|insurer|insurance|mco|medicare|medicaid|aca|obamacare|marketplace|exchange|qhp|pbm|pharmacy benefit|pharma|biotech|device|food|beverage|aerospace|logistics|software|fintech)\b/i.test(
         queryText,
       ) ||
       /\b(in|near)\s+[a-z]/i.test(queryText),
