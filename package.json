@@ -17,6 +17,7 @@
     "test:directory": "node --import tsx scripts/directoryChecks.ts",
     "test:taxonomy": "node --import tsx scripts/taxonomyChecks.ts",
     "test:builder": "node --import tsx scripts/prospectBuilderChecks.ts",
+    "test:homepage": "node --import tsx scripts/homepageSearchChecks.ts",
     "test:web": "node --import tsx scripts/publicWebChecks.ts",
     "test:discovery": "node --import tsx scripts/discoveryChecks.ts",
     "test:census": "node --import tsx scripts/censusChecks.ts",
