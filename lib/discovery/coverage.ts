@@ -49,6 +49,12 @@ export interface DiscoveryMetadata {
   marketBenchmarkAvailable: boolean;
   /** Organization warehouse resolution for this request (when applicable). */
   warehouse?: WarehouseDiscoveryInfo;
+  /** Enterprise rollup stats when child orgs collapse to enterprise profiles. */
+  enterpriseRollup?: {
+    rawCount: number;
+    enterpriseCount: number;
+    suppressedChildCount: number;
+  };
 }
 
 export const DISCOVERY_THRESHOLD = 10;

@@ -149,6 +149,20 @@ const NATIONAL_PARENT_RULES: ParentDomainRule[] = [
     parentNames: ["molina healthcare", "molina healthcare inc"],
     entityTokens: ["molina healthcare", "molina health"],
   }),
+  rule({
+    id: "parent-florida-blue",
+    parentOrg: "Guidewell Mutual Holding Corporation",
+    domain: "floridablue.com",
+    website: "https://www.floridablue.com",
+    confidence: 0.91,
+    national: true,
+    parentNames: [
+      "guidewell mutual holding corporation",
+      "guidewell",
+      "florida blue",
+    ],
+    entityTokens: ["florida blue", "blue cross blue shield of florida"],
+  }),
 ];
 
 function directoryRecordToRule(record: ReturnType<typeof normalizeDirectoryRecord>): ParentDomainRule | null {

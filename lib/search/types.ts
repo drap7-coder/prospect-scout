@@ -14,6 +14,7 @@ import type { OrganizationIntelligenceProfile } from "@/lib/intelligence/framewo
 import type { OrganizationRelationshipGraph } from "@/lib/intelligence/relationships/types";
 import type { OrganizationClassification } from "@/lib/organization/model";
 import type { OrganizationEmailPattern } from "@/lib/emailIntelligence/types";
+import type { EnterpriseProfile } from "@/lib/enterprise/types";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -255,6 +256,10 @@ export interface RawProspect {
   parentDisplayName?: string;
   /** Company-level email naming convention intelligence. */
   emailPattern?: OrganizationEmailPattern;
+  /** Enterprise rollup profile when search returns a collapsed enterprise prospect. */
+  enterpriseProfile?: EnterpriseProfile;
+  isEnterpriseRollup?: boolean;
+  childOrganizationCount?: number;
 }
 
 /** Provenance record for a data connector backing this organization. */
@@ -391,6 +396,10 @@ export interface Prospect {
   parentDisplayName?: string;
   /** Company-level email naming convention intelligence. */
   emailPattern?: OrganizationEmailPattern;
+  /** Enterprise rollup profile when search returns a collapsed enterprise prospect. */
+  enterpriseProfile?: EnterpriseProfile;
+  isEnterpriseRollup?: boolean;
+  childOrganizationCount?: number;
 }
 
 /** Response shape returned by `/api/search`. */

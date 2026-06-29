@@ -236,6 +236,14 @@ export function IntelligencePreview({
       </div>
 
       <footer className="shrink-0 border-t border-border/80 bg-surface-2/40 p-4">
+        {prospect.isEnterpriseRollup && prospect.enterpriseProfile ? (
+          <Link
+            href={`/enterprise/${encodeURIComponent(prospect.enterpriseProfile.id)}`}
+            className="mb-2 flex w-full items-center justify-center rounded-lg border border-border bg-surface py-2.5 text-sm font-medium transition hover:border-border-strong"
+          >
+            Enterprise profile · {prospect.enterpriseProfile.childCount} source records
+          </Link>
+        ) : null}
         <Link
           href={`/dossier/${encodeURIComponent(prospect.id)}`}
           className="flex w-full items-center justify-center rounded-lg bg-accent py-3 text-sm font-semibold text-white transition hover:brightness-110"

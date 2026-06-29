@@ -238,5 +238,8 @@ export function synthesizeProspect(
     tags: prospect.tags,
     parentDisplayName: prospect.parentDisplayName,
     emailPattern: prospect.emailPattern,
+    enterpriseProfile: prospect.enterpriseProfile,
+    isEnterpriseRollup: prospect.isEnterpriseRollup,
+    childOrganizationCount: prospect.childOrganizationCount,
   };
 }

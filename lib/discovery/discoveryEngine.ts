@@ -50,6 +50,10 @@ import {
   applyEmailIntelligenceToDiscoveryOrgs,
 } from "@/lib/emailIntelligence/pipeline";
 import {
+  rollupRankedOrganizations,
+  shouldApplyEnterpriseRollup,
+} from "@/lib/enterprise";
+import {
   discoverFromOrganizationWarehouse,
   shouldUseOrganizationWarehouse,
   isOrganizationWarehouseEnabled,
@@ -150,12 +154,14 @@ export async function discoverOrganizations(
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    const withEmail = attachEmailPatternsFromWarehouseIndex(result.organizations);
+    const finalized = finalizeWarehouseOrganizations(intent, withEmail);
     return {
       intent,
-      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
+      organizations: finalized.organizations,
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
-      totalReturned: result.totalReturned,
+      totalReturned: finalized.totalReturned,
       latencyMs: Math.round((performance.now() - started) * 100) / 100,
     };
   }
@@ -177,12 +183,14 @@ export function discoverOrganizationsSync(
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    const withEmail = attachEmailPatternsFromWarehouseIndex(result.organizations);
+    const finalized = finalizeWarehouseOrganizations(intent, withEmail);
     return {
       intent,
-      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
+      organizations: finalized.organizations,
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
-      totalReturned: result.totalReturned,
+      totalReturned: finalized.totalReturned,
       latencyMs: Math.round((performance.now() - started) * 100) / 100,
     };
   }
@@ -267,6 +275,33 @@ function warehouseDiscoveryInfo(readiness: WarehouseReadiness): WarehouseDiscove
   };
 }
 
+function finalizeWarehouseOrganizations(
+  intent: SearchIntent,
+  organizations: RankedOrganization[],
+): {
+  organizations: RankedOrganization[];
+  totalReturned: number;
+  enterpriseRollup?: {
+    rawCount: number;
+    enterpriseCount: number;
+    suppressedChildCount: number;
+  };
+} {
+  if (!shouldApplyEnterpriseRollup(intent)) {
+    return { organizations, totalReturned: organizations.length };
+  }
+  const rolled = rollupRankedOrganizations(organizations);
+  return {
+    organizations: rolled.organizations,
+    totalReturned: rolled.enterpriseCount,
+    enterpriseRollup: {
+      rawCount: rolled.rawOrganizationCount,
+      enterpriseCount: rolled.enterpriseCount,
+      suppressedChildCount: rolled.suppressedChildCount,
+    },
+  };
+}
+
 function discoverOrganizationsStagedWithReadiness(
   readiness: WarehouseReadiness,
   query: string,
@@ -283,23 +318,28 @@ function discoverOrganizationsStagedWithReadiness(
   if (readiness.useWarehouse && shouldUseWarehouseForRequest(intent, options.catalogNodeId)) {
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
+    const withEmail = attachEmailPatternsFromWarehouseIndex(result.organizations);
+    const finalized = finalizeWarehouseOrganizations(intent, withEmail);
     const metadata: DiscoveryMetadata = {
-      resultCount: result.totalAfterFilter,
+      resultCount: finalized.totalReturned,
       threshold: DISCOVERY_THRESHOLD,
-      coverageStatus: computeCoverageStatus(result.totalAfterFilter),
-      stagesRun: ["organization-warehouse"],
+      coverageStatus: computeCoverageStatus(finalized.totalReturned),
+      stagesRun: finalized.enterpriseRollup
+        ? ["organization-warehouse", "enterprise-rollup"]
+        : ["organization-warehouse"],
       expanded: false,
       fallbackReason: null,
-      sourceSummary: summarizeOrganizationSources(result.organizations),
+      sourceSummary: summarizeOrganizationSources(finalized.organizations),
       marketBenchmarkAvailable: marketBenchmarkAvailableForIntent(intent),
       warehouse: warehouseMeta,
+      enterpriseRollup: finalized.enterpriseRollup,
     };
     return {
       intent,
-      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
+      organizations: finalized.organizations,
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
-      totalReturned: result.totalReturned,
+      totalReturned: finalized.totalReturned,
       latencyMs: Math.round((performance.now() - started) * 100) / 100,
       metadata,
     };

@@ -11,6 +11,7 @@ import { parseSearchIntent } from "@/lib/discovery/intent";
 import { computeOrganizationWarehouseDiagnostics } from "@/lib/import/warehouse";
 import { computeDomainCoverageReport } from "@/lib/domainIntelligence/coverage";
 import { getWarehouseOrganizations } from "@/lib/import/warehouse/organizations";
+import { computeEnterpriseRollupDiagnostics } from "@/lib/enterprise/diagnostics";
 import { computeHealthPlanCatalogDiagnostics } from "@/lib/import/healthPlans/healthPlanDiagnostics";
 import { computeManufacturerConnectorDiagnostics } from "@/lib/import/manufacturers/diagnostics";
 import { computeRuntimeDiagnostics } from "@/lib/runtime";
@@ -60,6 +61,7 @@ export default async function DiagnosticsPage() {
   );
   const warehouse = computeOrganizationWarehouseDiagnostics();
   const domainCoverage = computeDomainCoverageReport(getWarehouseOrganizations());
+  const enterpriseRollup = computeEnterpriseRollupDiagnostics();
   const healthPlans = computeHealthPlanCatalogDiagnostics();
   const manufacturers = computeManufacturerConnectorDiagnostics();
   const runtime = await computeRuntimeDiagnostics();
@@ -403,6 +405,120 @@ export default async function DiagnosticsPage() {
                 key={bucket.label}
                 label={bucket.label}
                 value={`${bucket.withDomain}/${bucket.total} domain (${bucket.pctDomain}%)`}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Enterprise Rollup">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Child warehouse organizations collapsed into canonical enterprise prospects for
+            default search.
+          </p>
+          <StatRow
+            label="Raw warehouse organizations"
+            value={enterpriseRollup.rawOrganizationCount.toLocaleString()}
+          />
+          <StatRow
+            label="Search results (after rollup)"
+            value={enterpriseRollup.searchResultCount.toLocaleString()}
+          />
+          <StatRow
+            label="Enterprise profiles (rollup)"
+            value={enterpriseRollup.rollupProfileCount.toLocaleString()}
+          />
+          <StatRow
+            label="Passthrough orphans (no profile)"
+            value={enterpriseRollup.passthroughOrphans.toLocaleString()}
+          />
+          <StatRow
+            label="Raw org domain coverage (health plans)"
+            value={`${enterpriseRollup.rawOrgDomainCoverage.withDomain}/${enterpriseRollup.rawOrgDomainCoverage.total} (${enterpriseRollup.rawOrgDomainCoverage.pctDomain}%)`}
+          />
+          <StatRow
+            label="Average children per enterprise"
+            value={enterpriseRollup.averageChildrenPerEnterprise}
+          />
+          <StatRow
+            label="Suppressed child records (default search)"
+            value={enterpriseRollup.suppressedChildRecords.toLocaleString()}
+          />
+          <StatRow
+            label="Orphan organizations (standalone)"
+            value={enterpriseRollup.orphanOrganizations.toLocaleString()}
+          />
+          <StatRow
+            label="Enterprise domain coverage"
+            value={`${enterpriseRollup.enterpriseProfilesWithDomain}/${enterpriseRollup.rollupProfileCount} (${enterpriseRollup.enterpriseDomainCoverage.pctDomain}%)`}
+          />
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Domain promotion
+            </p>
+            <StatRow
+              label="Profiles with domain-bearing children"
+              value={enterpriseRollup.enterpriseProfilesWithDomainBearingChildren.toLocaleString()}
+            />
+            <StatRow
+              label="Promotion failures"
+              value={enterpriseRollup.promotionFailures.toLocaleString()}
+            />
+            <StatRow
+              label="Profiles missing domain (no child domain)"
+              value={enterpriseRollup.enterpriseProfilesMissingDomain.toLocaleString()}
+            />
+            <StatRow
+              label="Inherited from parent mappings"
+              value={enterpriseRollup.domainPromotion.inheritedFromParentMappings.toLocaleString()}
+            />
+            <StatRow
+              label="Promoted from child records"
+              value={enterpriseRollup.domainPromotion.promotedFromChildRecords.toLocaleString()}
+            />
+            <StatRow
+              label="Ambiguous enterprises"
+              value={enterpriseRollup.domainPromotion.ambiguousEnterprises.toLocaleString()}
+            />
+            <StatRow
+              label="Missing canonical domain"
+              value={enterpriseRollup.domainPromotion.missingCanonicalDomain.toLocaleString()}
+            />
+            <StatRow
+              label="Rollups with domain-bearing children"
+              value={enterpriseRollup.domainPromotion.enterprisesWithDomainChildren.toLocaleString()}
+            />
+            <StatRow
+              label="Promotion success (domain-bearing rollups)"
+              value={`${enterpriseRollup.domainPromotion.promotionSuccessPct}%`}
+            />
+            {enterpriseRollup.promotionFailures === 0 ? (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                No promotion failures — missing enterprise domains reflect low raw org domain
+                coverage, not rollup promotion logic.
+              </p>
+            ) : null}
+          </div>
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Top enterprises missing domain
+            </p>
+            {enterpriseRollup.topEnterprisesMissingDomain.slice(0, 10).map((row) => (
+              <StatRow
+                key={row.id}
+                label={row.name}
+                value={`${row.childCount} children`}
+              />
+            ))}
+          </div>
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              Top rollups by child count
+            </p>
+            {enterpriseRollup.topRollupsByChildCount.slice(0, 8).map((row) => (
+              <StatRow
+                key={row.id}
+                label={row.name}
+                value={`${row.childCount} children`}
               />
             ))}
           </div>

@@ -21,6 +21,7 @@ import { getWarehouseOrganizations } from "../lib/import/warehouse/organizations
 import { discoverFromOrganizationWarehouse } from "../lib/import/warehouse/discover.ts";
 
 process.env.ORG_WAREHOUSE = "1";
+process.env.ENTERPRISE_ROLLUP = "0";
 
 await importNationalHealthPlanCatalog();
 importNationalManufacturerCatalog();

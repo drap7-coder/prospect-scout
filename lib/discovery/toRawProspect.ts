@@ -3,6 +3,7 @@ import type { Organization } from "./organization";
 import type { RankedOrganization } from "./rank";
 import { sourceRecordsFromOrgSources } from "@/lib/intelligence/sourceRecords";
 import { readOrganizationEmailPattern } from "@/lib/emailIntelligence/enrichOrganization";
+import { readEnterpriseProfileFromOrg } from "@/lib/enterprise";
 import { normalizeEinDigits } from "@/lib/discovery/connectors/propublica/normalize";
 
 function extractEinFromOrgId(id: string): string | undefined {
@@ -53,6 +54,9 @@ export function organizationToRawProspect(org: Organization): RawProspect {
       ? undefined
       : parsedEmployees;
 
+  const enterpriseProfile = readEnterpriseProfileFromOrg(org);
+  const isEnterprise = org.id.startsWith("enterprise:") || Boolean(enterpriseProfile);
+
   return {
     id: org.id,
     name: org.canonicalName,
@@ -86,6 +90,9 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     tags: org.tags,
     parentDisplayName: org.parentDisplayName ?? undefined,
     emailPattern: readOrganizationEmailPattern(org) ?? undefined,
+    enterpriseProfile: enterpriseProfile ?? undefined,
+    isEnterpriseRollup: isEnterprise,
+    childOrganizationCount: enterpriseProfile?.childCount,
   };
 }
 
