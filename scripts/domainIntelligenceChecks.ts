@@ -21,6 +21,8 @@ import {
   resolveRegionalPlanDomain,
   resolveImportTimeDomain,
   DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD,
+  normalizeBluesBrandPhrase,
+  normalizeBrandPhrase,
 } from "../lib/domainIntelligence/index.ts";
 
 let passed = 0;
@@ -497,6 +499,77 @@ check("resolves BCBS Michigan with state-scoped parent rule", () => {
   const lookup = resolveParentOrganizationDomain(org);
   assert.ok(lookup);
   assert.equal(lookup!.domain, "bcbsm.com");
+});
+
+check("normalizes Blues phrase variants equivalently", () => {
+  const variants = [
+    "Blue Cross and Blue Shield of Alabama",
+    "Blue Cross & Blue Shield of Alabama",
+    "Blue Cross Blue Shield of Alabama",
+    "BCBS of Alabama",
+  ].map(normalizeBrandPhrase);
+  const expected = normalizeBrandPhrase("Blue Cross Blue Shield of Alabama");
+  for (const variant of variants) {
+    assert.equal(variant, expected);
+  }
+});
+
+check("resolves Blue Cross and Blue Shield of Alabama via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-al",
+    canonicalName: "Blue Cross and Blue Shield of Alabama",
+    parentDisplayName: "Blue Cross and Blue Shield of Alabama",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsal.org");
+});
+
+check("resolves Blue Cross & Blue Shield of Rhode Island via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-ri",
+    canonicalName: "Blue Cross & Blue Shield of Rhode Island",
+    parentDisplayName: "Blue Cross & Blue Shield of Rhode Island",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsri.com");
+});
+
+check("resolves Premera Blue Cross Blue Shield of Alaska via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "premera-ak",
+    canonicalName: "Premera Blue Cross Blue Shield of Alaska",
+    parentDisplayName: "Premera Blue Cross Blue Shield of Alaska",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "premera.com");
+});
+
+check("resolves MDwise via regional registry", () => {
+  const org = healthPlanOrg({
+    id: "mdwise",
+    canonicalName: "MDwise",
+    parentDisplayName: "McLaren Health Care",
+    states: ["IN"],
+    geography: { states: ["IN"], regions: [], national: false, headquarters: "IN" },
+  });
+  const lookup = resolveRegionalPlanDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "mdwise.org");
 });
 
 check("import propagation rejects ambiguous parent matches", () => {

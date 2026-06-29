@@ -1,36 +1,21 @@
 import type { Organization } from "@/lib/discovery/organization";
 import { confidenceLabelFromScore, normalizeBrandPhrase } from "./normalize";
 import { buildParentDomainRules, type ParentDomainRule, type ParentMatchSignal } from "./parentMappings";
+import { collectOrgNameTexts, resolveOrgStates } from "./stateInference";
 import type { DomainLookupResult } from "./types";
 import { DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD } from "./types";
 
-function orgStates(org: Organization): string[] {
-  const states = new Set<string>();
-  for (const s of org.geography?.states ?? []) states.add(s.toUpperCase());
-  for (const s of org.states ?? []) states.add(s.toUpperCase());
-  const hq = org.headquarters ?? org.geography?.headquarters;
-  if (hq) {
-    const match = hq.match(/\b([A-Z]{2})\b/);
-    if (match) states.add(match[1]!);
-  }
-  return [...states];
+function orgStates(org: Organization, texts: string[]): string[] {
+  return resolveOrgStates(org, texts);
 }
 
 function collectNormalizedTexts(org: Organization): string[] {
-  const raw = [
-    org.canonicalName,
-    org.legalName,
-    org.displayName,
-    org.parentDisplayName,
-    ...org.aliases,
-  ].filter((value): value is string => Boolean(value?.trim()));
-
-  return raw.map((value) => normalizeBrandPhrase(value));
+  return collectOrgNameTexts(org).map((value) => normalizeBrandPhrase(value));
 }
 
-function statesCompatible(org: Organization, rule: ParentDomainRule): boolean {
+function statesCompatible(org: Organization, rule: ParentDomainRule, texts: string[]): boolean {
   if (rule.national) return true;
-  const orgSt = orgStates(org);
+  const orgSt = orgStates(org, texts);
   if (!rule.states?.length) return true;
   if (orgSt.length === 0) return false;
   return orgSt.some((s) => rule.states!.includes(s));
@@ -57,7 +42,7 @@ function matchParentDisplayName(
   if (!parent) return null;
   const normalized = normalizeBrandPhrase(parent);
   if (!rule.parentNames.includes(normalized)) return null;
-  if (!statesCompatible(org, rule) && !rule.national) return null;
+  if (!statesCompatible(org, rule, texts) && !rule.national) return null;
   if (hasExcludedToken(texts, rule)) return null;
   return {
     rule,
@@ -99,7 +84,7 @@ function matchEntityTokens(
   for (const token of rule.entityTokens) {
     if (!tokenMatches(haystack, token)) continue;
     if (!rule.national && rule.states?.length) {
-      if (!statesCompatible(org, rule)) continue;
+      if (!statesCompatible(org, rule, texts)) continue;
     }
     return {
       rule,

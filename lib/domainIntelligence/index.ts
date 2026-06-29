@@ -15,6 +15,7 @@ export {
 export {
   normalizeOrganizationName,
   normalizeBrandPhrase,
+  normalizeBluesBrandPhrase,
   normalizePrimaryDomain,
   normalizeWebsiteUrl,
   websiteFromDomain,
@@ -57,6 +58,12 @@ export {
   resolveImportTimeDomain,
   type ImportPropagationResult,
 } from "./importPropagation";
+
+export {
+  inferStatesFromOrgText,
+  resolveOrgStates,
+  collectOrgNameTexts,
+} from "./stateInference";
 
 export {
   enrichOrganizationDomain,

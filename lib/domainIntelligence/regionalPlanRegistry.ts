@@ -5,10 +5,14 @@ import {
   normalizePrimaryDomain,
   normalizeWebsiteUrl,
 } from "./normalize";
+import { collectOrgNameTexts, resolveOrgStates } from "./stateInference";
 import type { DomainLookupResult } from "./types";
 import { DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD } from "./types";
 
 export type RegionalPlanType = "medicaid" | "provider-sponsored" | "regional";
+
+/** Distinctive plan tokens allowed below the 8-character minimum. */
+const DISTINCTIVE_PLAN_TOKENS = new Set(["mdwise", "ambetter"]);
 
 /** Lane 2 — deterministic name → domain for state/regional Medicaid and provider-sponsored plans. */
 export interface RegionalPlanDomainEntry {
@@ -32,7 +36,9 @@ function entry(
   for (const alias of input.aliases) tokens.add(normalizeBrandPhrase(alias));
   return {
     ...input,
-    entityTokens: [...tokens].filter((t) => t.length >= 8),
+    entityTokens: [...tokens].filter(
+      (t) => t.length >= 8 || DISTINCTIVE_PLAN_TOKENS.has(t),
+    ),
   };
 }
 
@@ -270,44 +276,142 @@ export const REGIONAL_PLAN_DOMAIN_ENTRIES: RegionalPlanDomainEntry[] = [
     confidence: 0.91,
     planType: "provider-sponsored",
   }),
+  // Batch #2 — regional Medicaid / provider-sponsored brands
+  entry({
+    id: "regional-mdwise",
+    name: "MDwise",
+    aliases: ["mdwise inc"],
+    entityTokens: ["mdwise"],
+    states: ["IN"],
+    domain: "mdwise.org",
+    website: "https://www.mdwise.org",
+    confidence: 0.92,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-priority-partners",
+    name: "Priority Partners",
+    aliases: ["priority partners mco"],
+    states: ["MD"],
+    domain: "prioritypartners.com",
+    website: "https://www.prioritypartners.com",
+    confidence: 0.92,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-blue-plus",
+    name: "Blue Plus",
+    aliases: ["blue plus minnesota"],
+    states: ["MN"],
+    domain: "bluecrossmn.com",
+    website: "https://www.bluecrossmn.com",
+    confidence: 0.91,
+    planType: "regional",
+  }),
+  entry({
+    id: "regional-community-first",
+    name: "Community First Health Plans",
+    aliases: ["community first health plans inc"],
+    states: ["TX"],
+    domain: "communityfirsthealthplans.com",
+    website: "https://www.communityfirsthealthplans.com",
+    confidence: 0.92,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-network-health-plan",
+    name: "Network Health Plan",
+    aliases: ["network health plan of wisconsin"],
+    states: ["WI"],
+    domain: "networkhealth.com",
+    website: "https://www.networkhealth.com",
+    confidence: 0.91,
+    planType: "regional",
+  }),
+  entry({
+    id: "regional-security-health",
+    name: "Security Health Plan",
+    aliases: ["security health plan of wisconsin"],
+    states: ["WI"],
+    domain: "securityhealth.org",
+    website: "https://www.securityhealth.org",
+    confidence: 0.91,
+    planType: "regional",
+  }),
+  entry({
+    id: "regional-community-care",
+    name: "Community Care Health Plan",
+    aliases: ["community care inc", "community care health plan"],
+    states: ["WI"],
+    domain: "communitycareinc.org",
+    website: "https://www.communitycareinc.org",
+    confidence: 0.91,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-cook-childrens",
+    name: "Cook Children's Health Plan",
+    aliases: ["cook childrens health plan"],
+    states: ["TX"],
+    domain: "cookchildrenshealthplan.org",
+    website: "https://www.cookchildrenshealthplan.org",
+    confidence: 0.92,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-healthy-blue-ar",
+    name: "Healthy Blue",
+    aliases: ["summit community care", "healthy blue arkansas"],
+    states: ["AR"],
+    domain: "healthyblue.com",
+    website: "https://www.healthyblue.com",
+    confidence: 0.91,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-healthy-blue-mo",
+    name: "Healthy Blue",
+    aliases: ["healthy blue missouri"],
+    states: ["MO"],
+    domain: "healthyblue.com",
+    website: "https://www.healthyblue.com",
+    confidence: 0.91,
+    planType: "medicaid",
+  }),
+  entry({
+    id: "regional-ambetter",
+    name: "Ambetter",
+    aliases: ["ambetter of alabama", "ambetter from superior health"],
+    entityTokens: ["ambetter"],
+    states: [],
+    domain: "ambetterhealth.com",
+    website: "https://www.ambetterhealth.com",
+    confidence: 0.9,
+    planType: "regional",
+  }),
 ];
 
-function orgStates(org: Organization): string[] {
-  const states = new Set<string>();
-  for (const s of org.geography?.states ?? []) states.add(s.toUpperCase());
-  for (const s of org.states ?? []) states.add(s.toUpperCase());
-  const hq = org.headquarters ?? org.geography?.headquarters;
-  if (hq) {
-    const match = hq.match(/\b([A-Z]{2})\b/);
-    if (match) states.add(match[1]!);
-  }
-  return [...states];
+function orgStates(org: Organization, texts: string[]): string[] {
+  return resolveOrgStates(org, texts);
 }
 
 function collectNormalizedTexts(org: Organization): string[] {
-  return [
-    org.canonicalName,
-    org.legalName,
-    org.displayName,
-    org.parentDisplayName,
-    ...org.aliases,
-  ]
-    .filter((value): value is string => Boolean(value?.trim()))
-    .map((value) => normalizeBrandPhrase(value));
+  return collectOrgNameTexts(org).map((value) => normalizeBrandPhrase(value));
 }
 
-function statesCompatible(org: Organization, entry: RegionalPlanDomainEntry): boolean {
+function statesCompatible(org: Organization, entry: RegionalPlanDomainEntry, texts: string[]): boolean {
   if (!entry.states.length) return true;
-  const orgSt = orgStates(org);
+  const orgSt = orgStates(org, texts);
   if (orgSt.length === 0) return false;
   return orgSt.some((s) => entry.states.includes(s));
 }
 
 function matchesEntry(org: Organization, plan: RegionalPlanDomainEntry, texts: string[]): boolean {
-  if (!statesCompatible(org, plan)) return false;
+  if (!statesCompatible(org, plan, texts)) return false;
   const haystack = texts.join(" ");
   for (const token of plan.entityTokens) {
     if (token.length >= 8 && haystack.includes(token)) return true;
+    if (DISTINCTIVE_PLAN_TOKENS.has(token) && haystack.includes(token)) return true;
   }
   return false;
 }
