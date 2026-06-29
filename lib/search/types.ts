@@ -106,6 +106,8 @@ export interface UserProfile {
   organizationTypeId?: string | null;
   /** US state postal code filter. */
   state?: string | null;
+  /** Industry catalog node that launched this search. */
+  catalogNodeId?: string | null;
 }
 
 /**
@@ -139,6 +141,8 @@ export interface RawSearchInput {
   state?: string | null;
   classificationNamespace?: string | null;
   classificationId?: string | null;
+  /** Industry catalog node id for warehouse routing bridge. */
+  catalogNodeId?: string | null;
 }
 
 /**

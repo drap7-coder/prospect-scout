@@ -60,6 +60,7 @@ type DiscoverStagedFn = (
 
 function buildDiscoveryOptions(
   profile: ReturnType<typeof parseIntent>["profile"],
+  catalogNodeId?: string | null,
 ) {
   return {
     sectorId: profile.sectorId,
@@ -67,6 +68,7 @@ function buildDiscoveryOptions(
     organizationTypeId: profile.organizationTypeId,
     state: profile.state,
     region: profile.region !== ANY_REGION ? profile.region : null,
+    catalogNodeId: catalogNodeId ?? profile.catalogNodeId ?? null,
   };
 }
 
@@ -97,7 +99,7 @@ function discoverStageSync(
     return { query, discoveryIntent, staged: null };
   }
 
-  const staged = discover(queryText, buildDiscoveryOptions(profile));
+  const staged = discover(queryText, buildDiscoveryOptions(profile, input.catalogNodeId));
   if (staged instanceof Promise) {
     throw new Error("discoverStageSync called with async discover function");
   }
@@ -119,7 +121,7 @@ async function discoverStage(
     return { query, discoveryIntent, staged: null };
   }
 
-  const staged = await discover(queryText, buildDiscoveryOptions(profile));
+  const staged = await discover(queryText, buildDiscoveryOptions(profile, input.catalogNodeId));
   return { query, discoveryIntent, staged };
 }
 

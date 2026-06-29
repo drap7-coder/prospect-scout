@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     metro: body.metro ?? null,
     operatingStates: body.operatingStates ?? [],
     sort: body.sort ?? null,
+    catalogNodeId: body.catalogNodeId ?? null,
   });
 
   const facets = hydrateFacetCounts(computeCatalogFacetCounts(intent));

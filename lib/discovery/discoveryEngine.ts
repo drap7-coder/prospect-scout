@@ -44,7 +44,7 @@ import {
   kickoffHealthPlanIndexHydration,
 } from "@/lib/import/healthPlans/hydrateIndex";
 import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/featureFlag";
-import { intentUsesWarehouse } from "@/lib/catalog/routing";
+import { resolveDiscoveryRouteMode } from "@/lib/catalog/normalize";
 import {
   discoverFromOrganizationWarehouse,
   shouldUseOrganizationWarehouse,
@@ -84,6 +84,16 @@ export function initDiscoveryEngine(): void {
 export interface DiscoverOptions extends ParseSearchIntentOptions {
   connectors?: string[];
   maxResults?: number;
+  catalogNodeId?: string | null;
+}
+
+function shouldUseWarehouseForRequest(
+  intent: SearchIntent,
+  catalogNodeId?: string | null,
+): boolean {
+  return (
+    resolveDiscoveryRouteMode({ intent, catalogNodeId }) === "warehouse"
+  );
 }
 
 export interface DiscoverResult {
@@ -132,7 +142,7 @@ export async function discoverOrganizations(
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
 
-  if (readiness.useWarehouse && intentUsesWarehouse(intent)) {
+  if (readiness.useWarehouse && shouldUseWarehouseForRequest(intent, options.catalogNodeId)) {
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
@@ -159,7 +169,7 @@ export function discoverOrganizationsSync(
   const intent = parseSearchIntent(query, options);
   const maxResults = options.maxResults ?? 500;
 
-  if (shouldUseOrganizationWarehouse() && intentUsesWarehouse(intent)) {
+  if (shouldUseOrganizationWarehouse() && shouldUseWarehouseForRequest(intent, options.catalogNodeId)) {
     const started = performance.now();
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
@@ -266,7 +276,7 @@ function discoverOrganizationsStagedWithReadiness(
   const started = performance.now();
   const warehouseMeta = warehouseDiscoveryInfo(readiness);
 
-  if (readiness.useWarehouse && intentUsesWarehouse(intent)) {
+  if (readiness.useWarehouse && shouldUseWarehouseForRequest(intent, options.catalogNodeId)) {
     const warehouseMax = options.maxResults ?? 5000;
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
     const metadata: DiscoveryMetadata = {
@@ -294,13 +304,13 @@ function discoverOrganizationsStagedWithReadiness(
   const connectorIds = options.connectors ?? [...DISCOVERY_V2_CONNECTOR_IDS];
 
   const stagesRun: string[] =
-    readiness.useWarehouse && !intentUsesWarehouse(intent)
+    readiness.useWarehouse && !shouldUseWarehouseForRequest(intent, options.catalogNodeId)
       ? ["catalog-live-discovery"]
       : readiness.status.startsWith("bootstrap")
         ? ["bootstrap-fallback", "multi-connector-discovery"]
         : ["multi-connector-discovery"];
   let fallbackReason: string | null =
-    readiness.useWarehouse && !intentUsesWarehouse(intent)
+    readiness.useWarehouse && !shouldUseWarehouseForRequest(intent, options.catalogNodeId)
       ? "Catalog routing: live discovery for this industry (warehouse covers other sectors)"
       : readiness.reason;
   let result = runDiscoveryPipelineV2Wrapped(intent, connectorIds, maxResults);

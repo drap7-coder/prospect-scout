@@ -102,7 +102,13 @@ export function intentUsesWarehouse(
     | "organizationTypeId"
     | "classificationFilter"
   >,
+  catalogNodeId?: string | null,
 ): boolean {
+  if (catalogNodeId) {
+    const node = CATALOG_INDEX.get(catalogNodeId);
+    if (node?.coverage === "warehouse" || node?.warehouseBuyerPack) return true;
+  }
+
   if (intent.classificationFilter?.namespace === "health-plans") return true;
 
   const node = resolveCatalogNodeForIntent(intent);

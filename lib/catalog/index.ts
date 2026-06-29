@@ -26,6 +26,17 @@ export {
 } from "./routing";
 
 export {
+  hydrateSearchStateFromCatalog,
+  searchIsExecutable,
+  shouldUseWarehouseForCatalogNode,
+  resolveDiscoveryRouteMode,
+  catalogNodeForSearchState,
+  catalogCoverageStatus,
+} from "./normalize";
+
+export type { DiscoveryRouteMode } from "./normalize";
+
+export {
   buildQueryFromCatalogNode,
   catalogNodeToSearchState,
   catalogNodeIsSearchable,

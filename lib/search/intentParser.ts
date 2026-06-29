@@ -188,6 +188,7 @@ export class HeuristicIntentParser implements IntentParser {
       industryId,
       organizationTypeId,
       state,
+      catalogNodeId: input.catalogNodeId ?? null,
     };
 
     return {

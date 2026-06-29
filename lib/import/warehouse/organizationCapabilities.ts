@@ -233,7 +233,7 @@ export function organizationMatchesSignificantQueryText(
   intent: SearchIntent,
 ): boolean {
   const terms = significantQueryTerms(intent);
-  if (terms.length === 0) return false;
+  if (terms.length === 0) return true;
   const hay = organizationSearchHaystack(org);
   return terms.every((term) => hay.includes(term.toLowerCase()));
 }

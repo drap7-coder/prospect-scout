@@ -28,6 +28,7 @@ export function catalogNodeToSearchState(
 ): SearchState {
   return resolveSearchState({
     ...EMPTY_SEARCH_STATE,
+    catalogNodeId: node.id,
     query: buildQueryFromCatalogNode(node),
     sector: node.sectorId ?? null,
     industry: node.industryId ?? null,

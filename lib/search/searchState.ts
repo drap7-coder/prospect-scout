@@ -27,6 +27,7 @@ import {
   classificationFilterLabel,
   parseClassificationFilterKey,
 } from "@/lib/search/classificationFilters";
+import { hydrateSearchStateFromCatalog } from "@/lib/catalog/normalize";
 import {
   CANONICAL_ORG_TYPES,
   canonicalOrgTypeLabel,
@@ -63,6 +64,8 @@ export interface SearchState {
   operatingStates: string[];
   /** Results sort preference from builder. */
   sort: string | null;
+  /** Industry catalog node that launched this search (warehouse routing bridge). */
+  catalogNodeId: string | null;
 }
 
 export const EMPTY_SEARCH_STATE: SearchState = {
@@ -83,6 +86,7 @@ export const EMPTY_SEARCH_STATE: SearchState = {
   metro: null,
   operatingStates: [],
   sort: null,
+  catalogNodeId: null,
 };
 
 export { EXAMPLE_SEARCHES, FRESHNESS_FILTERS };
@@ -206,16 +210,19 @@ export function parseSearchStateFromParams(
     metro: params.get("metro"),
     operatingStates: parseList(params.get("opStates")),
     sort: params.get("sort"),
+    catalogNodeId: params.get("catalog"),
   };
 }
 
 /** Serializes search state to URL search params (omits empty values). */
 export function searchStateToParams(state: SearchState): URLSearchParams {
   const p = new URLSearchParams();
-  if (state.query.trim()) p.set("q", state.query.trim());
-  if (state.sector && !state.industry) p.set("sector", state.sector);
-  if (state.industry) p.set("industry", state.industry);
-  if (state.organizationType) p.set("org", state.organizationType);
+  const resolved = resolveSearchState(state);
+  if (resolved.query.trim()) p.set("q", resolved.query.trim());
+  if (resolved.sector) p.set("sector", resolved.sector);
+  if (resolved.industry) p.set("industry", resolved.industry);
+  if (resolved.organizationType) p.set("org", resolved.organizationType);
+  if (resolved.catalogNodeId) p.set("catalog", resolved.catalogNodeId);
   if (state.location) p.set("location", state.location);
   if (state.companySize) p.set("size", state.companySize);
   if (state.signals.length) p.set("signals", state.signals.join(","));
@@ -293,32 +300,43 @@ export function inferSearchStateFromQuery(query: string): Partial<SearchState> {
 
 /** Merges explicit state with query-inferred defaults (explicit wins). */
 export function resolveSearchState(state: SearchState): SearchState {
-  const inferred = state.query.trim()
-    ? inferSearchStateFromQuery(state.query)
+  const catalogHydrated = hydrateSearchStateFromCatalog(state);
+  const inferred = catalogHydrated.query.trim()
+    ? inferSearchStateFromQuery(catalogHydrated.query)
     : {};
   return {
     ...EMPTY_SEARCH_STATE,
     ...inferred,
-    ...state,
-    query: state.query,
-    sector: state.sector ?? inferred.sector ?? null,
-    industry: state.industry ?? inferred.industry ?? null,
+    ...catalogHydrated,
+    query: catalogHydrated.query,
+    sector: catalogHydrated.sector ?? inferred.sector ?? null,
+    industry: catalogHydrated.industry ?? inferred.industry ?? null,
     organizationType: resolveOrganizationTypeId(
-      state.organizationType ??
+      catalogHydrated.organizationType ??
         resolveOrganizationTypeId(inferred.organizationType ?? null),
     ),
-    location: state.location ?? inferred.location ?? null,
-    freshness: state.freshness ?? inferred.freshness ?? null,
-    signals: state.signals?.length ? state.signals : (inferred.signals ?? []),
-    sources: state.sources?.length ? state.sources : (inferred.sources ?? []),
-    ownership: state.ownership ?? inferred.ownership ?? null,
-    state: state.state ?? inferred.state ?? null,
+    location: catalogHydrated.location ?? inferred.location ?? null,
+    freshness: catalogHydrated.freshness ?? inferred.freshness ?? null,
+    signals: catalogHydrated.signals?.length
+      ? catalogHydrated.signals
+      : (inferred.signals ?? []),
+    sources: catalogHydrated.sources?.length
+      ? catalogHydrated.sources
+      : (inferred.sources ?? []),
+    ownership: catalogHydrated.ownership ?? inferred.ownership ?? null,
+    state: catalogHydrated.state ?? inferred.state ?? null,
     classificationNamespace:
-      state.classificationNamespace ?? inferred.classificationNamespace ?? null,
-    classificationId: state.classificationId ?? inferred.classificationId ?? null,
-    metro: state.metro ?? null,
-    operatingStates: state.operatingStates?.length ? state.operatingStates : [],
-    sort: state.sort ?? null,
+      catalogHydrated.classificationNamespace ??
+      inferred.classificationNamespace ??
+      null,
+    classificationId:
+      catalogHydrated.classificationId ?? inferred.classificationId ?? null,
+    metro: catalogHydrated.metro ?? null,
+    operatingStates: catalogHydrated.operatingStates?.length
+      ? catalogHydrated.operatingStates
+      : [],
+    sort: catalogHydrated.sort ?? null,
+    catalogNodeId: catalogHydrated.catalogNodeId ?? null,
   };
 }
 
@@ -354,6 +372,7 @@ export function searchStateToRawInput(state: SearchState): RawSearchInput {
     state: resolved.state,
     classificationNamespace: resolved.classificationNamespace,
     classificationId: resolved.classificationId,
+    catalogNodeId: resolved.catalogNodeId,
   };
 }
 
@@ -420,6 +439,7 @@ export function searchFetchFingerprint(state: SearchState): string {
     resolved.state ?? "",
     resolved.classificationNamespace ?? "",
     resolved.classificationId ?? "",
+    resolved.catalogNodeId ?? "",
     resolved.metro ?? "",
     resolved.operatingStates.join(","),
     resolved.sellerContext?.trim() ?? "",

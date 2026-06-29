@@ -35,6 +35,7 @@ function buildInput(
     metro?: string;
     opStates?: string;
     sort?: string;
+    catalog?: string | null;
   },
 ): RawSearchInput | NextResponse {
   const query =
@@ -52,10 +53,20 @@ function buildInput(
         : "";
 
   if (!query.trim() && !sells.trim()) {
-    return NextResponse.json(
-      { error: "Enter a search query to discover companies." },
-      { status: 400 },
-    );
+    const hasStructured =
+      body.sector ||
+      body.industry ||
+      body.organizationType ||
+      body.state ||
+      body.classificationNamespace ||
+      body.classificationId ||
+      body.catalog;
+    if (!hasStructured) {
+      return NextResponse.json(
+        { error: "Enter a search query or select an industry to discover organizations." },
+        { status: 400 },
+      );
+    }
   }
 
   if (
@@ -72,7 +83,8 @@ function buildInput(
     body.classificationNamespace ||
     body.classificationId ||
     body.metro ||
-    body.opStates
+    body.opStates ||
+    body.catalog
   ) {
     return searchStateToRawInput({
       query: query.trim() || sells.trim(),
@@ -94,6 +106,7 @@ function buildInput(
         ? body.opStates.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
       sort: body.sort ?? null,
+      catalogNodeId: body.catalog ?? null,
     });
   }
 

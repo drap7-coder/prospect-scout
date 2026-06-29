@@ -15,6 +15,7 @@ import {
   searchStateToParams,
   type SearchState,
 } from "@/lib/search/searchState";
+import { searchIsExecutable } from "@/lib/search/progressiveSearch";
 import {
   applyResultsFilters,
   sortResults,
@@ -142,7 +143,7 @@ export function ResultsClient() {
   );
 
   const fetchProgressive = useCallback(async (state: SearchState) => {
-    if (!state.query.trim()) {
+    if (!searchIsExecutable(state)) {
       setPhase("idle");
       setAllProspects([]);
       return;
@@ -220,7 +221,7 @@ export function ResultsClient() {
   );
 
   useEffect(() => {
-    if (!urlState.query.trim()) {
+    if (!searchIsExecutable(urlState)) {
       setCatalogFacets(null);
       setMarketSize(null);
       setMarketCoveragePercent(null);
@@ -244,7 +245,7 @@ export function ResultsClient() {
   }, [searchFetchKey, urlState]);
 
   useEffect(() => {
-    if (!urlState.query.trim()) return;
+    if (!searchIsExecutable(urlState)) return;
     const ac = new AbortController();
     fetch("/api/market-size", {
       method: "POST",
@@ -283,7 +284,7 @@ export function ResultsClient() {
   }, [catalogFacets, marketSize]);
 
   useEffect(() => {
-    if (urlState.query.trim()) {
+    if (searchIsExecutable(urlState)) {
       fetchProgressive(urlState);
     }
     return () => abortRef.current?.abort();
@@ -371,7 +372,7 @@ export function ResultsClient() {
   const coverageSummary = coverage
     ? ` · ${coverage.coveragePercent}% coverage · ${Math.round(coverage.confidence * 100)}% confidence`
     : "";
-  const hasQuery = Boolean(searchState.query.trim());
+  const hasQuery = searchIsExecutable(searchState);
   const showResults =
     allProspects.length > 0 &&
     (phase === "search-loading" || phase === "ready" || phase === "enriching");

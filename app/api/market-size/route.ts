@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       metro: body.metro ?? null,
       operatingStates: body.operatingStates ?? [],
       sort: body.sort ?? null,
+      catalogNodeId: body.catalogNodeId ?? null,
     },
     {
       county: body.county ?? null,

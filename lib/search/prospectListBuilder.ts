@@ -328,6 +328,7 @@ export const EMPTY_BUILDER_STATE: ProspectListBuilderState = {
   builderSignals: [],
   builderSources: [],
   sort: "score",
+  catalogNodeId: null,
 };
 
 /** Seeds a guided-builder state from a homepage industry selection. */
@@ -572,6 +573,7 @@ export function builderToSearchState(
     metro: builder.metro?.trim() || null,
     operatingStates: builder.operatingStates,
     sort: builder.sort && builder.sort !== "score" ? builder.sort : null,
+    catalogNodeId: builder.catalogNodeId ?? null,
   };
 }
 
