@@ -48,6 +48,59 @@ check("healthcare drill-down includes health plans", () => {
   assert.ok(hp);
   assert.equal(hp!.coverage, "warehouse");
   assert.equal(hp!.organizationTypeId, "health-plan");
+  assert.ok(hp!.children?.length);
+});
+
+check("healthcare v2 nests PBMs under health plans", () => {
+  const hp = getCatalogNode("health-plans");
+  assert.ok(hp?.children);
+  const pbms = hp!.children!.find((c) => c.id === "pbms");
+  assert.ok(pbms);
+  assert.equal(pbms!.coverage, "warehouse");
+  assert.equal(pbms!.organizationTypeId, "pbm");
+});
+
+check("healthcare v2 hierarchy matches warehouse branches", () => {
+  const healthcare = getCatalogNode("healthcare");
+  assert.ok(healthcare?.children);
+  const childIds = healthcare!.children!.map((c) => c.id);
+  assert.deepEqual(childIds, [
+    "health-plans",
+    "hospitals-health-systems",
+    "provider-groups",
+    "pharma-life-sciences",
+  ]);
+  const lobIds = getCatalogNode("health-plans")!.children!.map((c) => c.id);
+  assert.deepEqual(lobIds, [
+    "pbms",
+    "medicare-advantage-plans",
+    "medicaid-mcos",
+    "commercial-plans",
+    "tpas-asos",
+    "employer-benefit-vendors",
+    "specialty-pharmacy-vendors",
+  ]);
+});
+
+check("shouldUseWarehouseForCatalogNode for health plans and PBMs", () => {
+  assert.equal(shouldUseWarehouseForCatalogNode("health-plans"), true);
+  assert.equal(shouldUseWarehouseForCatalogNode("pbms"), true);
+  assert.equal(shouldUseWarehouseForCatalogNode("universities"), false);
+});
+
+check("resolveDiscoveryRouteMode routes health plans PBMs to warehouse", () => {
+  assert.equal(
+    resolveDiscoveryRouteMode({
+      catalogNodeId: "pbms",
+      intent: {
+        sectorId: "healthcare",
+        industryId: "payers",
+        organizationTypeId: "pbm",
+        classificationFilter: null,
+      },
+    }),
+    "warehouse",
+  );
 });
 
 check("manufacturing sector aggregates warehouse coverage", () => {
@@ -60,11 +113,6 @@ check("higher education uses live discovery", () => {
   const he = getCatalogNode("higher-education");
   assert.ok(he);
   assert.equal(he!.coverage, "live-discovery");
-});
-
-check("shouldUseWarehouseForCatalogNode for health plans", () => {
-  assert.equal(shouldUseWarehouseForCatalogNode("health-plans"), true);
-  assert.equal(shouldUseWarehouseForCatalogNode("universities"), false);
 });
 
 check("intentUsesWarehouse for health plans via catalog id", () => {
@@ -159,6 +207,14 @@ check("catalogNodeToSearchState hydrates warehouse intent fields", () => {
   assert.equal(state.organizationType, "health-plan");
 });
 
+check("catalogNodeToSearchState hydrates LOB classification for Medicare Advantage", () => {
+  const state = catalogNodeToSearchState(getCatalogNode("medicare-advantage-plans")!);
+  assert.equal(state.catalogNodeId, "medicare-advantage-plans");
+  assert.equal(state.classificationNamespace, "health-plans");
+  assert.equal(state.classificationId, "medicare_advantage");
+  assert.equal(state.organizationType, "health-plan");
+});
+
 check("catalog launch works with empty query when catalog id is set", () => {
   const state = resolveSearchState({
     query: "",
@@ -225,9 +281,24 @@ check("resolveCatalogNodeForIntent prefers org type", () => {
     sectorId: "healthcare",
     industryId: "payers",
     organizationTypeId: "health-plan",
+    classificationFilter: null,
   });
   assert.ok(node);
   assert.equal(node!.organizationTypeId, "health-plan");
+});
+
+check("resolveCatalogNodeForIntent prefers classification for LOB nodes", () => {
+  const node = resolveCatalogNodeForIntent({
+    sectorId: "healthcare",
+    industryId: "payers",
+    organizationTypeId: "health-plan",
+    classificationFilter: {
+      namespace: "health-plans",
+      ids: ["medicaid_managed_care"],
+    },
+  });
+  assert.ok(node);
+  assert.equal(node!.id, "medicaid-mcos");
 });
 
 if (process.env.ORG_WAREHOUSE === "1") {
@@ -284,6 +355,70 @@ if (process.env.ORG_WAREHOUSE === "1") {
     assert.ok(
       search.discovery?.metadata?.stagesRun?.includes("organization-warehouse"),
     );
+  });
+
+  check("catalog PBMs routes to warehouse staged discovery", () => {
+    const pbmsRaw = searchStateToRawInput(
+      catalogNodeToSearchState(getCatalogNode("pbms")!),
+    );
+    assert.equal(pbmsRaw.catalogNodeId, "pbms");
+    assert.equal(
+      resolveDiscoveryRouteMode({
+        catalogNodeId: "pbms",
+        intent: parseSearchIntent(pbmsRaw.query ?? "", {
+          sectorId: pbmsRaw.sectorId,
+          industryId: pbmsRaw.industryId,
+          organizationTypeId: pbmsRaw.organizationTypeId,
+        }),
+      }),
+      "warehouse",
+    );
+    const staged = discoverOrganizationsStaged(pbmsRaw.query ?? "", {
+      sectorId: pbmsRaw.sectorId,
+      industryId: pbmsRaw.industryId,
+      organizationTypeId: pbmsRaw.organizationTypeId,
+      catalogNodeId: "pbms",
+      maxResults: 5000,
+    });
+    assert.equal(staged.metadata.stagesRun[0], "organization-warehouse");
+  });
+
+  check("catalog Medicare Advantage empty query returns warehouse LOB results", () => {
+    const maState = catalogNodeToSearchState(getCatalogNode("medicare-advantage-plans")!);
+    const maRaw = searchStateToRawInput(resolveSearchState({ ...maState, query: "" }));
+    assert.equal(maRaw.classificationId, "medicare_advantage");
+    assert.ok(searchIsExecutable(resolveSearchState({ ...maState, query: "" })));
+    const search = runSearch(maRaw);
+    assert.ok(
+      search.discovery?.metadata?.stagesRun?.includes("organization-warehouse"),
+    );
+    assert.ok(search.prospects.length > 0);
+  });
+
+  check("catalog manufacturing staged discovery uses warehouse", () => {
+    const mfgState = catalogNodeToSearchState(getCatalogNode("manufacturing")!);
+    assert.equal(mfgState.query, "");
+    const mfgRaw = searchStateToRawInput(mfgState);
+    const mfgIntent = parseSearchIntent(mfgRaw.query ?? "", {
+      sectorId: mfgRaw.sectorId,
+      industryId: mfgRaw.industryId,
+      organizationTypeId: mfgRaw.organizationTypeId,
+    });
+    assert.equal(
+      resolveDiscoveryRouteMode({
+        catalogNodeId: "manufacturing",
+        intent: mfgIntent,
+      }),
+      "warehouse",
+    );
+    const staged = discoverOrganizationsStaged(mfgRaw.query ?? "", {
+      sectorId: mfgRaw.sectorId,
+      industryId: mfgRaw.industryId,
+      organizationTypeId: mfgRaw.organizationTypeId,
+      catalogNodeId: "manufacturing",
+      maxResults: 5000,
+    });
+    assert.equal(staged.metadata.stagesRun[0], "organization-warehouse");
   });
 
   check("catalog-only health plans (no query text) still searches warehouse", () => {

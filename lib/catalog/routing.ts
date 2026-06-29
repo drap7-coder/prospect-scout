@@ -35,13 +35,24 @@ export function resolveCatalogNodeForIntent(
   intent: Pick<
     SearchIntent,
     "sectorId" | "industryId" | "organizationTypeId"
-  >,
+  > & {
+    classificationFilter?: SearchIntent["classificationFilter"];
+  },
 ): IndustryCatalogNode | null {
   let best: IndustryCatalogNode | null = null;
   let bestScore = -1;
 
   for (const node of CATALOG_INDEX.values()) {
     let score = 0;
+    if (
+      intent.classificationFilter?.namespace &&
+      intent.classificationFilter.ids.length > 0 &&
+      node.classificationNamespace === intent.classificationFilter.namespace &&
+      node.classificationId &&
+      intent.classificationFilter.ids.includes(node.classificationId)
+    ) {
+      score += 8;
+    }
     if (
       intent.organizationTypeId &&
       node.organizationTypeId === intent.organizationTypeId
@@ -66,13 +77,20 @@ export function resolveCatalogNodeForIntent(
 export function resolveCatalogNodeForSearchState(
   state: Pick<
     SearchState,
-    "sector" | "industry" | "organizationType"
+    "sector" | "industry" | "organizationType" | "classificationNamespace" | "classificationId"
   >,
 ): IndustryCatalogNode | null {
   return resolveCatalogNodeForIntent({
     sectorId: state.sector,
     industryId: state.industry,
     organizationTypeId: state.organizationType,
+    classificationFilter:
+      state.classificationNamespace && state.classificationId
+        ? {
+            namespace: state.classificationNamespace,
+            ids: [state.classificationId],
+          }
+        : null,
   });
 }
 
@@ -80,7 +98,9 @@ export function resolveCoverageForIntent(
   intent: Pick<
     SearchIntent,
     "sectorId" | "industryId" | "organizationTypeId"
-  >,
+  > & {
+    classificationFilter?: SearchIntent["classificationFilter"];
+  },
 ): CatalogCoverageStatus {
   const node = resolveCatalogNodeForIntent(intent);
   if (node) return node.coverage;
@@ -115,6 +135,14 @@ export function intentUsesWarehouse(
   if (node?.coverage === "warehouse") return true;
 
   if (intent.organizationTypeId === "health-plan") return true;
+
+  const healthcareWarehouseOrgTypes = new Set(["pbm", "tpa"]);
+  if (
+    intent.organizationTypeId &&
+    healthcareWarehouseOrgTypes.has(intent.organizationTypeId)
+  ) {
+    return true;
+  }
 
   const manufacturingOrgTypes = new Set([
     "manufacturer",

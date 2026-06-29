@@ -24,6 +24,9 @@ export interface IndustryCatalogNode {
   organizationTypeId?: string;
   /** When set, warehouse discovery scopes to this buyer pack. */
   warehouseBuyerPack?: BuyerPackId;
+  /** Warehouse classification filter (e.g. health-plan LOB). */
+  classificationNamespace?: string;
+  classificationId?: string;
   children?: IndustryCatalogNode[];
 }
 

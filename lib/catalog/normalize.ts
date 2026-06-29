@@ -1,7 +1,7 @@
 import type { SearchState } from "@/lib/search/searchState";
 import type { SearchIntent } from "@/lib/discovery/intent";
 import { getCatalogNode } from "./registry";
-import { buildQueryFromCatalogNode } from "./launch";
+import { buildQueryFromCatalogNode, catalogNodeSupportsEmptyQuery } from "./launch";
 import type { CatalogCoverageStatus, IndustryCatalogNode } from "./types";
 import { intentUsesWarehouse } from "./routing";
 
@@ -19,7 +19,13 @@ export function hydrateSearchStateFromCatalog(state: SearchState): SearchState {
     industry: state.industry ?? node.industryId ?? null,
     organizationType:
       state.organizationType ?? node.organizationTypeId ?? null,
-    query: state.query.trim() || buildQueryFromCatalogNode(node),
+    classificationNamespace:
+      state.classificationNamespace ?? node.classificationNamespace ?? null,
+    classificationId:
+      state.classificationId ?? node.classificationId ?? null,
+    query:
+      state.query.trim() ||
+      (catalogNodeSupportsEmptyQuery(node) ? "" : buildQueryFromCatalogNode(node)),
   };
 }
 

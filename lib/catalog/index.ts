@@ -38,6 +38,7 @@ export type { DiscoveryRouteMode } from "./normalize";
 
 export {
   buildQueryFromCatalogNode,
+  catalogNodeSupportsEmptyQuery,
   catalogNodeToSearchState,
   catalogNodeIsSearchable,
 } from "./launch";

@@ -10,7 +10,23 @@ import {
 } from "@/lib/taxonomy";
 import type { IndustryCatalogNode } from "./types";
 
+/** Warehouse catalog nodes can search on taxonomy/classification alone (no free text). */
+export function catalogNodeSupportsEmptyQuery(node: IndustryCatalogNode): boolean {
+  return (
+    node.coverage === "warehouse" &&
+    Boolean(
+      node.sectorId ||
+        node.industryId ||
+        node.organizationTypeId ||
+        node.classificationId,
+    )
+  );
+}
+
 export function buildQueryFromCatalogNode(node: IndustryCatalogNode): string {
+  if (node.classificationId && node.label) {
+    return node.label.toLowerCase();
+  }
   if (node.organizationTypeId) {
     return organizationTypeLabel(node.organizationTypeId).toLowerCase();
   }
@@ -29,10 +45,14 @@ export function catalogNodeToSearchState(
   return resolveSearchState({
     ...EMPTY_SEARCH_STATE,
     catalogNodeId: node.id,
-    query: buildQueryFromCatalogNode(node),
+    query: catalogNodeSupportsEmptyQuery(node)
+      ? ""
+      : buildQueryFromCatalogNode(node),
     sector: node.sectorId ?? null,
     industry: node.industryId ?? null,
     organizationType: node.organizationTypeId ?? null,
+    classificationNamespace: node.classificationNamespace ?? null,
+    classificationId: node.classificationId ?? null,
   });
 }
 
