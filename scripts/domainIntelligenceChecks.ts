@@ -18,6 +18,8 @@ import {
   computeDomainCoverageReport,
   resolveParentOrganizationDomain,
   resetParentDomainRulesCache,
+  resolveRegionalPlanDomain,
+  resolveImportTimeDomain,
   DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD,
 } from "../lib/domainIntelligence/index.ts";
 
@@ -439,6 +441,73 @@ check("does not false-positive United Mine Workers as UnitedHealth", () => {
     aliases: ["UMWA Health and Retirement Funds"],
   });
   assert.equal(resolveParentOrganizationDomain(org), null);
+});
+
+check("propagates Evernorth domain from entity token", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "evernorth",
+    canonicalName: "Evernorth Health Services",
+    states: ["CT"],
+    geography: { states: ["CT"], regions: [], national: true, headquarters: null },
+  });
+  const lookup = resolveParentOrganizationDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "evernorth.com");
+});
+
+check("resolves Sunshine State Health Plan via regional registry", () => {
+  const org = healthPlanOrg({
+    id: "sunshine",
+    canonicalName: "Sunshine State Health Plan",
+    parentDisplayName: "Centene Corporation",
+    states: ["FL"],
+    geography: { states: ["FL"], regions: [], national: false, headquarters: "FL" },
+  });
+  const lookup = resolveRegionalPlanDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "sunshinehealth.com");
+  assert.equal(lookup!.source, "regional_plan_registry");
+});
+
+check("resolves Medicaid MCO via regional registry before generic parent", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "buckeye",
+    canonicalName: "Buckeye Community Health Plan, Inc.",
+    parentDisplayName: "Centene Corporation",
+    states: ["OH"],
+    geography: { states: ["OH"], regions: [], national: false, headquarters: "OH" },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "buckeyehealthplan.com");
+  assert.equal(lookup!.source, "regional_plan_registry");
+});
+
+check("resolves BCBS Michigan with state-scoped parent rule", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "bcbs-mi",
+    canonicalName: "Blue Cross Blue Shield of Michigan",
+    states: ["MI"],
+    geography: { states: ["MI"], regions: [], national: false, headquarters: "Detroit, MI" },
+  });
+  const lookup = resolveParentOrganizationDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsm.com");
+});
+
+check("import propagation rejects ambiguous parent matches", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "ambiguous-bcbs",
+    canonicalName: "Blue Cross Blue Shield",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  assert.equal(resolveImportTimeDomain(org), null);
 });
 
 console.log(`\n${passed} checks passed.`);

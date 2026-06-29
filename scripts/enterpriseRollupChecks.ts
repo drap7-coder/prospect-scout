@@ -168,13 +168,13 @@ check("no enterprise profile exposes multiple canonical domains", () => {
 
 check("promotion failures are zero — missing domains reflect raw org coverage", () => {
   assert.equal(diagnostics.promotionFailures, 0);
-  assert.equal(
-    diagnostics.enterpriseProfilesWithDomainBearingChildren,
-    diagnostics.enterpriseProfilesWithDomain,
+  assert.ok(
+    diagnostics.rawOrgDomainCoverage.withDomain >= diagnostics.enterpriseProfilesWithDomain,
+    "raw org domains consolidate into enterprise profiles",
   );
   assert.ok(
-    diagnostics.rawOrgDomainCoverage.withDomain > diagnostics.enterpriseProfilesWithDomain,
-    "raw org domains consolidate into fewer enterprise profiles",
+    diagnostics.enterpriseProfilesWithDomain >= diagnostics.enterpriseProfilesWithDomainBearingChildren,
+    "curated parent mappings can assign domains beyond child-record promotion",
   );
 });
 
@@ -199,11 +199,8 @@ check("ambiguous multi-domain enterprises are rejected", () => {
 });
 
 check("every rollup with domain-bearing children receives a canonical domain", () => {
+  assert.equal(diagnostics.promotionFailures, 0);
   assert.equal(diagnostics.domainPromotion.promotionSuccessPct, 100);
-  assert.equal(
-    diagnostics.enterpriseProfilesWithDomainBearingChildren,
-    diagnostics.enterpriseProfilesWithDomain,
-  );
 });
 
 console.log(`\n${passed} checks passed.`);

@@ -9,6 +9,7 @@ import {
 } from "./normalize";
 import { buildDomainRegistry, type DirectoryDomainRecord } from "./registry";
 import { resolveParentOrganizationDomain } from "./parentPropagation";
+import { resolveRegionalPlanDomain } from "./regionalPlanRegistry";
 import type { DomainLookupResult } from "./types";
 import { DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD } from "./types";
 
@@ -161,6 +162,11 @@ export function resolveHighConfidenceDomain(input: {
   const fromIds = lookupExternalIds(externalIds ?? organization.externalIds, registry);
   if (fromIds && fromIds.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
     return fromIds;
+  }
+
+  const fromRegional = resolveRegionalPlanDomain(organization);
+  if (fromRegional && fromRegional.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
+    return fromRegional;
   }
 
   const fromName = lookupByName(organization, registry);

@@ -78,6 +78,7 @@ const DISTINCTIVE_BRAND_TOKENS = new Set([
   "anthem",
   "elevance",
   "optum",
+  "evernorth",
 ]);
 
 function tokenMatches(haystack: string, token: string): boolean {

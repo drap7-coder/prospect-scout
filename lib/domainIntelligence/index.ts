@@ -44,6 +44,20 @@ export {
   type ParentMatchSignal,
 } from "./parentMappings";
 
+export { CURATED_PARENT_DOMAIN_RULES } from "./curatedParents";
+
+export {
+  resolveRegionalPlanDomain,
+  REGIONAL_PLAN_DOMAIN_ENTRIES,
+  type RegionalPlanDomainEntry,
+  type RegionalPlanType,
+} from "./regionalPlanRegistry";
+
+export {
+  resolveImportTimeDomain,
+  type ImportPropagationResult,
+} from "./importPropagation";
+
 export {
   enrichOrganizationDomain,
   readDomainIntelligence,
