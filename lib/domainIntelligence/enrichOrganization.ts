@@ -35,6 +35,8 @@ function toDomainIntelligence(
     confidence: lookup.confidence,
     confidenceLabel: lookup.confidenceLabel,
     matchMethod: lookup.matchMethod,
+    parentOrg: lookup.parentOrg,
+    matchedRule: lookup.matchedRule,
     lastEnrichedAt,
   };
 }

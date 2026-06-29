@@ -13,6 +13,18 @@ export function normalizeOrganizationName(name: string): string {
     .trim();
 }
 
+/**
+ * Normalize brand/parent phrases for propagation — preserves meaningful words like
+ * "health" and "group" so "UnitedHealth Group" does not collapse to "united".
+ */
+export function normalizeBrandPhrase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Normalize and validate a website URL. */
 export function normalizeWebsiteUrl(website: string | null | undefined): string | null {
   if (!website?.trim()) return null;

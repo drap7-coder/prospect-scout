@@ -2,6 +2,7 @@ export type DomainIntelligenceSource =
   | "source_data"
   | "directory_match"
   | "identity_propagation"
+  | "parent_propagation"
   | "derived"
   | "manual";
 
@@ -15,6 +16,10 @@ export interface OrganizationDomainIntelligence {
   confidence: number;
   confidenceLabel: DomainConfidenceLabel;
   matchMethod?: string;
+  /** Parent organization when domain was inherited via propagation. */
+  parentOrg?: string;
+  /** Human-readable rule id describing why the domain was assigned. */
+  matchedRule?: string;
   lastEnrichedAt: string;
 }
 
@@ -25,6 +30,8 @@ export interface DomainLookupResult {
   confidence: number;
   confidenceLabel: DomainConfidenceLabel;
   matchMethod: string;
+  parentOrg?: string;
+  matchedRule?: string;
 }
 
 export interface DomainCoverageBucket {

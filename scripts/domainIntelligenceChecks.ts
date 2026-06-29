@@ -16,6 +16,8 @@ import {
   enrichOrganizationDomain,
   enrichCatalogDomains,
   computeDomainCoverageReport,
+  resolveParentOrganizationDomain,
+  resetParentDomainRulesCache,
   DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD,
 } from "../lib/domainIntelligence/index.ts";
 
@@ -274,6 +276,169 @@ check("enrichOrganizationDomain stores provenance in sectorAttributes", () => {
   assert.equal(organization.domain, "humana.com");
   const intel = organization.sectorAttributes?.domainIntelligence as { source?: string } | undefined;
   assert.ok(intel?.source);
+});
+
+function healthPlanOrg(overrides: Partial<Organization> & Pick<Organization, "id" | "canonicalName">): Organization {
+  return {
+    displayName: overrides.canonicalName,
+    legalName: overrides.canonicalName,
+    aliases: [],
+    website: null,
+    domain: null,
+    organizationType: "health-plan",
+    industries: ["payers"],
+    sectorId: "healthcare",
+    headquarters: null,
+    locations: [],
+    states: [],
+    regions: [],
+    ownership: "private",
+    employeeRange: null,
+    revenueRange: null,
+    description: null,
+    sources: [],
+    buyerPack: "health-plans",
+    canonicalOrganizationType: "health-plan",
+    parentId: null,
+    parentDisplayName: null,
+    geography: { states: [], regions: [], national: false, headquarters: null },
+    classifications: [],
+    externalIds: [],
+    sectorAttributes: {},
+    healthPlanType: null,
+    memberEstimate: null,
+    confidence: 0.9,
+    lastUpdated: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+check("propagates domain from known parent display name", () => {
+  resetDomainRegistryCache();
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "parent-uhc-child",
+    canonicalName: "UnitedHealthcare of the Mid-Atlantic",
+    parentDisplayName: "UnitedHealth Group",
+    states: ["MD"],
+    geography: { states: ["MD"], regions: [], national: false, headquarters: null },
+    externalIds: [{ idType: "cms_contract", idValue: "H9999" }],
+  });
+  const result = resolveParentOrganizationDomain(org);
+  assert.ok(result, "expected parent propagation");
+  assert.equal(result!.domain, "uhc.com");
+  assert.equal(result!.source, "parent_propagation");
+  assert.equal(result!.parentOrg, "UnitedHealth Group");
+  assert.ok(result!.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD);
+});
+
+check("propagates Aetna domain from legal entity token under CVS parent", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "parent-aetna-child",
+    canonicalName: "Aetna Health of California Inc.",
+    legalName: "Aetna Health of California Inc.",
+    parentDisplayName: "CVS Health",
+    states: ["CA"],
+    geography: { states: ["CA"], regions: [], national: false, headquarters: null },
+  });
+  const result = resolveParentOrganizationDomain(org);
+  assert.ok(result);
+  assert.equal(result!.domain, "aetna.com");
+});
+
+check("propagates Aetna domain from legal entity token without parent display name", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "parent-aetna-token",
+    canonicalName: "Aetna Health of California Inc.",
+    legalName: "Aetna Health of California Inc.",
+    states: ["CA"],
+    geography: { states: ["CA"], regions: [], national: false, headquarters: null },
+  });
+  const result = resolveParentOrganizationDomain(org);
+  assert.ok(result);
+  assert.equal(result!.domain, "aetna.com");
+  assert.equal(result!.matchedRule, "legal_entity_token:aetna");
+});
+
+check("state-disambiguates BCBS Michigan entities", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "bcbs-mi-child",
+    canonicalName: "Blue Cross Blue Shield of Michigan",
+    states: ["MI"],
+    geography: { states: ["MI"], regions: [], national: false, headquarters: "Detroit, MI" },
+  });
+  const result = resolveParentOrganizationDomain(org);
+  assert.ok(result);
+  assert.equal(result!.domain, "bcbsm.com");
+});
+
+check("does not propagate when BCBS parent is ambiguous without state", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "bcbs-ambiguous",
+    canonicalName: "Blue Cross Blue Shield",
+    aliases: ["bcbs"],
+  });
+  const result = resolveParentOrganizationDomain(org);
+  assert.equal(result, null);
+});
+
+check("does not fuzzy-match unknown regional health plan names", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "unknown-plan",
+    canonicalName: "Random Regional Health Plan LLC",
+    parentDisplayName: "Regional Health Holdings",
+    states: ["PA"],
+    geography: { states: ["PA"], regions: [], national: false, headquarters: "Harrisburg, PA" },
+  });
+  assert.equal(resolveParentOrganizationDomain(org), null);
+  assert.equal(
+    resolveHighConfidenceDomain({ organization: org, externalIds: org.externalIds }),
+    null,
+  );
+});
+
+check("parent propagation stores provenance with parentOrg and matchedRule", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "parent-prov",
+    canonicalName: "UnitedHealthcare Insurance Company of Florida",
+    parentDisplayName: "UnitedHealth Group",
+    states: ["FL"],
+    geography: { states: ["FL"], regions: [], national: false, headquarters: null },
+    externalIds: [{ idType: "cms_contract", idValue: "H9998" }],
+  });
+  const lookup = resolveParentOrganizationDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.source, "parent_propagation");
+  assert.equal(lookup!.parentOrg, "UnitedHealth Group");
+  assert.ok(lookup!.matchedRule?.startsWith("parent_display_name:"));
+
+  const { organization, applied } = enrichOrganizationDomain(org);
+  assert.ok(applied);
+  assert.equal(organization.domain, "uhc.com");
+  const intel = organization.sectorAttributes?.domainIntelligence as {
+    parentOrg?: string;
+    matchedRule?: string;
+    domain?: string;
+  };
+  assert.equal(intel?.domain, "uhc.com");
+  assert.ok(intel?.parentOrg || intel?.matchedRule);
+});
+
+check("does not false-positive United Mine Workers as UnitedHealth", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "umwa",
+    canonicalName: "United Mine Workers of America Health & Retirement",
+    parentDisplayName: "UMWA Health and Retirement Funds",
+    aliases: ["UMWA Health and Retirement Funds"],
+  });
+  assert.equal(resolveParentOrganizationDomain(org), null);
 });
 
 console.log(`\n${passed} checks passed.`);

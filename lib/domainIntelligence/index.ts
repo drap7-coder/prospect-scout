@@ -14,6 +14,7 @@ export {
 
 export {
   normalizeOrganizationName,
+  normalizeBrandPhrase,
   normalizePrimaryDomain,
   normalizeWebsiteUrl,
   websiteFromDomain,
@@ -31,6 +32,17 @@ export {
   resolveHighConfidenceDomain,
   domainLookupFromPropagatedDomain,
 } from "./resolveDomain";
+
+export {
+  resolveParentOrganizationDomain,
+} from "./parentPropagation";
+
+export {
+  buildParentDomainRules,
+  resetParentDomainRulesCache,
+  type ParentDomainRule,
+  type ParentMatchSignal,
+} from "./parentMappings";
 
 export {
   enrichOrganizationDomain,

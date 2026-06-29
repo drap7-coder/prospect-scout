@@ -8,6 +8,7 @@ import {
   websiteFromDomain,
 } from "./normalize";
 import { buildDomainRegistry, type DirectoryDomainRecord } from "./registry";
+import { resolveParentOrganizationDomain } from "./parentPropagation";
 import type { DomainLookupResult } from "./types";
 import { DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD } from "./types";
 
@@ -42,6 +43,7 @@ function lookupResult(
   rec: DirectoryDomainRecord,
   matchMethod: string,
   confidence: number,
+  extra?: Pick<DomainLookupResult, "parentOrg" | "matchedRule">,
 ): DomainLookupResult {
   return {
     website: rec.website,
@@ -50,6 +52,8 @@ function lookupResult(
     confidence,
     confidenceLabel: confidenceLabelFromScore(confidence),
     matchMethod,
+    parentOrg: extra?.parentOrg,
+    matchedRule: extra?.matchedRule,
   };
 }
 
@@ -104,7 +108,12 @@ function lookupByName(
       registry.byParentName.get(normalizeOrganizationName(org.parentDisplayName)) ?? [],
       org,
     );
-    if (byParent) return lookupResult(byParent, "parent_organization", 0.88);
+    if (byParent) {
+      return lookupResult(byParent, "parent_organization", 0.88, {
+        parentOrg: org.parentDisplayName,
+        matchedRule: `directory_parent:${normalizeOrganizationName(org.parentDisplayName)}`,
+      });
+    }
   }
 
   return null;
@@ -157,6 +166,11 @@ export function resolveHighConfidenceDomain(input: {
   const fromName = lookupByName(organization, registry);
   if (fromName && fromName.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
     return fromName;
+  }
+
+  const fromParent = resolveParentOrganizationDomain(organization);
+  if (fromParent && fromParent.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
+    return fromParent;
   }
 
   return null;
