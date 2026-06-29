@@ -206,7 +206,7 @@ export function candidateFromQhpIssuer(
     ],
     buyerPack: "health-plans",
     canonicalOrganizationType: "health-plan",
-    tags: [...new Set([...(existing?.tags ?? []), "exchange", "commercial"])],
+    tags: [...new Set([...(existing?.tags ?? []), "exchange"])],
   };
 
   return finalizeHealthPlanOrganization(
