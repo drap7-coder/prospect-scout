@@ -572,6 +572,81 @@ check("resolves MDwise via regional registry", () => {
   assert.equal(lookup!.domain, "mdwise.org");
 });
 
+check("resolves Blue Cross Blue Shield of Massachusetts via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-ma",
+    canonicalName: "Blue Cross and Blue Shield of Massachusetts",
+    parentDisplayName: "Blue Cross and Blue Shield of Massachusetts, Inc.",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bluecrossma.org");
+});
+
+check("resolves WellSense Health Plan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "wellsense",
+    canonicalName: "WellSense Health Plan",
+    parentDisplayName: "WellSense Health Plan",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "wellsense.org");
+});
+
+check("resolves Elderplan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "elderplan",
+    canonicalName: "Elderplan",
+    parentDisplayName: "Elderplan, Inc.",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "elderplan.org");
+});
+
+check("resolves CHRISTUS Health Plan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "christus",
+    canonicalName: "CHRISTUS Health Advantage",
+    parentDisplayName: "CHRISTUS Health",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "christushealthplan.org");
+});
+
+check("resolves AlohaCare via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "alohacare",
+    canonicalName: "AlohaCare",
+    parentDisplayName: "AlohaCare",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "alohacare.org");
+});
+
 check("import propagation rejects ambiguous parent matches", () => {
   resetParentDomainRulesCache();
   const org = healthPlanOrg({

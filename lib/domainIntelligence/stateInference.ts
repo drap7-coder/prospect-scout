@@ -27,6 +27,9 @@ const NAME_STATE_PHRASES: ReadonlyArray<{ phrase: string; state: string }> = [
   { phrase: "of florida", state: "FL" },
   { phrase: "of pennsylvania", state: "PA" },
   { phrase: "of new york", state: "NY" },
+  { phrase: "of massachusetts", state: "MA" },
+  { phrase: "of hawaii", state: "HI" },
+  { phrase: "of new hampshire", state: "NH" },
 ];
 
 export function collectOrgNameTexts(org: Organization): string[] {
