@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Prospect } from "@/lib/search/types";
 import type { BrowseRow } from "@/lib/browse/types";
+import type { SearchState } from "@/lib/search/searchState";
 import { ExecutiveBrowseCard } from "./ExecutiveBrowseCard";
 
 export function BrowseCarouselRow({
@@ -11,12 +12,14 @@ export function BrowseCarouselRow({
   onSelect,
   variant = "browse",
   onViewAll,
+  searchState,
 }: {
   row: BrowseRow;
   selectedId: string | null;
   onSelect: (id: string) => void;
   variant?: "browse" | "alphabet";
   onViewAll?: () => void;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -150,6 +153,7 @@ export function BrowseCarouselRow({
               prospect={prospect}
               selected={prospect.id === selectedId}
               onViewDetails={() => onSelect(prospect.id)}
+              searchState={searchState}
             />
           </div>
         ))}

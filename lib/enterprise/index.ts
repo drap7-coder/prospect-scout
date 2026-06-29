@@ -38,6 +38,12 @@ export {
   getSourceOrganizationsForEnterprise,
 } from "./diagnostics";
 
+export {
+  buildEnterpriseProspectDisplay,
+  formatEnterpriseRollupSummary,
+  type EnterpriseProspectDisplay,
+} from "./prospectDisplay";
+
 /** Whether default search should roll child orgs into enterprise profiles. */
 export function shouldApplyEnterpriseRollup(intent: SearchIntent): boolean {
   if (process.env.ENTERPRISE_ROLLUP === "0") return false;

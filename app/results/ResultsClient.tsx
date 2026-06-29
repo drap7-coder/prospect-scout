@@ -37,6 +37,8 @@ import type { CatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import type { MarketSizeResult } from "@/lib/discovery/connectors/census";
 import { ResultsSearchBar } from "@/app/components/ResultsSearchBar";
 import { DiscoveryCoverageNote } from "@/app/components/DiscoveryCoverageNote";
+import { EnterpriseRollupBanner } from "@/app/components/EnterpriseProspectMeta";
+import { formatEnterpriseRollupSummary } from "@/lib/enterprise/prospectDisplay";
 import { WarehouseCoverageBanner } from "@/app/components/WarehouseCoverageBanner";
 import { DiscoveryDiagnosticsPanel } from "@/app/components/DiscoveryDiagnosticsPanel";
 import { ResultsFilterRail } from "@/app/components/ResultsFilterRail";
@@ -366,6 +368,9 @@ export function ResultsClient() {
   const indexedOrganizations =
     catalogFacets?.scopeTotal ?? matchCatalogSummary?.catalogTotal ?? null;
   const discoveryMetadata = discoveryTotals?.metadata ?? null;
+  const enterpriseRollupSummary = discoveryMetadata?.enterpriseRollup
+    ? formatEnterpriseRollupSummary(discoveryMetadata.enterpriseRollup)
+    : null;
 
   const summary = describeSearch(searchState);
   const sourceSummary = formatSourceSummary(filtered.length, filtered);
@@ -551,11 +556,16 @@ export function ResultsClient() {
                     <DiscoveryCoverageNote metadata={discoveryMetadata} />
                   ) : null}
 
+                  {enterpriseRollupSummary ? (
+                    <EnterpriseRollupBanner summary={enterpriseRollupSummary} />
+                  ) : null}
+
                   {displayMode === "table" ? (
                     <ResultsTable
                       prospects={filtered}
                       selectedId={selectedId}
                       onSelect={setSelectedId}
+                      searchState={searchState}
                     />
                   ) : displayMode === "browse" ? (
                     <>
@@ -580,6 +590,7 @@ export function ResultsClient() {
                       enriching={enriching}
                       selectedId={selectedId}
                       onSelect={setSelectedId}
+                      searchState={searchState}
                     />
                   )}
                 </div>

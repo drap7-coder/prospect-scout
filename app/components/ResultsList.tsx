@@ -1,6 +1,7 @@
 "use client";
 
 import type { Prospect } from "@/lib/search/types";
+import type { SearchState } from "@/lib/search/searchState";
 import type { ResultDensity } from "@/lib/intelligence/resultDensity";
 import { ResultRow } from "./ResultRow";
 
@@ -11,6 +12,7 @@ export function ResultsList({
   selectedId,
   onSelect,
   rankOf,
+  searchState,
 }: {
   prospects: Prospect[];
   density: ResultDensity;
@@ -18,6 +20,7 @@ export function ResultsList({
   selectedId: string | null;
   onSelect: (id: string) => void;
   rankOf?: (id: string) => number;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   return (
     <div
@@ -32,6 +35,7 @@ export function ResultsList({
           enriching={enriching}
           selected={prospect.id === selectedId}
           onSelect={() => onSelect(prospect.id)}
+          searchState={searchState}
         />
       ))}
     </div>
