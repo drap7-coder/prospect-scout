@@ -41,6 +41,7 @@ import {
 } from "./organizationFromCms";
 import { mergeHealthPlanCatalog, dedupeCatalogEntriesByOrganizationId } from "./mergeCatalog";
 import { enrichCatalogIdentity, type PossibleDuplicateReview } from "./identityEnrichment";
+import { enrichCatalogDomains } from "@/lib/domainIntelligence/pipeline";
 import {
   setHealthPlanCatalogImportManifest,
   countDuplicateOrganizationIds,
@@ -278,7 +279,13 @@ export async function importCmsHealthPlanCatalog(
 
   const merged = mergeHealthPlanCatalog(existingEntries, candidates);
   const deduped = dedupeCatalogEntriesByOrganizationId(merged.catalogEntries);
-  const enriched = enrichCatalogIdentity(deduped.entries);
+  const identityEnriched = enrichCatalogIdentity(deduped.entries);
+  const domainEnriched = enrichCatalogDomains(identityEnriched.entries);
+  const enriched = {
+    entries: domainEnriched.entries,
+    enrichmentsApplied: identityEnriched.enrichmentsApplied + domainEnriched.enrichmentsApplied,
+    possibleDuplicates: identityEnriched.possibleDuplicates,
+  };
   const organizations = enriched.entries.map((entry) => entry.organization);
 
   indexHealthPlanOrganizations(organizations);

@@ -9,6 +9,8 @@ import { getAcaMarketplaceConnectorStatus } from "@/lib/discovery/connectors/aca
 import { computeCatalogFacetCounts } from "@/lib/discovery/catalog/facetCounts";
 import { parseSearchIntent } from "@/lib/discovery/intent";
 import { computeOrganizationWarehouseDiagnostics } from "@/lib/import/warehouse";
+import { computeDomainCoverageReport } from "@/lib/domainIntelligence/coverage";
+import { getWarehouseOrganizations } from "@/lib/import/warehouse/organizations";
 import { computeHealthPlanCatalogDiagnostics } from "@/lib/import/healthPlans/healthPlanDiagnostics";
 import { computeManufacturerConnectorDiagnostics } from "@/lib/import/manufacturers/diagnostics";
 import { computeRuntimeDiagnostics } from "@/lib/runtime";
@@ -57,6 +59,7 @@ export default async function DiagnosticsPage() {
     census.sampleMarketSize?.estimatedEstablishments ?? null,
   );
   const warehouse = computeOrganizationWarehouseDiagnostics();
+  const domainCoverage = computeDomainCoverageReport(getWarehouseOrganizations());
   const healthPlans = computeHealthPlanCatalogDiagnostics();
   const manufacturers = computeManufacturerConnectorDiagnostics();
   const runtime = await computeRuntimeDiagnostics();
@@ -373,6 +376,33 @@ export default async function DiagnosticsPage() {
                 key={connector.id}
                 label={`${connector.label} (${connector.status})`}
                 value={`${connector.organizationsIndexed} orgs · ${connector.importMode ?? "—"}`}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Domain Intelligence (Warehouse Foundation)">
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Canonical website and primary domain coverage — required foundation for email patterns,
+            technology detection, leadership discovery, and other enrichments.
+          </p>
+          <StatRow
+            label="Organizations with domain"
+            value={`${domainCoverage.withDomain.toLocaleString()} / ${domainCoverage.total.toLocaleString()} (${domainCoverage.pctDomain}%)`}
+          />
+          <StatRow
+            label="Organizations with website"
+            value={`${domainCoverage.withWebsite.toLocaleString()} / ${domainCoverage.total.toLocaleString()} (${domainCoverage.pctWebsite}%)`}
+          />
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
+              By buyer pack
+            </p>
+            {domainCoverage.byBuyerPack.map((bucket) => (
+              <StatRow
+                key={bucket.label}
+                label={bucket.label}
+                value={`${bucket.withDomain}/${bucket.total} domain (${bucket.pctDomain}%)`}
               />
             ))}
           </div>

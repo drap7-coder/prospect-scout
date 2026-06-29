@@ -1,4 +1,5 @@
 import type { Organization } from "@/lib/discovery/organization";
+import { websiteFromDomain } from "@/lib/domainIntelligence/normalize";
 import type { HealthPlanExternalId } from "./types";
 
 type CatalogEntry = {
@@ -29,6 +30,8 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
   const naicByHios = new Map<string, string>();
   const domainByHios = new Map<string, string>();
   const domainByContract = new Map<string, string>();
+  const websiteByHios = new Map<string, string>();
+  const websiteByContract = new Map<string, string>();
 
   for (const entry of entries) {
     const naic = entry.externalIds.find((ext) => ext.idType === "naic")?.idValue;
@@ -36,6 +39,7 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
       entry.externalIds.find((ext) => ext.idType === "domain")?.idValue ??
       entry.organization.domain ??
       undefined;
+    const website = entry.organization.website ?? (domain ? websiteFromDomain(domain) : undefined);
 
     for (const ext of entry.externalIds) {
       if (ext.idType === "cms_contract" && naic) {
@@ -46,9 +50,11 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
       }
       if (ext.idType === "hios" && domain) {
         domainByHios.set(ext.idValue, domain);
+        if (website) websiteByHios.set(ext.idValue, website);
       }
       if (ext.idType === "cms_contract" && domain) {
         domainByContract.set(ext.idValue, domain);
+        if (website) websiteByContract.set(ext.idValue, website);
       }
     }
   }
@@ -58,6 +64,7 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
     const externalIds = [...entry.externalIds];
     const seen = new Set(externalIds.map((ext) => externalIdKey(ext.idType, ext.idValue)));
     let domain = entry.organization.domain;
+    let website = entry.organization.website;
 
     const addId = (idType: HealthPlanExternalId["idType"], idValue: string) => {
       const key = externalIdKey(idType, idValue);
@@ -75,6 +82,7 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
         if (contractDomain) {
           addId("domain", contractDomain);
           domain = domain ?? contractDomain;
+          website = website ?? websiteByContract.get(ext.idValue) ?? (contractDomain ? websiteFromDomain(contractDomain) : null);
         }
       }
       if (ext.idType === "hios") {
@@ -84,13 +92,14 @@ export function enrichCatalogIdentity(entries: CatalogEntry[]): IdentityEnrichme
         if (hiosDomain) {
           addId("domain", hiosDomain);
           domain = domain ?? hiosDomain;
+          website = website ?? websiteByHios.get(ext.idValue) ?? websiteFromDomain(hiosDomain);
         }
       }
     }
 
-    if (domain && domain !== entry.organization.domain) {
+    if (domain && (domain !== entry.organization.domain || website !== entry.organization.website)) {
       return {
-        organization: { ...entry.organization, domain },
+        organization: { ...entry.organization, domain, website: website ?? entry.organization.website },
         externalIds,
       };
     }

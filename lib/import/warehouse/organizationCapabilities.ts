@@ -1,5 +1,6 @@
-import type { SearchIntent } from "@/lib/discovery/intent";
+import { deriveDomain } from "@/lib/discovery/organization";
 import type { Organization } from "@/lib/discovery/organization";
+import type { SearchIntent } from "@/lib/discovery/intent";
 import { inferStateFromQuery } from "@/lib/directories/search";
 import {
   type OrganizationClassification,
@@ -32,8 +33,13 @@ export function normalizeWarehouseOrganization(org: Organization): Organization 
 
   const sectorAttributes: SectorAttributes = { ...(org.sectorAttributes ?? {}) };
 
+  const website = org.website?.trim() || null;
+  const domain = org.domain?.trim().toLowerCase() ?? deriveDomain(website);
+
   return {
     ...org,
+    website,
+    domain,
     displayName: org.displayName ?? org.canonicalName,
     legalName: org.legalName ?? org.canonicalName,
     parentId: org.parentId ?? null,

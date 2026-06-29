@@ -9,6 +9,9 @@ import type { HealthPlanCatalogDiagnostics } from "@/lib/import/healthPlans/heal
 import { computeManufacturerCoverageReport } from "@/lib/import/manufacturers/coverageReport";
 import type { ManufacturerCoverageReport } from "@/lib/import/manufacturers/coverageReport";
 import { summarizeWarehouseConnectors } from "./index";
+import { getWarehouseOrganizations } from "./organizations";
+import { computeDomainCoverageReport } from "@/lib/domainIntelligence/coverage";
+import type { DomainCoverageReport } from "@/lib/domainIntelligence/types";
 import type {
   OrganizationWarehouseDiagnostics,
   WarehouseConnectorSummary,
@@ -23,6 +26,7 @@ export interface OrganizationWarehouseCoverageReport {
   healthPlans: HealthPlanCoverageReport;
   healthPlanBreakdown: HealthPlanCatalogDiagnostics;
   manufacturers: ManufacturerCoverageReport;
+  domainCoverage: DomainCoverageReport;
 }
 
 /** Warehouse-level coverage report with per-connector detail. */
@@ -35,5 +39,6 @@ export function computeOrganizationWarehouseCoverageReport(): OrganizationWareho
     healthPlans: computeHealthPlanCoverageReport(),
     healthPlanBreakdown: computeExtendedHealthPlanCoverage(),
     manufacturers: computeManufacturerCoverageReport(),
+    domainCoverage: computeDomainCoverageReport(getWarehouseOrganizations()),
   };
 }

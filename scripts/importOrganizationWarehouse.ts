@@ -29,6 +29,18 @@ if (stats.healthPlans) {
 if (stats.manufacturers) {
   console.log(`  Manufacturers indexed: ${stats.manufacturers.indexSizeAfterImport}`);
 }
+if (stats.domainCoverage) {
+  const dc = stats.domainCoverage;
+  console.log(
+    `\nDomain coverage: ${dc.withDomain}/${dc.total} (${dc.pctDomain}%) · ${dc.withWebsite} with website`,
+  );
+  for (const bucket of dc.byBuyerPack) {
+    console.log(`  ${bucket.label}: ${bucket.withDomain}/${bucket.total} (${bucket.pctDomain}%)`);
+  }
+}
+if (stats.domainsEnriched != null && stats.domainsEnriched > 0) {
+  console.log(`  Domains enriched this import: ${stats.domainsEnriched}`);
+}
 
 if (stats.healthPlans?.regressionFindings.length) {
   console.log("\nRegression:");

@@ -58,6 +58,8 @@ export interface OrganizationWarehouseImportResult {
   strictMode: boolean;
   hadFailures: boolean;
   emailPatternsProcessed?: number;
+  domainsEnriched?: number;
+  domainCoverage?: import("@/lib/domainIntelligence/types").DomainCoverageReport;
 }
 
 export type OrganizationWarehouseImportStats = OrganizationWarehouseImportResult;

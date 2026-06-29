@@ -96,6 +96,16 @@ export async function importOrganizationWarehouse(): Promise<OrganizationWarehou
     emailPatternsProcessed = await runEmailIntelligenceAfterWarehouseImport();
   }
 
+  let domainsEnriched = 0;
+  let domainCoverage: import("@/lib/domainIntelligence/types").DomainCoverageReport | undefined;
+  if (process.env.DOMAIN_INTELLIGENCE_ON_IMPORT !== "0") {
+    const { runDomainIntelligenceAfterWarehouseImport, computeDomainCoverageReport } =
+      await import("@/lib/domainIntelligence/pipeline");
+    const { getWarehouseOrganizations } = await import("./organizations");
+    domainsEnriched = await runDomainIntelligenceAfterWarehouseImport();
+    domainCoverage = computeDomainCoverageReport(getWarehouseOrganizations());
+  }
+
   return {
     healthPlans: hp.stats,
     manufacturers: mfg.stats,
@@ -105,6 +115,8 @@ export async function importOrganizationWarehouse(): Promise<OrganizationWarehou
     strictMode,
     hadFailures,
     emailPatternsProcessed,
+    domainsEnriched,
+    domainCoverage,
   };
 }
 

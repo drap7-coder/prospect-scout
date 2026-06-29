@@ -28,6 +28,7 @@ import {
 import type { ManufacturerImportPaths, ManufacturerImportStats } from "./types";
 import { defaultManufacturerImportPaths } from "./fixtures";
 import { isDatabaseConfigured } from "@/lib/db";
+import { enrichCatalogDomains } from "@/lib/domainIntelligence/pipeline";
 
 function seedCatalogEntries() {
   return parseManufacturerSeed().map((row) => {
@@ -74,7 +75,8 @@ export function importManufacturerCatalog(
 
   const merged = mergeManufacturerCatalog(existingEntries, candidates);
   const deduped = dedupeCatalogEntriesByOrganizationId(merged.catalogEntries);
-  const organizations = deduped.entries.map((entry) => entry.organization);
+  const domainEnriched = enrichCatalogDomains(deduped.entries);
+  const organizations = domainEnriched.entries.map((entry) => entry.organization);
 
   indexManufacturerOrganizations(organizations);
   markManufacturerIndexLoaded();

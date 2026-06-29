@@ -17,7 +17,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 }
 
 export default async function OrganizationWarehouseCoveragePage() {
-  const { warehouse, connectors, connectorDetails, healthPlans, healthPlanBreakdown, manufacturers } =
+  const { warehouse, connectors, connectorDetails, healthPlans, healthPlanBreakdown, manufacturers, domainCoverage } =
     computeOrganizationWarehouseCoverageReport();
 
   const healthPlanStateRows = Object.entries(healthPlans.countByState).sort(
@@ -56,6 +56,75 @@ export default async function OrganizationWarehouseCoveragePage() {
               <StatRow label="Production connectors" value={connectors.length} />
             </tbody>
           </table>
+        </section>
+
+        <section className="card-float p-5">
+          <h2 className="mb-1 text-lg font-medium">Domain Intelligence</h2>
+          <p className="mb-3 text-sm text-[var(--muted)]">
+            Canonical website and primary domain — foundation for all downstream enrichment
+            (email patterns, tech stack, leadership, news).
+          </p>
+          <table className="w-full">
+            <tbody>
+              <StatRow
+                label="Organizations with domain"
+                value={`${domainCoverage.withDomain.toLocaleString()} / ${domainCoverage.total.toLocaleString()} (${domainCoverage.pctDomain}%)`}
+              />
+              <StatRow
+                label="Organizations with website"
+                value={`${domainCoverage.withWebsite.toLocaleString()} / ${domainCoverage.total.toLocaleString()} (${domainCoverage.pctWebsite}%)`}
+              />
+            </tbody>
+          </table>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[480px] text-left text-sm">
+              <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--muted)]">
+                <tr>
+                  <th className="py-2 pr-4 font-medium">Buyer pack</th>
+                  <th className="py-2 pr-4 text-right font-medium">Total</th>
+                  <th className="py-2 pr-4 text-right font-medium">With website</th>
+                  <th className="py-2 pr-4 text-right font-medium">With domain</th>
+                  <th className="py-2 text-right font-medium">Domain %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {domainCoverage.byBuyerPack.map((bucket) => (
+                  <tr key={bucket.label} className="border-b border-[var(--border)]">
+                    <td className="py-2 pr-4">{bucket.label}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{bucket.total.toLocaleString()}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{bucket.withWebsite.toLocaleString()}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{bucket.withDomain.toLocaleString()}</td>
+                    <td className="py-2 text-right tabular-nums">{bucket.pctDomain}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {domainCoverage.bySector.length > 1 ? (
+            <div className="mt-4 overflow-x-auto">
+              <h3 className="mb-2 text-sm font-medium text-[var(--muted)]">By sector</h3>
+              <table className="w-full min-w-[480px] text-left text-sm">
+                <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--muted)]">
+                  <tr>
+                    <th className="py-2 pr-4 font-medium">Sector</th>
+                    <th className="py-2 pr-4 text-right font-medium">Total</th>
+                    <th className="py-2 pr-4 text-right font-medium">With domain</th>
+                    <th className="py-2 text-right font-medium">Domain %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {domainCoverage.bySector.slice(0, 15).map((bucket) => (
+                    <tr key={bucket.label} className="border-b border-[var(--border)]">
+                      <td className="py-2 pr-4">{bucket.label}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{bucket.total.toLocaleString()}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{bucket.withDomain.toLocaleString()}</td>
+                      <td className="py-2 text-right tabular-nums">{bucket.pctDomain}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </section>
 
         <section className="card-float p-5">
