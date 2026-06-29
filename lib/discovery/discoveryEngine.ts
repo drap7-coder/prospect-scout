@@ -46,6 +46,10 @@ import {
 import { isHealthPlanPersistentSourceEnabled } from "@/lib/import/healthPlans/featureFlag";
 import { resolveDiscoveryRouteMode } from "@/lib/catalog/normalize";
 import {
+  attachEmailPatternsFromWarehouseIndex,
+  applyEmailIntelligenceToDiscoveryOrgs,
+} from "@/lib/emailIntelligence/pipeline";
+import {
   discoverFromOrganizationWarehouse,
   shouldUseOrganizationWarehouse,
   isOrganizationWarehouseEnabled,
@@ -119,7 +123,7 @@ function runDiscoveryPipelineV2Wrapped(
   });
   return {
     intent,
-    organizations: result.organizations,
+    organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
     totalBeforeDedupe: result.totalBeforeDedupe,
     totalAfterRank: result.totalAfterRank,
     totalReturned: result.totalReturned,
@@ -148,7 +152,7 @@ export async function discoverOrganizations(
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
     return {
       intent,
-      organizations: result.organizations,
+      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
       totalReturned: result.totalReturned,
@@ -175,7 +179,7 @@ export function discoverOrganizationsSync(
     const result = discoverFromOrganizationWarehouse(intent, { maxResults: warehouseMax });
     return {
       intent,
-      organizations: result.organizations,
+      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
       totalReturned: result.totalReturned,
@@ -292,7 +296,7 @@ function discoverOrganizationsStagedWithReadiness(
     };
     return {
       intent,
-      organizations: result.organizations,
+      organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
       totalBeforeDedupe: result.totalMatching,
       totalAfterRank: result.totalAfterFilter,
       totalReturned: result.totalReturned,
@@ -358,7 +362,7 @@ function discoverOrganizationsStagedWithReadiness(
 
   return {
     intent: result.intent,
-    organizations: result.organizations,
+    organizations: attachEmailPatternsFromWarehouseIndex(result.organizations),
     totalBeforeDedupe: result.totalBeforeDedupe,
     totalAfterRank: result.totalAfterRank,
     totalReturned: result.totalReturned,
@@ -377,7 +381,9 @@ export async function discoverOrganizationsStagedAsync(
   initDiscoveryEngine();
   await ensureErisaIndexHydrated();
   const readiness = await resolveOrganizationWarehouseReadiness();
-  return discoverOrganizationsStagedWithReadiness(readiness, query, options);
+  const result = discoverOrganizationsStagedWithReadiness(readiness, query, options);
+  const organizations = await applyEmailIntelligenceToDiscoveryOrgs(result.organizations);
+  return { ...result, organizations };
 }
 
 /**

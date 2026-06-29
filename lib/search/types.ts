@@ -13,6 +13,7 @@ import type { ErisaCardIntel } from "@/lib/import/erisa/types";
 import type { OrganizationIntelligenceProfile } from "@/lib/intelligence/framework/types";
 import type { OrganizationRelationshipGraph } from "@/lib/intelligence/relationships/types";
 import type { OrganizationClassification } from "@/lib/organization/model";
+import type { OrganizationEmailPattern } from "@/lib/emailIntelligence/types";
 
 /** Stable identifier for each buyer ecosystem. */
 export type BuyerPackId =
@@ -252,6 +253,8 @@ export interface RawProspect {
   /** Connector source tags when available. */
   tags?: string[];
   parentDisplayName?: string;
+  /** Company-level email naming convention intelligence. */
+  emailPattern?: OrganizationEmailPattern;
 }
 
 /** Provenance record for a data connector backing this organization. */
@@ -386,6 +389,8 @@ export interface Prospect {
   regionBuckets?: string[];
   tags?: string[];
   parentDisplayName?: string;
+  /** Company-level email naming convention intelligence. */
+  emailPattern?: OrganizationEmailPattern;
 }
 
 /** Response shape returned by `/api/search`. */

@@ -57,6 +57,7 @@ export interface OrganizationWarehouseImportResult {
   connectorOutcomes: WarehouseConnectorImportOutcome[];
   strictMode: boolean;
   hadFailures: boolean;
+  emailPatternsProcessed?: number;
 }
 
 export type OrganizationWarehouseImportStats = OrganizationWarehouseImportResult;

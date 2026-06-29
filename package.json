@@ -53,6 +53,8 @@
     "import:manufacturers": "node --import tsx scripts/importManufacturers.ts",
     "test:intelligence": "node --import tsx scripts/intelligenceFrameworkChecks.ts",
     "test:db": "node --import tsx scripts/dbSchemaChecks.ts",
+    "test:email": "node --import tsx scripts/emailIntelligenceChecks.ts",
+    "backfill:email-patterns": "node --import tsx scripts/backfillEmailPatterns.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

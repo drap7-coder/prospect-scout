@@ -22,6 +22,7 @@ import {
   topSignals,
 } from "@/lib/intelligence/evidence";
 import { relatedProspects } from "@/lib/intelligence/feed";
+import { ContactIntelligenceSection } from "@/app/components/ContactIntelligenceSection";
 import { getProspectFromSession, loadWorkspace } from "@/lib/intelligence/session";
 
 function confidenceLabel(c: "high" | "medium" | "low"): string {
@@ -259,6 +260,8 @@ export function DossierClient({ id }: { id: string }) {
                 </p>
               )}
             </Section>
+
+            <ContactIntelligenceSection prospect={prospect} />
 
             {related.length > 0 ? (
               <Section title="Related organizations">

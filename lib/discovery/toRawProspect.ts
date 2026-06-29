@@ -2,6 +2,7 @@ import type { RawProspect, SizeTier } from "@/lib/search/types";
 import type { Organization } from "./organization";
 import type { RankedOrganization } from "./rank";
 import { sourceRecordsFromOrgSources } from "@/lib/intelligence/sourceRecords";
+import { readOrganizationEmailPattern } from "@/lib/emailIntelligence/enrichOrganization";
 import { normalizeEinDigits } from "@/lib/discovery/connectors/propublica/normalize";
 
 function extractEinFromOrgId(id: string): string | undefined {
@@ -84,6 +85,7 @@ export function organizationToRawProspect(org: Organization): RawProspect {
     regionBuckets: org.regions,
     tags: org.tags,
     parentDisplayName: org.parentDisplayName ?? undefined,
+    emailPattern: readOrganizationEmailPattern(org) ?? undefined,
   };
 }
 

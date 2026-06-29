@@ -88,6 +88,14 @@ export async function importOrganizationWarehouse(): Promise<OrganizationWarehou
     );
   }
 
+  let emailPatternsProcessed = 0;
+  if (process.env.EMAIL_INTELLIGENCE_ON_IMPORT === "1") {
+    const { runEmailIntelligenceAfterWarehouseImport } = await import(
+      "@/lib/emailIntelligence/pipeline"
+    );
+    emailPatternsProcessed = await runEmailIntelligenceAfterWarehouseImport();
+  }
+
   return {
     healthPlans: hp.stats,
     manufacturers: mfg.stats,
@@ -96,6 +104,7 @@ export async function importOrganizationWarehouse(): Promise<OrganizationWarehou
     connectorOutcomes,
     strictMode,
     hadFailures,
+    emailPatternsProcessed,
   };
 }
 

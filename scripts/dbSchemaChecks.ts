@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import {
   discoveryRuns,
+  emailPatternEvidence,
   externalIds,
   organizationSources,
   organizations,
@@ -27,11 +28,12 @@ function check(name: string, fn: () => void) {
 
 console.log("Database schema checks:\n");
 
-check("schema exports four core tables", () => {
+check("schema exports core tables including email evidence", () => {
   assert.equal(organizations.id.name, "id");
   assert.equal(externalIds.id.name, "id");
   assert.equal(organizationSources.id.name, "id");
   assert.equal(discoveryRuns.id.name, "id");
+  assert.equal(emailPatternEvidence.id.name, "id");
 });
 
 check("organization mapper preserves canonical fields", () => {

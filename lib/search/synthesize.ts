@@ -237,5 +237,6 @@ export function synthesizeProspect(
     regionBuckets: prospect.regionBuckets,
     tags: prospect.tags,
     parentDisplayName: prospect.parentDisplayName,
+    emailPattern: prospect.emailPattern,
   };
 }
