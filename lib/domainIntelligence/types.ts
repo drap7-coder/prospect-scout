@@ -3,6 +3,7 @@ export type DomainIntelligenceSource =
   | "directory_match"
   | "identity_propagation"
   | "parent_propagation"
+  | "regional_plan_registry"
   | "derived"
   | "manual";
 
@@ -58,3 +59,24 @@ export const DOMAIN_INTELLIGENCE_SECTOR_KEY = "domainIntelligence";
 
 /** Minimum confidence to persist a looked-up domain (no low-confidence guesses). */
 export const DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD = 0.85;
+
+export type ParentMatchSignal =
+  | "parent_display_name"
+  | "parent_organization"
+  | "legal_entity_token"
+  | "issuer_token"
+  | "curated_alias";
+
+/** Curated parent → domain rule used for high-confidence propagation. */
+export interface ParentDomainRule {
+  id: string;
+  parentOrg: string;
+  domain: string;
+  website: string;
+  confidence: number;
+  parentNames: string[];
+  entityTokens: string[];
+  states?: string[];
+  national?: boolean;
+  excludeTokens?: string[];
+}

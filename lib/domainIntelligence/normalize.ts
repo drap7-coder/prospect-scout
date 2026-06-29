@@ -3,14 +3,27 @@ import { deriveDomain } from "@/lib/discovery/organization";
 const CORPORATE_SUFFIXES =
   /\b(inc|incorporated|corp|corporation|co|company|llc|l\.l\.c\.|lp|l\.p\.|plc|group|holdings|insurance|health|healthcare|plan|plans|services)\b/gi;
 
-/** Normalize organization names for exact directory matching. */
-export function normalizeOrganizationName(name: string): string {
-  return name
+/** Collapse Blue Cross Blue Shield phrase variants for consistent matching. */
+export function normalizeBluesBrandPhrase(text: string): string {
+  let out = text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(CORPORATE_SUFFIXES, " ")
+    .replace(/[^a-z0-9\s&]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  out = out.replace(/\bblue cross\s+(?:and|&)\s+blue shield\b/g, "blue cross blue shield");
+  out = out.replace(/\bbluecross\s+blueshield\b/g, "blue cross blue shield");
+  out = out.replace(/\bbcbs\b/g, "blue cross blue shield");
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/** Normalize organization names for exact directory matching. */
+export function normalizeOrganizationName(name: string): string {
+  return normalizeBluesBrandPhrase(
+    name
+      .replace(CORPORATE_SUFFIXES, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 /**
@@ -18,11 +31,13 @@ export function normalizeOrganizationName(name: string): string {
  * "health" and "group" so "UnitedHealth Group" does not collapse to "united".
  */
 export function normalizeBrandPhrase(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeBluesBrandPhrase(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s&]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 /** Normalize and validate a website URL. */

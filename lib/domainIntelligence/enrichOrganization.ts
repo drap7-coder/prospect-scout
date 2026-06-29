@@ -5,10 +5,8 @@ import {
   normalizePrimaryDomain,
   normalizeWebsiteUrl,
 } from "./normalize";
-import {
-  resolveHighConfidenceDomain,
-  domainLookupFromPropagatedDomain,
-} from "./resolveDomain";
+import { domainLookupFromPropagatedDomain } from "./resolveDomain";
+import { resolveImportTimeDomain } from "./importPropagation";
 import type {
   DomainLookupResult,
   OrganizationDomainIntelligence,
@@ -71,10 +69,8 @@ export function enrichOrganizationDomain(
     return { organization: org, applied: false, lookup: null };
   }
 
-  const lookup = resolveHighConfidenceDomain({
-    organization: org,
-    externalIds: externalIds ?? org.externalIds,
-  });
+  const propagated = resolveImportTimeDomain(org, externalIds);
+  const lookup = propagated?.lookup ?? null;
 
   if (!lookup) {
     const website = normalizeWebsiteUrl(org.website);

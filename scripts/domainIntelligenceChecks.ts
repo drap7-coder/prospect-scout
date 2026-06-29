@@ -18,7 +18,11 @@ import {
   computeDomainCoverageReport,
   resolveParentOrganizationDomain,
   resetParentDomainRulesCache,
+  resolveRegionalPlanDomain,
+  resolveImportTimeDomain,
   DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD,
+  normalizeBluesBrandPhrase,
+  normalizeBrandPhrase,
 } from "../lib/domainIntelligence/index.ts";
 
 let passed = 0;
@@ -439,6 +443,219 @@ check("does not false-positive United Mine Workers as UnitedHealth", () => {
     aliases: ["UMWA Health and Retirement Funds"],
   });
   assert.equal(resolveParentOrganizationDomain(org), null);
+});
+
+check("propagates Evernorth domain from entity token", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "evernorth",
+    canonicalName: "Evernorth Health Services",
+    states: ["CT"],
+    geography: { states: ["CT"], regions: [], national: true, headquarters: null },
+  });
+  const lookup = resolveParentOrganizationDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "evernorth.com");
+});
+
+check("resolves Sunshine State Health Plan via regional registry", () => {
+  const org = healthPlanOrg({
+    id: "sunshine",
+    canonicalName: "Sunshine State Health Plan",
+    parentDisplayName: "Centene Corporation",
+    states: ["FL"],
+    geography: { states: ["FL"], regions: [], national: false, headquarters: "FL" },
+  });
+  const lookup = resolveRegionalPlanDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "sunshinehealth.com");
+  assert.equal(lookup!.source, "regional_plan_registry");
+});
+
+check("resolves Medicaid MCO via regional registry before generic parent", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "buckeye",
+    canonicalName: "Buckeye Community Health Plan, Inc.",
+    parentDisplayName: "Centene Corporation",
+    states: ["OH"],
+    geography: { states: ["OH"], regions: [], national: false, headquarters: "OH" },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "buckeyehealthplan.com");
+  assert.equal(lookup!.source, "regional_plan_registry");
+});
+
+check("resolves BCBS Michigan with state-scoped parent rule", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "bcbs-mi",
+    canonicalName: "Blue Cross Blue Shield of Michigan",
+    states: ["MI"],
+    geography: { states: ["MI"], regions: [], national: false, headquarters: "Detroit, MI" },
+  });
+  const lookup = resolveParentOrganizationDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsm.com");
+});
+
+check("normalizes Blues phrase variants equivalently", () => {
+  const variants = [
+    "Blue Cross and Blue Shield of Alabama",
+    "Blue Cross & Blue Shield of Alabama",
+    "Blue Cross Blue Shield of Alabama",
+    "BCBS of Alabama",
+  ].map(normalizeBrandPhrase);
+  const expected = normalizeBrandPhrase("Blue Cross Blue Shield of Alabama");
+  for (const variant of variants) {
+    assert.equal(variant, expected);
+  }
+});
+
+check("resolves Blue Cross and Blue Shield of Alabama via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-al",
+    canonicalName: "Blue Cross and Blue Shield of Alabama",
+    parentDisplayName: "Blue Cross and Blue Shield of Alabama",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsal.org");
+});
+
+check("resolves Blue Cross & Blue Shield of Rhode Island via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-ri",
+    canonicalName: "Blue Cross & Blue Shield of Rhode Island",
+    parentDisplayName: "Blue Cross & Blue Shield of Rhode Island",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bcbsri.com");
+});
+
+check("resolves Premera Blue Cross Blue Shield of Alaska via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "premera-ak",
+    canonicalName: "Premera Blue Cross Blue Shield of Alaska",
+    parentDisplayName: "Premera Blue Cross Blue Shield of Alaska",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "premera.com");
+});
+
+check("resolves MDwise via regional registry", () => {
+  const org = healthPlanOrg({
+    id: "mdwise",
+    canonicalName: "MDwise",
+    parentDisplayName: "McLaren Health Care",
+    states: ["IN"],
+    geography: { states: ["IN"], regions: [], national: false, headquarters: "IN" },
+  });
+  const lookup = resolveRegionalPlanDomain(org);
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "mdwise.org");
+});
+
+check("resolves Blue Cross Blue Shield of Massachusetts via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "bcbs-ma",
+    canonicalName: "Blue Cross and Blue Shield of Massachusetts",
+    parentDisplayName: "Blue Cross and Blue Shield of Massachusetts, Inc.",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "bluecrossma.org");
+});
+
+check("resolves WellSense Health Plan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "wellsense",
+    canonicalName: "WellSense Health Plan",
+    parentDisplayName: "WellSense Health Plan",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "wellsense.org");
+});
+
+check("resolves Elderplan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "elderplan",
+    canonicalName: "Elderplan",
+    parentDisplayName: "Elderplan, Inc.",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "elderplan.org");
+});
+
+check("resolves CHRISTUS Health Plan via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "christus",
+    canonicalName: "CHRISTUS Health Advantage",
+    parentDisplayName: "CHRISTUS Health",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "christushealthplan.org");
+});
+
+check("resolves AlohaCare via parent rule", () => {
+  resetParentDomainRulesCache();
+  resetDomainRegistryCache();
+  const org = healthPlanOrg({
+    id: "alohacare",
+    canonicalName: "AlohaCare",
+    parentDisplayName: "AlohaCare",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  const lookup = resolveHighConfidenceDomain({ organization: org });
+  assert.ok(lookup);
+  assert.equal(lookup!.domain, "alohacare.org");
+});
+
+check("import propagation rejects ambiguous parent matches", () => {
+  resetParentDomainRulesCache();
+  const org = healthPlanOrg({
+    id: "ambiguous-bcbs",
+    canonicalName: "Blue Cross Blue Shield",
+    states: [],
+    geography: { states: [], regions: [], national: false, headquarters: null },
+  });
+  assert.equal(resolveImportTimeDomain(org), null);
 });
 
 console.log(`\n${passed} checks passed.`);

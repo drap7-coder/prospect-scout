@@ -9,19 +9,13 @@ import {
 } from "./normalize";
 import { buildDomainRegistry, type DirectoryDomainRecord } from "./registry";
 import { resolveParentOrganizationDomain } from "./parentPropagation";
+import { resolveRegionalPlanDomain } from "./regionalPlanRegistry";
+import { resolveOrgStates } from "./stateInference";
 import type { DomainLookupResult } from "./types";
 import { DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD } from "./types";
 
 function orgStates(org: Organization): string[] {
-  const states = new Set<string>();
-  for (const s of org.geography?.states ?? []) states.add(s.toUpperCase());
-  for (const s of org.states ?? []) states.add(s.toUpperCase());
-  const hq = org.headquarters ?? org.geography?.headquarters;
-  if (hq) {
-    const match = hq.match(/\b([A-Z]{2})\b/);
-    if (match) states.add(match[1]!);
-  }
-  return [...states];
+  return resolveOrgStates(org);
 }
 
 function disambiguateByState(
@@ -161,6 +155,11 @@ export function resolveHighConfidenceDomain(input: {
   const fromIds = lookupExternalIds(externalIds ?? organization.externalIds, registry);
   if (fromIds && fromIds.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
     return fromIds;
+  }
+
+  const fromRegional = resolveRegionalPlanDomain(organization);
+  if (fromRegional && fromRegional.confidence >= DOMAIN_LOOKUP_CONFIDENCE_THRESHOLD) {
+    return fromRegional;
   }
 
   const fromName = lookupByName(organization, registry);

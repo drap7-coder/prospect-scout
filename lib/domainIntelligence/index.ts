@@ -15,6 +15,7 @@ export {
 export {
   normalizeOrganizationName,
   normalizeBrandPhrase,
+  normalizeBluesBrandPhrase,
   normalizePrimaryDomain,
   normalizeWebsiteUrl,
   websiteFromDomain,
@@ -43,6 +44,26 @@ export {
   type ParentDomainRule,
   type ParentMatchSignal,
 } from "./parentMappings";
+
+export { CURATED_PARENT_DOMAIN_RULES } from "./curatedParents";
+
+export {
+  resolveRegionalPlanDomain,
+  REGIONAL_PLAN_DOMAIN_ENTRIES,
+  type RegionalPlanDomainEntry,
+  type RegionalPlanType,
+} from "./regionalPlanRegistry";
+
+export {
+  resolveImportTimeDomain,
+  type ImportPropagationResult,
+} from "./importPropagation";
+
+export {
+  inferStatesFromOrgText,
+  resolveOrgStates,
+  collectOrgNameTexts,
+} from "./stateInference";
 
 export {
   enrichOrganizationDomain,

@@ -57,6 +57,7 @@
     "backfill:email-patterns": "node --import tsx scripts/backfillEmailPatterns.ts",
     "test:domain": "node --import tsx scripts/domainIntelligenceChecks.ts",
     "backfill:domains": "node --import tsx scripts/backfillDomains.ts",
+    "report:domain-backfill": "node --import tsx scripts/domainBackfillReport.ts",
     "test:enterprise": "node --import tsx scripts/enterpriseRollupChecks.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
