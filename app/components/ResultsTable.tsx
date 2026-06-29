@@ -1,7 +1,11 @@
 "use client";
 
 import type { Prospect } from "@/lib/search/types";
+import type { SearchState } from "@/lib/search/searchState";
+import type { ResultDensity } from "@/lib/intelligence/resultDensity";
+import { buildEnterpriseProspectDisplay } from "@/lib/enterprise/prospectDisplay";
 import { prospectFreshness, formatFreshness } from "@/lib/intelligence/evidence";
+import { EnterpriseBadge } from "./EnterpriseProspectMeta";
 
 function intelligenceHighlight(prospect: Prospect): string {
   const mod = prospect.organizationIntelligence?.modules[0];
@@ -26,10 +30,12 @@ export function ResultsTable({
   prospects,
   selectedId,
   onSelect,
+  searchState,
 }: {
   prospects: Prospect[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   return (
     <div className="results-table-wrap overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
@@ -69,6 +75,7 @@ export function ResultsTable({
           {prospects.map((prospect, index) => {
             const selected = prospect.id === selectedId;
             const freshness = formatFreshness(prospectFreshness(prospect));
+            const display = buildEnterpriseProspectDisplay(prospect, searchState);
 
             return (
               <tr
@@ -92,9 +99,22 @@ export function ResultsTable({
                 </td>
                 <td className="results-table-td">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">
-                      {prospect.name}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="truncate font-medium text-foreground">
+                        {prospect.name}
+                      </p>
+                      {display.isEnterprise ? <EnterpriseBadge /> : null}
+                    </div>
+                    {display.collapseLine ? (
+                      <p className="mt-0.5 truncate text-xs text-muted-2">
+                        {display.collapseLine}
+                      </p>
+                    ) : null}
+                    {display.matchedLob ? (
+                      <p className="mt-0.5 truncate text-xs text-muted-2">
+                        {display.matchedLob}
+                      </p>
+                    ) : null}
                     <p className="mt-0.5 truncate text-xs text-muted md:hidden">
                       {prospect.buyerType}
                       {prospect.location ? ` · ${prospect.location}` : ""}

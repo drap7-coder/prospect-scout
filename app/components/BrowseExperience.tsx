@@ -103,6 +103,7 @@ export function BrowseExperience({
                 ? () => onApplyFilter(row.viewAll!.filterPatch)
                 : undefined
             }
+            searchState={searchState}
           />
         </div>
       ))}

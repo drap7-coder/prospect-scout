@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import type { Prospect } from "@/lib/search/types";
+import type { SearchState } from "@/lib/search/searchState";
+import { buildEnterpriseProspectDisplay } from "@/lib/enterprise/prospectDisplay";
 import { faviconUrl } from "@/lib/intelligence/sourceRecords";
 import {
   primaryBusinessLine,
@@ -9,6 +11,7 @@ import {
   prospectKeyMetric,
 } from "@/lib/browse/prospectWarehouse";
 import { useInteractionFeedback } from "./InteractionProvider";
+import { EnterpriseProspectMeta } from "./EnterpriseProspectMeta";
 
 function EnterpriseLogo({ website, name }: { website?: string; name: string }) {
   const icon = faviconUrl(website);
@@ -32,10 +35,12 @@ export function ExecutiveBrowseCard({
   prospect,
   selected,
   onViewDetails,
+  searchState,
 }: {
   prospect: Prospect;
   selected: boolean;
   onViewDetails: () => void;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   const { feedback } = useInteractionFeedback();
   const enterprise = prospect.enterpriseProfile;
@@ -71,6 +76,11 @@ export function ExecutiveBrowseCard({
     if (isEnterprise) return "Enterprise";
     return prospect.buyerType || "Organization";
   }, [isEnterprise, prospect.buyerType]);
+
+  const enterpriseDisplay = useMemo(
+    () => buildEnterpriseProspectDisplay(prospect, searchState),
+    [prospect, searchState],
+  );
 
   function handleClick() {
     feedback("select");
@@ -150,6 +160,8 @@ export function ExecutiveBrowseCard({
           </div>
         ) : null}
       </dl>
+
+      <EnterpriseProspectMeta display={enterpriseDisplay} />
 
       {why ? <p className="exec-browse-thesis">{why}</p> : null}
     </article>

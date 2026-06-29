@@ -40,6 +40,9 @@ function hasDiscoveryIntent(input: RawSearchInput, queryText: string): boolean {
       input.industryId ||
       input.organizationTypeId ||
       input.state ||
+      input.classificationNamespace ||
+      input.classificationId ||
+      input.catalogNodeId ||
       /\b(manufactur|employer|self[- ]?fund|5500|erisa|plan sponsor|benefits buyer|bank|credit union|universit|college|nonprofit|charit|foundation|retail|grocer|government|municipal|school|health ?plan|health ?system|hospital|clinic|provider|payer|insurer|insurance|mco|medicare|medicaid|aca|obamacare|marketplace|exchange|qhp|pbm|pharmacy benefit|pharma|biotech|device|food|beverage|aerospace|logistics|software|fintech)\b/i.test(
         queryText,
       ) ||
@@ -55,20 +58,26 @@ type DiscoverStagedFn = (
     organizationTypeId?: string | null;
     state?: string | null;
     region?: string | null;
+    catalogNodeId?: string | null;
+    classificationNamespace?: string | null;
+    classificationId?: string | null;
   },
 ) => StagedDiscoverResult | Promise<StagedDiscoverResult>;
 
+/** Mirror searchStateToDiscoveryIntent — classification must reach warehouse discovery. */
 function buildDiscoveryOptions(
+  input: RawSearchInput,
   profile: ReturnType<typeof parseIntent>["profile"],
-  catalogNodeId?: string | null,
 ) {
   return {
-    sectorId: profile.sectorId,
-    industryId: profile.industryId,
-    organizationTypeId: profile.organizationTypeId,
-    state: profile.state,
+    sectorId: profile.sectorId ?? input.sectorId,
+    industryId: profile.industryId ?? input.industryId,
+    organizationTypeId: profile.organizationTypeId ?? input.organizationTypeId,
+    state: profile.state ?? input.state,
     region: profile.region !== ANY_REGION ? profile.region : null,
-    catalogNodeId: catalogNodeId ?? profile.catalogNodeId ?? null,
+    catalogNodeId: input.catalogNodeId ?? profile.catalogNodeId ?? null,
+    classificationNamespace: input.classificationNamespace ?? null,
+    classificationId: input.classificationId ?? null,
   };
 }
 
@@ -99,7 +108,7 @@ function discoverStageSync(
     return { query, discoveryIntent, staged: null };
   }
 
-  const staged = discover(queryText, buildDiscoveryOptions(profile, input.catalogNodeId));
+  const staged = discover(queryText, buildDiscoveryOptions(input, profile));
   if (staged instanceof Promise) {
     throw new Error("discoverStageSync called with async discover function");
   }
@@ -121,7 +130,7 @@ async function discoverStage(
     return { query, discoveryIntent, staged: null };
   }
 
-  const staged = await discover(queryText, buildDiscoveryOptions(profile, input.catalogNodeId));
+  const staged = await discover(queryText, buildDiscoveryOptions(input, profile));
   return { query, discoveryIntent, staged };
 }
 
@@ -255,5 +264,6 @@ function buildCoverageMetadata(
     mergedUnique: staged?.mergedUnique,
     marketBenchmarkAvailable: staged?.marketBenchmarkAvailable ?? false,
     warehouse: staged?.warehouse,
+    enterpriseRollup: staged?.enterpriseRollup,
   };
 }

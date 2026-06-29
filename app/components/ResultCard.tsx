@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import type { Prospect } from "@/lib/search/types";
+import type { SearchState } from "@/lib/search/searchState";
 import type { ResultDensity } from "@/lib/intelligence/resultDensity";
+import { buildEnterpriseProspectDisplay } from "@/lib/enterprise/prospectDisplay";
 import { faviconUrl } from "@/lib/intelligence/sourceRecords";
 import { synthesizeExecutiveCard } from "@/lib/intelligence/executiveCard";
 import { useNonprofitEnrichment } from "@/lib/intelligence/useNonprofitEnrichment";
@@ -12,6 +14,7 @@ import { ExecutiveThesis } from "./executive/ExecutiveThesis";
 import { OrganizationTypeRenderer } from "./executive/OrganizationTypeRenderer";
 import { VerifiedData } from "./executive/VerifiedData";
 import { CardActions } from "./executive/CardActions";
+import { EnterpriseProspectMeta } from "./EnterpriseProspectMeta";
 import { IntelligenceModulesPanel } from "./intelligence/IntelligenceModulesPanel";
 import {
   isNonprofitProspect,
@@ -39,6 +42,7 @@ export function ResultCard({
   selected,
   enriching,
   onViewDetails,
+  searchState,
 }: {
   prospect: Prospect;
   rank: number;
@@ -46,6 +50,7 @@ export function ResultCard({
   selected: boolean;
   enriching?: boolean;
   onViewDetails: () => void;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   const { feedback } = useInteractionFeedback();
 
@@ -70,6 +75,11 @@ export function ResultCard({
     enriching && prospect.signals.length === 0 && prospect.directoryMatch,
   );
   const isCompact = density === "compact";
+
+  const enterpriseDisplay = useMemo(
+    () => buildEnterpriseProspectDisplay(prospect, searchState),
+    [prospect, searchState],
+  );
 
   const identityMeta = [card.orgType, card.headquarters].filter(Boolean).join(" · ");
   const shareText = `${card.name}${card.thesis ? ` — ${card.thesis}` : ""}`;
@@ -105,6 +115,8 @@ export function ResultCard({
       </header>
 
       <ExecutiveThesis thesis={card.thesis} />
+
+      <EnterpriseProspectMeta display={enterpriseDisplay} compact={isCompact} />
 
       <div onClick={(e) => e.stopPropagation()}>
         <IntelligenceModulesPanel
@@ -143,6 +155,7 @@ export function ResultRow(props: {
   onSelect: () => void;
   density?: ResultDensity;
   enriching?: boolean;
+  searchState?: Pick<SearchState, "classificationNamespace" | "classificationId"> | null;
 }) {
   return (
     <ResultCard
@@ -152,6 +165,7 @@ export function ResultRow(props: {
       selected={props.selected}
       enriching={props.enriching}
       onViewDetails={props.onSelect}
+      searchState={props.searchState}
     />
   );
 }

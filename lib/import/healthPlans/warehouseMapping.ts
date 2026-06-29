@@ -10,6 +10,7 @@ import type {
   OrganizationGeography,
   SectorAttributes,
 } from "@/lib/organization/model";
+import { mergeClassificationRecords } from "@/lib/organization/intelligence";
 import type { HealthPlanExternalId } from "./cms/types";
 
 export const HEALTH_PLANS_CLASSIFICATION_NAMESPACE = "health-plans";
@@ -109,11 +110,33 @@ export function applyHealthPlanWarehouseFields(
     states: fields.geography.states,
     regions: fields.geography.regions,
     headquarters: fields.geography.headquarters ?? org.headquarters,
-    classifications: fields.classifications,
+    classifications: enrichHealthPlanLobClassifications(fields.classifications, org.tags ?? []),
     sectorAttributes: { ...(org.sectorAttributes ?? {}), ...fields.sectorAttributes },
     externalIds: fields.externalIds,
     healthPlanType,
   };
+}
+
+/**
+ * Promote connector tags into LOB classifications when CMS rows omit explicit segments.
+ * Keeps warehouse filtering aligned with catalog LOB nodes (e.g. commercial-plans).
+ */
+export function enrichHealthPlanLobClassifications(
+  classifications: OrganizationClassification[],
+  tags: string[] = [],
+): OrganizationClassification[] {
+  const records = [...classifications];
+  const lobIds = new Set(
+    records
+      .filter((c) => c.namespace === HEALTH_PLANS_CLASSIFICATION_NAMESPACE)
+      .map((c) => c.id),
+  );
+
+  if (tags.includes("commercial") && !lobIds.has("commercial")) {
+    records.push(healthPlanClassification("commercial", "Commercial"));
+  }
+
+  return mergeClassificationRecords(records);
 }
 
 /** Infer health-plans classification filter from natural-language query (connector layer). */
