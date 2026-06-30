@@ -117,6 +117,36 @@ export function applyHealthPlanWarehouseFields(
   };
 }
 
+const GOVERNMENT_MARKET_LOB_IDS = new Set([
+  "aca_marketplace",
+  "medicaid_managed_care",
+  "chip",
+]);
+
+/**
+ * Whether a `commercial` connector tag should become a Commercial LOB classification.
+ * ACA/exchange and Medicaid-only issuers are not group commercial by default.
+ */
+export function shouldPromoteCommercialFromTag(
+  lobIds: Set<string>,
+  tags: string[],
+): boolean {
+  if (!tags.includes("commercial")) return false;
+
+  const hasExchange = tags.includes("exchange");
+  const hasAca = lobIds.has("aca_marketplace");
+  const hasMedicaid = lobIds.has("medicaid_managed_care");
+  const hasMa = lobIds.has("medicare_advantage") || lobIds.has("part_d");
+  const onlyGovernmentMarkets =
+    lobIds.size > 0 && [...lobIds].every((id) => GOVERNMENT_MARKET_LOB_IDS.has(id));
+
+  if (hasExchange && hasAca && !hasMa) return false;
+  if (hasAca && !hasMa && !hasMedicaid) return false;
+  if (onlyGovernmentMarkets && hasMedicaid && !hasMa) return false;
+
+  return true;
+}
+
 /**
  * Promote connector tags into LOB classifications when CMS rows omit explicit segments.
  * Keeps warehouse filtering aligned with catalog LOB nodes (e.g. commercial-plans).
@@ -132,7 +162,10 @@ export function enrichHealthPlanLobClassifications(
       .map((c) => c.id),
   );
 
-  if (tags.includes("commercial") && !lobIds.has("commercial")) {
+  if (
+    !lobIds.has("commercial") &&
+    shouldPromoteCommercialFromTag(lobIds, tags)
+  ) {
     records.push(healthPlanClassification("commercial", "Commercial"));
   }
 
