@@ -318,6 +318,7 @@ if (process.env.ORG_WAREHOUSE === "1") {
     "../lib/discovery/discoveryEngine.ts"
   );
   const { runSearch } = await import("../lib/search/runSearch.ts");
+  const { runSearchWithProviders } = await import("../lib/search/runSearchSec.ts");
   const { getHealthPlanIndexSize } = await import(
     "../lib/import/healthPlans/memoryIndex.ts"
   );
@@ -345,10 +346,21 @@ if (process.env.ORG_WAREHOUSE === "1") {
     assert.equal(staged.metadata.stagesRun[0], "organization-warehouse");
     assert.ok(staged.totalReturned > 0);
     const warehouseHp = getHealthPlanIndexSize();
-    assert.ok(
-      staged.totalReturned >= warehouseHp * 0.95,
-      `expected ~${warehouseHp} health plans, got ${staged.totalReturned}`,
-    );
+    if (staged.metadata.enterpriseRollup) {
+      assert.equal(
+        staged.totalReturned,
+        staged.metadata.enterpriseRollup.enterpriseCount,
+      );
+      assert.ok(
+        staged.metadata.enterpriseRollup.rawCount >= warehouseHp * 0.95,
+        `expected ~${warehouseHp} raw health plans before rollup, got ${staged.metadata.enterpriseRollup.rawCount}`,
+      );
+    } else {
+      assert.ok(
+        staged.totalReturned >= warehouseHp * 0.95,
+        `expected ~${warehouseHp} health plans, got ${staged.totalReturned}`,
+      );
+    }
   });
 
   check("catalog health plans runSearch returns warehouse results", () => {
@@ -437,6 +449,23 @@ if (process.env.ORG_WAREHOUSE === "1") {
       search.discovery?.metadata?.stagesRun?.includes("organization-warehouse"),
     );
   });
+
+  {
+    const acaRaw = searchStateToRawInput(
+      catalogNodeToSearchState(getCatalogNode("aca-marketplace-plans")!),
+    );
+    const base = runSearch(acaRaw);
+    const full = await runSearchWithProviders(acaRaw);
+    assert.ok(base.prospects.length >= 100, `warehouse ACA count low: ${base.prospects.length}`);
+    assert.equal(
+      full.prospects.length,
+      base.prospects.length,
+      `provider phase dropped ACA rows: ${base.prospects.length} → ${full.prospects.length}`,
+    );
+    assert.equal(full.discovery?.totalReturned, full.prospects.length);
+    passed += 1;
+    console.log("  ok  catalog ACA Marketplace empty query matches warehouse through provider phase");
+  }
 
   check("universities catalog routes to live discovery not warehouse", () => {
     const uniRaw = searchStateToRawInput(

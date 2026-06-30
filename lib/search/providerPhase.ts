@@ -128,11 +128,43 @@ async function buildEnrichedBaseForPublicWeb(
   return { ...base, prospects };
 }
 
+/** Catalog browse with taxonomy/classification only — no free-text query. */
+export function isCatalogOnlyBrowse(base: SearchResponse): boolean {
+  const raw = base.query.raw;
+  return Boolean(
+    raw.catalogNodeId && !(raw.query?.trim() || raw.targets?.trim()),
+  );
+}
+
+function syncDiscoveryCounts(base: SearchResponse, prospects: Prospect[]): SearchResponse {
+  if (!base.discovery || prospects.length === base.prospects.length) {
+    return { ...base, prospects };
+  }
+  return {
+    ...base,
+    prospects,
+    discovery: {
+      ...base.discovery,
+      totalReturned: prospects.length,
+      metadata: base.discovery.metadata
+        ? {
+            ...base.discovery.metadata,
+            resultCount: prospects.length,
+          }
+        : base.discovery.metadata,
+    },
+  };
+}
+
 /** Runs primary providers in parallel, then secondary (Public Web) sequentially. */
 export async function enrichWithLiveProviders(
   base: SearchResponse,
   plan: SourcePlan,
 ): Promise<SearchResponse> {
+  if (isCatalogOnlyBrowse(base)) {
+    return base;
+  }
+
   const primary = plannedPrimaryProviders(plan);
   const secondary = plannedSecondaryProviders(plan);
 
@@ -153,7 +185,7 @@ export async function enrichWithLiveProviders(
     prospects = mergeProspectLists(prospects, r.prospects);
   }
 
-  return { ...base, prospects };
+  return syncDiscoveryCounts(base, prospects);
 }
 
 /** Provider phase for Public Web with primary enrichment on server. */

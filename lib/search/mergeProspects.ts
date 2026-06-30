@@ -8,6 +8,12 @@ function normalizeOrgKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Stable warehouse rows merge by id; live-provider rows fall back to normalized name. */
+function prospectMergeKey(p: Prospect): string {
+  if (p.id) return `id:${p.id}`;
+  return `name:${normalizeOrgKey(p.name)}`;
+}
+
 function mergeProspectPair(a: Prospect, b: Prospect): Prospect {
   const winner = prospectRank(a) >= prospectRank(b) ? a : b;
   const other = winner === a ? b : a;
@@ -65,7 +71,7 @@ function mergeSourceRecords(
   return [...byKey.values()];
 }
 
-/** Merges prospect lists by normalized org name — keeps the richer / higher-scoring version. */
+/** Merges prospect lists — warehouse rows keyed by id; provider rows by name when id-less. */
 export function mergeProspectLists(
   existing: Prospect[],
   incoming: Prospect[],
@@ -73,7 +79,7 @@ export function mergeProspectLists(
   const byKey = new Map<string, Prospect>();
 
   function put(p: Prospect) {
-    const key = normalizeOrgKey(p.name);
+    const key = prospectMergeKey(p);
     const cur = byKey.get(key);
     if (!cur) {
       byKey.set(key, p);

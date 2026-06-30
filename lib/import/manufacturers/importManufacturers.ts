@@ -115,6 +115,11 @@ export function importManufacturerCatalog(
     stats,
   };
   setManufacturerCatalogImportManifest(manifest);
+  if (isDatabaseConfigured()) {
+    void import("@/lib/import/warehouse/manifestPersistence").then(({ persistManufacturerImportManifest }) =>
+      persistManufacturerImportManifest(manifest),
+    );
+  }
 
   return stats;
 }
