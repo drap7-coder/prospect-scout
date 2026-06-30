@@ -12,6 +12,11 @@ import type {
 } from "@/lib/organization/model";
 import { mergeClassificationRecords } from "@/lib/organization/intelligence";
 import type { HealthPlanExternalId } from "./cms/types";
+import {
+  readGroupCommercialEvidence,
+} from "./groupCommercial/storage";
+import { evidencePromotesCommercialLob } from "./groupCommercial/promotion";
+import type { GroupCommercialEvidenceRecord } from "./groupCommercial/types";
 
 export const HEALTH_PLANS_CLASSIFICATION_NAMESPACE = "health-plans";
 
@@ -110,7 +115,11 @@ export function applyHealthPlanWarehouseFields(
     states: fields.geography.states,
     regions: fields.geography.regions,
     headquarters: fields.geography.headquarters ?? org.headquarters,
-    classifications: enrichHealthPlanLobClassifications(fields.classifications, org.tags ?? []),
+    classifications: enrichHealthPlanLobClassifications(
+      fields.classifications,
+      org.tags ?? [],
+      readGroupCommercialEvidence(org.sectorAttributes ?? fields.sectorAttributes),
+    ),
     sectorAttributes: { ...(org.sectorAttributes ?? {}), ...fields.sectorAttributes },
     externalIds: fields.externalIds,
     healthPlanType,
@@ -149,11 +158,12 @@ export function shouldPromoteCommercialFromTag(
 
 /**
  * Promote connector tags into LOB classifications when CMS rows omit explicit segments.
- * Keeps warehouse filtering aligned with catalog LOB nodes (e.g. commercial-plans).
+ * Commercial LOB requires positive group-commercial evidence — tag-only promotion is blocked.
  */
 export function enrichHealthPlanLobClassifications(
   classifications: OrganizationClassification[],
   tags: string[] = [],
+  commercialEvidence: GroupCommercialEvidenceRecord[] = [],
 ): OrganizationClassification[] {
   const records = [...classifications];
   const lobIds = new Set(
@@ -162,10 +172,9 @@ export function enrichHealthPlanLobClassifications(
       .map((c) => c.id),
   );
 
-  if (
-    !lobIds.has("commercial") &&
-    shouldPromoteCommercialFromTag(lobIds, tags)
-  ) {
+  const promotableFromEvidence = evidencePromotesCommercialLob(commercialEvidence);
+
+  if (!lobIds.has("commercial") && promotableFromEvidence) {
     records.push(healthPlanClassification("commercial", "Commercial"));
   }
 

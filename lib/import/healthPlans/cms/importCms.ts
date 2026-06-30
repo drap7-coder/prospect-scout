@@ -39,6 +39,10 @@ import {
   candidateFromMedicaidEnrollmentPlan,
   candidateFromQhpIssuer,
 } from "./organizationFromCms";
+import {
+  applyGroupCommercialEvidenceToCatalogEntries,
+  defaultGroupCommercialEvidence,
+} from "../groupCommercial";
 import { mergeHealthPlanCatalog, dedupeCatalogEntriesByOrganizationId } from "./mergeCatalog";
 import { enrichCatalogIdentity, type PossibleDuplicateReview } from "./identityEnrichment";
 import { enrichCatalogDomains } from "@/lib/domainIntelligence/pipeline";
@@ -280,12 +284,17 @@ export async function importCmsHealthPlanCatalog(
   const merged = mergeHealthPlanCatalog(existingEntries, candidates);
   const deduped = dedupeCatalogEntriesByOrganizationId(merged.catalogEntries);
   const identityEnriched = enrichCatalogIdentity(deduped.entries);
-  const domainEnriched = enrichCatalogDomains(identityEnriched.entries);
-  const enriched = {
-    entries: domainEnriched.entries,
-    enrichmentsApplied: identityEnriched.enrichmentsApplied + domainEnriched.enrichmentsApplied,
-    possibleDuplicates: identityEnriched.possibleDuplicates,
-  };
+    const domainEnriched = enrichCatalogDomains(identityEnriched.entries);
+    const commercialApplied = applyGroupCommercialEvidenceToCatalogEntries(
+      domainEnriched.entries,
+      defaultGroupCommercialEvidence(),
+    );
+    const enriched = {
+      entries: commercialApplied.entries,
+      enrichmentsApplied: identityEnriched.enrichmentsApplied + domainEnriched.enrichmentsApplied,
+      possibleDuplicates: identityEnriched.possibleDuplicates,
+      groupCommercialEvidenceApplied: commercialApplied.stats,
+    };
   const organizations = enriched.entries.map((entry) => entry.organization);
 
   indexHealthPlanOrganizations(organizations);

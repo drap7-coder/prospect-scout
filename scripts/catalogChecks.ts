@@ -51,13 +51,14 @@ check("healthcare drill-down includes health plans", () => {
   assert.ok(hp!.children?.length);
 });
 
-check("healthcare v2 nests PBMs under health plans", () => {
-  const hp = getCatalogNode("health-plans");
-  assert.ok(hp?.children);
-  const pbms = hp!.children!.find((c) => c.id === "pbms");
+check("healthcare v2 nests PBMs adjacent to health plans", () => {
+  const healthcare = getCatalogNode("healthcare");
+  assert.ok(healthcare?.children);
+  const pbms = healthcare!.children!.find((c) => c.id === "pbms");
   assert.ok(pbms);
   assert.equal(pbms!.coverage, "warehouse");
   assert.equal(pbms!.organizationTypeId, "pbm");
+  assert.ok(!getCatalogNode("health-plans")!.children!.some((c) => c.id === "pbms"));
 });
 
 check("healthcare v2 hierarchy matches warehouse branches", () => {
@@ -66,16 +67,17 @@ check("healthcare v2 hierarchy matches warehouse branches", () => {
   const childIds = healthcare!.children!.map((c) => c.id);
   assert.deepEqual(childIds, [
     "health-plans",
+    "pbms",
     "hospitals-health-systems",
     "provider-groups",
     "pharma-life-sciences",
   ]);
   const lobIds = getCatalogNode("health-plans")!.children!.map((c) => c.id);
   assert.deepEqual(lobIds, [
-    "pbms",
+    "commercial-plans",
+    "aca-marketplace-plans",
     "medicare-advantage-plans",
     "medicaid-mcos",
-    "commercial-plans",
     "tpas-asos",
     "employer-benefit-vendors",
     "specialty-pharmacy-vendors",

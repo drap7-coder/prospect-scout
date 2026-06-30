@@ -12,6 +12,7 @@ import {
   geographyFromLegacyFields,
 } from "@/lib/organization/model";
 import { enrichHealthPlanLobClassifications } from "@/lib/import/healthPlans/warehouseMapping";
+import { readGroupCommercialEvidence } from "@/lib/import/healthPlans/groupCommercial/storage";
 
 export type { OrganizationClassification, OrganizationExternalId, OrganizationGeography, SectorAttributes };
 
@@ -24,7 +25,11 @@ export function normalizeWarehouseOrganization(org: Organization): Organization 
   const classifications = org.classifications?.length
     ? dedupeClassifications(
         org.buyerPack === "health-plans"
-          ? enrichHealthPlanLobClassifications(org.classifications, org.tags ?? [])
+          ? enrichHealthPlanLobClassifications(
+              org.classifications,
+              org.tags ?? [],
+              readGroupCommercialEvidence(org.sectorAttributes),
+            )
           : org.classifications,
       )
     : legacyClassificationsFromHealthPlanType(org);
