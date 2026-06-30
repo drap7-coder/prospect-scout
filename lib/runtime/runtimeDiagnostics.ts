@@ -170,7 +170,7 @@ function buildWarnings(input: {
 
   if (input.enabled && !input.activeForSearch) {
     warnings.push(
-      "Warehouse mode is enabled but the index is empty after hydration. Run `npm run import:warehouse` against production Neon, then POST /api/warehouse/import.",
+      "Warehouse mode is enabled but the index is empty after hydration. Import CMS/manufacturer catalogs to production Neon from your machine (see lib/import/warehouse/README.md — do not use POST /api/warehouse/import on Vercel).",
     );
   }
 

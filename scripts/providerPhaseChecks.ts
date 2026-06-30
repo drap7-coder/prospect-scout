@@ -37,6 +37,8 @@ function prospect(id: string, score: number, signals = 1): Prospect {
     sourceTrail: [],
     outreachAngle: "outreach",
     contactRoles: [],
+    matchReasons: [],
+    sourceRecords: [],
   };
 }
 
@@ -64,6 +66,16 @@ console.log("Running provider phase checks…\n");
   );
   assert.equal(merged.find((p) => p.id === "mid")!.score, 70);
   console.log("  ok mergeProspectLists unions distinct ids and sorts by score");
+}
+
+{
+  const sameNameA = prospect("cms-qhp-1", 60);
+  sameNameA.name = "Ambetter Health";
+  const sameNameB = prospect("cms-qhp-2", 55);
+  sameNameB.name = "Ambetter Health";
+  const merged = mergeProspectLists([sameNameA], [sameNameB]);
+  assert.equal(merged.length, 2, "distinct warehouse ids with same display name must not collapse");
+  console.log("  ok mergeProspectLists preserves distinct ids for same display name");
 }
 
 // provider planning
@@ -126,6 +138,59 @@ console.log("Running provider phase checks…\n");
   console.log("  ok plannedPrimaryProviders excludes CMS/SEC for public-sector");
 }
 
+async function warehouseCatalogBrowseChecks() {
+  if (process.env.ORG_WAREHOUSE !== "1") return;
+
+  const { importNationalHealthPlanCatalog } = await import(
+    "../lib/import/healthPlans/cms/importCms.ts"
+  );
+  const { importNationalManufacturerCatalog } = await import(
+    "../lib/import/manufacturers/importManufacturers.ts"
+  );
+  const { resetCatalogIndex } = await import(
+    "../lib/discovery/catalog/catalogIndex.ts"
+  );
+  const { getCatalogNode, catalogNodeToSearchState } = await import(
+    "../lib/catalog/index.ts"
+  );
+  const { searchStateToRawInput } = await import(
+    "../lib/search/searchState.ts"
+  );
+  const { runSearchAsync } = await import("../lib/search/runSearch.ts");
+  const { enrichWithLiveProviders } = await import(
+    "../lib/search/providerPhase.ts"
+  );
+  const { planSources } = await import("../lib/search/sourcePlanner.ts");
+
+  await importNationalHealthPlanCatalog();
+  importNationalManufacturerCatalog();
+  resetCatalogIndex();
+
+  const raw = searchStateToRawInput(
+    catalogNodeToSearchState(getCatalogNode("aca-marketplace-plans")!),
+  );
+  const base = await runSearchAsync(raw);
+  const enriched = await enrichWithLiveProviders(base, planSources(base.query));
+
+  assert.equal(
+    enriched.prospects.length,
+    base.prospects.length,
+    `catalog-only ACA browse must not drop warehouse rows (${base.prospects.length} → ${enriched.prospects.length})`,
+  );
+  assert.equal(
+    enriched.discovery?.totalReturned,
+    enriched.prospects.length,
+    "discovery.totalReturned must match rendered prospect count after provider phase",
+  );
+  assert.ok(
+    base.prospects.length >= 100,
+    `expected full ACA warehouse population, got ${base.prospects.length}`,
+  );
+  console.log(
+    `  ok catalog-only ACA browse preserves ${enriched.prospects.length} warehouse rows through provider phase`,
+  );
+}
+
 async function timeoutChecks() {
   await assert.rejects(
     () =>
@@ -146,6 +211,7 @@ async function timeoutChecks() {
 }
 
 timeoutChecks()
+  .then(() => warehouseCatalogBrowseChecks())
   .then(() => {
     console.log("\nAll provider phase checks passed.");
   })

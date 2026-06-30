@@ -5,3 +5,4 @@ export * from "./discoveryRuns";
 export * from "./erisaFilings";
 export * from "./erisaServiceProviders";
 export * from "./emailPatternEvidence";
+export * from "./warehouseConnectorManifests";

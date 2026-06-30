@@ -9,6 +9,7 @@ import {
   externalIds,
   organizationSources,
   organizations,
+  warehouseConnectorManifests,
 } from "../lib/db/schema/index.ts";
 import { isDatabaseConfigured } from "../lib/db/index.ts";
 import {
@@ -34,6 +35,7 @@ check("schema exports core tables including email evidence", () => {
   assert.equal(organizationSources.id.name, "id");
   assert.equal(discoveryRuns.id.name, "id");
   assert.equal(emailPatternEvidence.id.name, "id");
+  assert.equal(warehouseConnectorManifests.connectorId.name, "connector_id");
 });
 
 check("organization mapper preserves canonical fields", () => {

@@ -91,6 +91,11 @@ async function hydrateConnectorFromDb(
       setManufacturerHydrationError(null);
     }
 
+    const { hydrateWarehouseImportManifestsFromDb } = await import(
+      "./manifestPersistence"
+    );
+    await hydrateWarehouseImportManifestsFromDb();
+
     return {
       id,
       buyerPack,

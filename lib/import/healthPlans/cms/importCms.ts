@@ -239,6 +239,11 @@ function recordImportManifest(
     possibleDuplicates: options.possibleDuplicates.slice(0, 100),
   };
   setHealthPlanCatalogImportManifest(manifest);
+  if (isDatabaseConfigured()) {
+    void import("@/lib/import/warehouse/manifestPersistence").then(({ persistHealthPlanImportManifest }) =>
+      persistHealthPlanImportManifest(manifest),
+    );
+  }
 }
 
 export interface ImportCmsOptions {

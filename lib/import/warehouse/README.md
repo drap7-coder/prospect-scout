@@ -283,22 +283,39 @@ On Vercel, `VERCEL_GIT_COMMIT_SHA` is set automatically. Non-Vercel builds stamp
 Serverless production **does not** run CMS/SEC import on every cold start. Instead:
 
 1. Set `DATABASE_URL` in Vercel production to your Neon pooled connection string.
-2. Seed Neon once from your machine:
+2. Seed Neon once from your machine (safe path):
 
 ```bash
+npm run fetch:warehouse
 DATABASE_URL="postgresql://..." npm run import:warehouse:neon
 ```
 
 3. Vercel hydrates the in-memory warehouse index from Neon on the first request (`ensureOrganizationWarehouseHydrated`).
 
-Optional remote import (after setting `WAREHOUSE_ADMIN_SECRET` in Vercel):
+Import manifests (`cmsImportMode`, `importedAt`, LOB counts, connector metadata) are persisted in the `warehouse_connector_manifests` table so `/api/diagnostics/runtime` reports honest `catalogMode` and `lastImport` after cold start — not a misleading `fixture` label from filesystem-only checks.
+
+#### Verify production
 
 ```bash
-curl -X POST https://your-app.vercel.app/api/warehouse/import \
-  -H "Authorization: Bearer $WAREHOUSE_ADMIN_SECRET"
+curl -s https://your-app.vercel.app/api/diagnostics/runtime | jq '.warehouse.catalogMode, .warehouse.lastImport, .warehouse.healthPlanOrganizations'
 ```
 
-If `/api/diagnostics/runtime` shows `databaseConfigured: false` or `organizationsInDb: 0`, hydration cannot succeed until Neon is configured and seeded.
+Smoke-test ACA catalog browse (should match warehouse ACA count, e.g. ~143 issuers):
+
+```bash
+curl -s -X POST https://your-app.vercel.app/api/search \
+  -H 'Content-Type: application/json' \
+  -d '{"catalog":"aca-marketplace-plans","phase":"full"}' \
+  | jq '.discovery.totalReturned, (.prospects | length)'
+```
+
+`discovery.totalReturned` and `prospects.length` should match for catalog-only browse.
+
+#### Unsafe: POST /api/warehouse/import on Vercel
+
+**Do not** use `POST /api/warehouse/import` on Vercel production. The deployment bundle does not include production CMS CSV snapshots; a remote import can overwrite Neon with fixture-scale data or fail unpredictably. Always import from your machine with `npm run fetch:warehouse` + `DATABASE_URL=... npm run import:warehouse:neon`.
+
+If `/api/diagnostics/runtime` shows `databaseConfigured: false` or `organizationsInDb: 0`, hydration cannot succeed until Neon is configured and seeded locally.
 
 Connector failures must remain **isolated** (per-connector restore) and **visible** (status `failed` / `warning` with error message in import result and diagnostics UI).
 
