@@ -1,0 +1,86 @@
+[
+  {
+    "organizationName": "UnitedHealthcare",
+    "parentOrganization": "UnitedHealth Group",
+    "domain": "uhc.com",
+    "aliases": ["united healthcare", "unitedhealth", "unitedhealthcare"],
+    "evidenceType": "group_commercial",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known national employer/group commercial carrier",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Aetna",
+    "parentOrganization": "CVS Health",
+    "domain": "aetna.com",
+    "aliases": ["aetna health", "cvs aetna"],
+    "evidenceType": "group_commercial",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known national employer/group commercial carrier",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Cigna Healthcare",
+    "parentOrganization": "The Cigna Group",
+    "domain": "cigna.com",
+    "aliases": ["cigna", "healthspring"],
+    "evidenceType": "group_commercial",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known national employer/group commercial carrier",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Humana",
+    "parentOrganization": "Humana Inc.",
+    "domain": "humana.com",
+    "aliases": ["humana inc", "humana insurance"],
+    "evidenceType": "group_commercial",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known national employer/group commercial carrier",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Elevance Health",
+    "parentOrganization": "Elevance Health Inc.",
+    "domain": "elevancehealth.com",
+    "aliases": ["anthem", "anthem blue cross"],
+    "evidenceType": "group_commercial",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known national employer/group commercial carrier",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Kaiser Foundation Health Plan",
+    "parentOrganization": "Kaiser Permanente",
+    "domain": "kaiserpermanente.org",
+    "aliases": ["kaiser permanente", "kaiser foundation"],
+    "evidenceType": "carrier_group_product",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Known integrated carrier with employer/group commercial medical offering",
+    "allowParentBrandInheritance": true
+  },
+  {
+    "organizationName": "Blue Cross Blue Shield of Michigan",
+    "domain": "bcbsm.com",
+    "aliases": ["bcbs michigan", "bcbsm"],
+    "evidenceType": "carrier_group_product",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Regional employer/group commercial carrier"
+  },
+  {
+    "organizationName": "Meritain Health",
+    "domain": "meritain.com",
+    "aliases": ["meritain"],
+    "evidenceType": "tpa_or_admin_only",
+    "source": "curated",
+    "confidence": "high",
+    "reason": "Third-party administrator — evidence only, not Health Plan Commercial"
+  }
+]

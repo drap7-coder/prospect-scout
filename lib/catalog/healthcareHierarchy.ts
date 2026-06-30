@@ -26,19 +26,20 @@ function healthPlanLobNode(
   };
 }
 
-/** Health Plans branch — PBMs, LOB segments, and pharmacy-benefits vendors. */
+/** Health Plans LOB branches — employer/group commercial, government markets, and specialty lines. */
 export const HEALTH_PLANS_BRANCH_CHILDREN: IndustryCatalogNode[] = [
-  {
-    id: "pbms",
-    label: "PBMs",
-    description: "Pharmacy benefit managers and drug pricing intermediaries",
-    coverage: W,
-    phase: 1,
-    sectorId: "healthcare",
-    industryId: "payers",
-    organizationTypeId: "pbm",
-    warehouseBuyerPack: "health-plans",
-  },
+  healthPlanLobNode(
+    "commercial-plans",
+    "Commercial Plans",
+    "Employer and group commercial medical plans",
+    "commercial",
+  ),
+  healthPlanLobNode(
+    "aca-marketplace-plans",
+    "ACA Marketplace",
+    "ACA Marketplace and QHP exchange issuers",
+    "aca_marketplace",
+  ),
   healthPlanLobNode(
     "medicare-advantage-plans",
     "Medicare Advantage Plans",
@@ -50,12 +51,6 @@ export const HEALTH_PLANS_BRANCH_CHILDREN: IndustryCatalogNode[] = [
     "Medicaid MCOs",
     "Medicaid managed care organizations with CMS warehouse coverage",
     "medicaid_managed_care",
-  ),
-  healthPlanLobNode(
-    "commercial-plans",
-    "Commercial Plans",
-    "Commercial and employer-sponsored health plans in the warehouse",
-    "commercial",
   ),
   {
     id: "tpas-asos",
@@ -93,7 +88,7 @@ export const HEALTHCARE_CATALOG_CHILDREN: IndustryCatalogNode[] = [
   {
     id: "health-plans",
     label: "Health Plans",
-    description: "Commercial, Medicare Advantage, Medicaid, and ACA plans",
+    description: "Commercial, ACA Marketplace, Medicare Advantage, and Medicaid plans",
     coverage: W,
     phase: 1,
     sectorId: "healthcare",
@@ -101,6 +96,17 @@ export const HEALTHCARE_CATALOG_CHILDREN: IndustryCatalogNode[] = [
     organizationTypeId: "health-plan",
     warehouseBuyerPack: "health-plans",
     children: HEALTH_PLANS_BRANCH_CHILDREN,
+  },
+  {
+    id: "pbms",
+    label: "PBMs",
+    description: "Pharmacy benefit managers and drug pricing intermediaries",
+    coverage: W,
+    phase: 1,
+    sectorId: "healthcare",
+    industryId: "payers",
+    organizationTypeId: "pbm",
+    warehouseBuyerPack: "health-plans",
   },
   {
     id: "hospitals-health-systems",

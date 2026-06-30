@@ -18,6 +18,11 @@ import { getWarehouseOrganizations } from "../lib/import/warehouse/organizations
 import { normalizeWarehouseOrganization } from "../lib/import/warehouse/organizationCapabilities.ts";
 import { candidateFromQhpIssuer } from "../lib/import/healthPlans/cms/organizationFromCms.ts";
 import {
+  applyGroupCommercialEvidenceToOrganizations,
+  defaultGroupCommercialEvidence,
+  readGroupCommercialEvidence,
+} from "../lib/import/healthPlans/groupCommercial/index.ts";
+import {
   enrichHealthPlanLobClassifications,
   healthPlanClassification,
   HEALTH_PLANS_CLASSIFICATION_NAMESPACE,
@@ -83,28 +88,7 @@ function matchesName(prospect: Prospect, pattern: RegExp): boolean {
 }
 
 function acaMarketplaceSearch() {
-  return runSearch(
-    searchStateToRawInput({
-      query: "",
-      sector: "healthcare",
-      industry: "payers",
-      organizationType: "health-plan",
-      classificationNamespace: HEALTH_PLANS_CLASSIFICATION_NAMESPACE,
-      classificationId: "aca_marketplace",
-      location: null,
-      companySize: null,
-      signals: [],
-      sources: [],
-      freshness: null,
-      sellerContext: null,
-      ownership: null,
-      state: null,
-      metro: null,
-      operatingStates: [],
-      sort: null,
-      catalogNodeId: null,
-    }),
-  );
+  return runSearch(catalogRawInput("aca-marketplace-plans"));
 }
 
 function prospectsMatching(prospects: Prospect[], pattern: RegExp): Prospect[] {
@@ -167,12 +151,38 @@ check("shouldPromoteCommercialFromTag rejects Medicaid-only evidence", () => {
   assert.equal(shouldPromoteCommercialFromTag(lobIds, ["commercial", "medicaid"]), false);
 });
 
-check("enrichHealthPlanLobClassifications promotes valid standalone commercial tag", () => {
+check("generic commercial tag without group evidence does not promote Commercial", () => {
   const enriched = enrichHealthPlanLobClassifications([], ["commercial"]);
+  assert.ok(!enriched.some((c) => c.id === "commercial"));
+});
+
+check("group commercial evidence promotes Commercial LOB", () => {
+  const enriched = enrichHealthPlanLobClassifications([], [], [
+    {
+      organizationName: "Aetna",
+      evidenceType: "group_commercial",
+      source: "curated",
+      confidence: "high",
+      reason: "Known national employer/group commercial carrier",
+    },
+  ]);
   assert.ok(enriched.some((c) => c.id === "commercial"));
 });
 
-check("enrichHealthPlanLobClassifications skips commercial for ACA-only orgs", () => {
+check("tpa_or_admin_only evidence does not promote Health Plan Commercial", () => {
+  const enriched = enrichHealthPlanLobClassifications([], [], [
+    {
+      organizationName: "Meritain Health",
+      evidenceType: "tpa_or_admin_only",
+      source: "curated",
+      confidence: "high",
+      reason: "Third-party administrator",
+    },
+  ]);
+  assert.ok(!enriched.some((c) => c.id === "commercial"));
+});
+
+check("enrichHealthPlanLobClassifications skips commercial for ACA-only orgs without evidence", () => {
   const enriched = enrichHealthPlanLobClassifications(
     [healthPlanClassification("aca_marketplace", "ACA Marketplace")],
     ["exchange", "commercial"],
@@ -180,13 +190,22 @@ check("enrichHealthPlanLobClassifications skips commercial for ACA-only orgs", (
   assert.ok(!enriched.some((c) => c.id === "commercial"));
 });
 
-check("enrichHealthPlanLobClassifications keeps commercial for multi-LOB carriers with MA", () => {
+check("enrichHealthPlanLobClassifications keeps commercial for multi-LOB carriers with group evidence", () => {
   const enriched = enrichHealthPlanLobClassifications(
     [
       healthPlanClassification("medicare_advantage", "Medicare Advantage"),
       healthPlanClassification("aca_marketplace", "ACA Marketplace"),
     ],
     ["commercial", "exchange"],
+    [
+      {
+        organizationName: "UnitedHealthcare",
+        evidenceType: "group_commercial",
+        source: "curated",
+        confidence: "high",
+        reason: "Known national employer/group commercial carrier",
+      },
+    ],
   );
   assert.ok(enriched.some((c) => c.id === "commercial"));
 });
@@ -310,11 +329,75 @@ check("warehouse Ambetter QHP rows are not classified as Commercial", () => {
   }
 });
 
+check("Commercial Plans excludes Centene QHP issuers", () => {
+  const centeneCommercial = prospectsMatching(commercialSearch.prospects, /centene|ambetter/i);
+  assert.equal(
+    centeneCommercial.length,
+    0,
+    `Centene/Ambetter should not appear in Commercial Plans: ${centeneCommercial.map((p) => p.name).join(", ")}`,
+  );
+});
+
+check("curated group commercial evidence surfaces national carriers in Commercial Plans", () => {
+  assert.ok(commercialSearch.prospects.length > 0, "expected Commercial Plans results from curated evidence");
+  const carriers = [
+    /aetna/i,
+    /unitedhealth|united healthcare/i,
+    /cigna/i,
+    /humana/i,
+    /elevance|anthem/i,
+    /kaiser/i,
+  ];
+  const matched = carriers.filter((pattern) =>
+    commercialSearch.prospects.some((p) => matchesName(p, pattern)),
+  );
+  assert.ok(
+    matched.length >= 4,
+    `expected multiple national carriers in Commercial Plans, got ${matched.length}`,
+  );
+});
+
+check("Meritain TPA evidence applies without commercial LOB promotion", () => {
+  const meritainEvidence = defaultGroupCommercialEvidence().find(
+    (record) => record.organizationName === "Meritain Health",
+  );
+  assert.ok(meritainEvidence);
+  const { organizations } = applyGroupCommercialEvidenceToOrganizations(
+    [
+      {
+        id: "test-meritain",
+        canonicalName: "Meritain Health",
+        aliases: [],
+        organizationType: "health-plan",
+        industries: ["payers"],
+        sectorId: "healthcare",
+        states: ["NY"],
+        regions: [],
+        ownership: "private",
+        sources: [],
+        buyerPack: "health-plans",
+        canonicalOrganizationType: "health-plan",
+        tags: [],
+        classifications: [],
+      },
+    ],
+    [meritainEvidence!],
+  );
+  const org = organizations[0]!;
+  const evidence = readGroupCommercialEvidence(org.sectorAttributes);
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0]?.evidenceType, "tpa_or_admin_only");
+  assert.ok(
+    !(org.classifications ?? []).some(
+      (c) => c.namespace === HEALTH_PLANS_CLASSIFICATION_NAMESPACE && c.id === "commercial",
+    ),
+  );
+});
+
 check("Commercial Plans returns only organizations with commercial LOB", () => {
+  assert.ok(commercialSearch.prospects.length > 0);
   assert.ok(commercialSearch.prospects.length < 800, "commercial should not return full warehouse");
-  if (commercialSearch.prospects.length > 0) {
-    assertAllHaveLob(commercialSearch.prospects, "commercial", "Commercial Plans");
-  }
+  assertAllHaveLob(commercialSearch.prospects, "commercial", "Commercial Plans");
 });
 
 check("Commercial Plans excludes MA-only and Medicaid-only organizations", () => {
@@ -382,10 +465,13 @@ check("enterprise rollup behavior unchanged after LOB passthrough fix", () => {
   }
 });
 
-check("passthrough orphans still appear when unmatched by enterprise key", () => {
+check("commercial results use enterprise rollup without re-polluting ACA issuers", () => {
   if (commercialSearch.prospects.length === 0) return;
-  const orphans = commercialSearch.prospects.filter((p) => !p.isEnterpriseRollup);
-  assert.ok(orphans.length > 0, "expected some passthrough orphans in commercial results");
+  const enterprises = commercialSearch.prospects.filter((p) => p.isEnterpriseRollup);
+  assert.ok(
+    enterprises.length > 0,
+    "expected commercial results to include enterprise rollup profiles",
+  );
 });
 
 check("enterprise rollup metadata preserved in search response", () => {
